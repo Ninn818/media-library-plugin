@@ -1,0 +1,190 @@
+.media-dashboard-bar-label,
+.media-dashboard-bar-value,
+.media-dashboard-chart-empty {
+	font-size: 0.84em;
+	color: var(--text-muted);
+}
+
+.media-dashboard-bar-track,
+.media-dashboard-goal-track {
+	height: 14px;
+	border-radius: 999px;
+	background: linear-gradient(90deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04));
+	overflow: hidden;
+	border: 1px solid rgba(255,255,255,0.08);
+	position: relative;
+}
+
+.media-dashboard-bar-fill,
+.media-dashboard-goal-fill {
+	height: 100%;
+	width: 0;
+	border-radius: inherit;
+	background: linear-gradient(90deg, rgba(94, 212, 181, 0.92), rgba(122, 195, 255, 0.92));
+	box-shadow: 0 0 14px rgba(122, 195, 255, 0.18);
+	transition: width 240ms ease;
+}
+
+.media-dashboard-pie-wrap {
+	display: grid;
+	grid-template-columns: 132px minmax(0, 1fr);
+	gap: 16px;
+	align-items: center;
+	width: 100%;
+}
+
+.media-dashboard-pie {
+	width: 132px;
+	height: 132px;
+	border-radius: 50%;
+	border: 1px solid rgba(255,255,255,0.12);
+	box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+	justify-self: center;
+}
+
+.media-dashboard-pie-legend {
+	display: grid;
+	gap: 8px;
+}
+
+.media-dashboard-pie-row {
+	display: grid;
+	grid-template-columns: 10px minmax(0, 1fr) auto;
+	gap: 8px;
+	align-items: center;
+	padding: 6px 8px;
+	border-radius: 12px;
+	transition: background 140ms ease;
+}
+
+.media-dashboard-pie-row:hover {
+	background: rgba(255,255,255,0.04);
+}
+
+.media-dashboard-pie-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+}
+
+.media-dashboard-pie-label,
+.media-dashboard-pie-value,
+.media-dashboard-goal-label,
+.media-dashboard-goal-note,
+.media-dashboard-action-label,
+.media-dashboard-feed-meta,
+.media-dashboard-sidebar-copy,
+.media-dashboard-summary-copy {
+	font-size: 0.84em;
+	line-height: 1.45;
+}
+
+.media-dashboard-pie-value,
+.media-dashboard-goal-note,
+.media-dashboard-feed-meta,
+.media-dashboard-sidebar-copy,
+.media-dashboard-summary-copy {
+	color: var(--text-muted);
+}
+
+.media-dashboard-spotlight {
+	width: 100%;
+	display: grid;
+	place-items: center;
+	text-align: center;
+	padding: 8px;
+	gap: 8px;
+}
+
+.media-dashboard-spotlight-value {
+	width: 104px;
+	height: 104px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	font-size: 2rem;
+	font-weight: 700;
+	letter-spacing: -0.04em;
+	background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), rgba(122,195,255,0.18));
+	border: 1px solid rgba(255,255,255,0.12);
+	box-shadow: 0 14px 24px rgba(0,0,0,0.12);
+}
+
+.media-dashboard-spotlight-note,
+.media-dashboard-spotlight-label {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+.media-dashboard-sidebar {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.media-dashboard-sidebar-section {
+	padding: 14px;
+	border-radius: 18px;
+	border: 1px solid var(--background-modifier-border);
+	background:
+		radial-gradient(circle at top right, rgba(214, 170, 190, 0.12), transparent 46%),
+		linear-gradient(180deg, var(--ml-panel-bg-top), var(--ml-panel-bg-bottom));
+	box-shadow: var(--ml-panel-shadow);
+	display: grid;
+	gap: 10px;
+}
+
+.media-dashboard-sidebar-title {
+	margin: 0;
+	font-size: 0.72em;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.media-dashboard-action-row,
+.media-dashboard-goal-row,
+.media-dashboard-feed-item {
+	display: grid;
+	gap: 6px;
+}
+
+.media-dashboard-action-button {
+	justify-self: start;
+	padding: 7px 11px;
+	border-radius: 999px;
+	border: 1px solid var(--background-modifier-border);
+	background: rgba(255,255,255,0.04);
+	color: var(--text-normal);
+	font-size: 0.85em;
+	font-weight: 600;
+}
+
+.media-dashboard-quick-picks {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+}
+
+.media-dashboard-quick-pick-button {
+	justify-self: stretch;
+	text-align: center;
+	padding: 10px 12px;
+	background: linear-gradient(140deg, rgba(235, 225, 231, 0.22), rgba(255,255,255,0.03));
+}
+
+.media-dashboard-quick-pick-button:hover {
+	border-color: var(--ml-accent-line);
+	box-shadow: 0 10px 22px rgba(0,0,0,0.12);
+}
+
+.media-library-sidebar-rating-graph {
+	margin-top: 10px;
+	padding: 10px;
+	border-radius: 14px;
+	border: 1px solid rgba(160, 156, 164, 0.25);
+	background: linear-gradient(180deg, rgba(245, 243, 246, 0.22), rgba(245, 243, 246, 0.1));
+	display: grid;
+	gap: 8px;
+}
+

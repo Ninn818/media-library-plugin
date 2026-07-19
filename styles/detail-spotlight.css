@@ -1,0 +1,190 @@
+
+.media-library-load-more {
+	display: grid;
+	justify-items: center;
+	gap: 10px;
+	padding: 18px 0 6px;
+}
+
+.media-library-load-more-label {
+	font-size: 0.86em;
+	color: var(--text-muted);
+}
+
+.media-library-load-more button {
+	padding: 9px 16px;
+	border-radius: 999px;
+	border: 1px solid var(--background-modifier-border);
+	background: linear-gradient(135deg, rgba(122, 195, 255, 0.16), rgba(122, 195, 255, 0.07));
+	color: var(--text-normal);
+	font-weight: 600;
+	box-shadow: 0 10px 22px rgba(0,0,0,0.1);
+}
+
+.media-library-empty {
+	padding: 24px;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+.media-card.is-selected {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+.media-library-detail {
+	margin-top: 12px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--text-normal);
+}
+
+.media-library-spotlight {
+	display: grid;
+	grid-template-columns: minmax(220px, 320px) 1fr;
+	gap: 18px;
+	align-items: start;
+	padding: 18px;
+	margin-top: 4px;
+	border-radius: 22px;
+	border: 1px solid var(--background-modifier-border);
+	background: linear-gradient(135deg, rgba(255,255,255,0.045), rgba(255,255,255,0.02));
+	box-shadow: 0 10px 30px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.08);
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
+}
+
+.media-library-spotlight-cover .media-poster-image {
+	width: 100%;
+	max-height: 520px;
+	object-fit: cover;
+	border-radius: 18px;
+	box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+}
+
+.media-library-spotlight-label {
+	font-size: 0.72em;
+	letter-spacing: 0.15em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	opacity: 0.75;
+	margin-bottom: 6px;
+}
+
+.media-library-spotlight-info {
+	display: grid;
+	gap: 10px;
+}
+
+.media-library-spotlight-actions {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-top: 10px;
+}
+
+.media-library-spotlight-actions button {
+	padding: 9px 14px;
+	border-radius: 999px;
+	border: 1px solid var(--background-modifier-border);
+	background: rgba(255,255,255,0.05);
+	color: var(--text-normal);
+	box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+
+.media-library-spotlight-empty {
+	padding: 12px 4px;
+	color: var(--text-muted);
+}
+
+.media-library-spotlight-empty h3 {
+	margin: 0 0 4px;
+	color: var(--text-normal);
+}
+
+.media-library-detail-header h3 {
+	margin: 0;
+	font-size: 1.6em;
+	letter-spacing: -0.02em;
+}
+
+.media-library-detail-body {
+	display: grid;
+	gap: 10px;
+	margin-top: 14px;
+}
+
+.media-library-review {
+	margin-top: 16px;
+	padding-top: 14px;
+	border-top: 1px solid var(--background-modifier-border);
+	display: grid;
+	gap: 10px;
+}
+
+.media-library-review h4 {
+	margin: 0;
+	font-size: 0.8em;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.media-library-review-textarea {
+	min-height: 120px;
+	width: 100%;
+	padding: 12px 14px;
+	border-radius: 16px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary-alt);
+	color: var(--text-normal);
+	resize: vertical;
+	line-height: 1.5;
+}
+
+.media-library-review-actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.media-library-review-actions button {
+	padding: 8px 12px;
+	border-radius: 999px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+}
+
+.media-library-review-preview {
+	padding: 12px 14px;
+	border-radius: 16px;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid var(--background-modifier-border);
+	line-height: 1.6;
+	white-space: pre-wrap;
+}
+
+.media-library-detail-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 14px;
+	margin-bottom: 14px;
+}
+
+.media-library-detail-actions button,
+.media-library-detail-actions select {
+	padding: 8px 10px;
+	border-radius: 10px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary-alt);
+	color: var(--text-normal);
+}
+
+.media-library-detail-subtitle,
+.media-library-detail-meta {
+	color: var(--text-muted);
+	margin-top: 4px;
+}

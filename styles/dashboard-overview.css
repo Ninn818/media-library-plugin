@@ -1,0 +1,190 @@
+
+.media-showcase-try-row {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.media-dashboard-hero {
+	padding: 20px;
+	border-radius: 22px;
+	border: 1px solid var(--background-modifier-border);
+	background:
+		radial-gradient(circle at top right, rgba(122, 195, 255, 0.16), transparent 32%),
+		linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+	box-shadow: 0 10px 30px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.08);
+	display: grid;
+	gap: 14px;
+}
+
+.media-dashboard-eyebrow {
+	font-size: 0.72em;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	opacity: 0.8;
+}
+
+.media-dashboard-title {
+	margin: 0;
+	font-size: 1.75em;
+	letter-spacing: -0.03em;
+}
+
+.media-dashboard-subtitle {
+	font-size: 0.95em;
+	line-height: 1.55;
+	color: var(--text-muted);
+	max-width: 64ch;
+}
+
+.media-dashboard-metric-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 12px;
+}
+
+.media-dashboard-metric-card {
+	padding: 14px;
+	border-radius: 18px;
+	background: rgba(255,255,255,0.035);
+	border: 1px solid rgba(255,255,255,0.08);
+	box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+	transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+	min-width: 0;
+}
+
+.media-dashboard-metric-card.is-clickable {
+	cursor: pointer;
+}
+
+.media-dashboard-metric-card.is-clickable:hover {
+	transform: translateY(-2px);
+	border-color: rgba(122, 195, 255, 0.35);
+	box-shadow: 0 12px 20px rgba(0,0,0,0.12);
+}
+
+.media-dashboard-metric-label {
+	font-size: 0.75em;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	margin-bottom: 8px;
+}
+
+.media-dashboard-metric-value {
+	font-size: clamp(1.2rem, 2.2vw, 2rem);
+	font-weight: 700;
+	letter-spacing: -0.03em;
+	color: var(--text-normal);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.media-dashboard-metric-note {
+	margin-top: 6px;
+	font-size: 0.84em;
+	line-height: 1.45;
+	color: var(--text-muted);
+}
+
+.media-library-content {
+	min-height: 260px;
+}
+
+.media-dashboard-empty h3 {
+	margin: 0 0 4px;
+}
+
+.media-dashboard-chart-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.media-dashboard-panel {
+	padding: 16px;
+	border-radius: 20px;
+	border: 1px solid var(--background-modifier-border);
+	background: linear-gradient(145deg, var(--ml-panel-bg-top), var(--ml-panel-bg-bottom));
+	box-shadow: var(--ml-panel-shadow);
+	display: grid;
+	gap: 14px;
+}
+
+.media-dashboard-panel-header {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	align-items: flex-start;
+}
+
+.media-dashboard-panel-title-wrap {
+	display: grid;
+	gap: 4px;
+	min-width: 0;
+}
+
+.media-dashboard-panel-title {
+	font-size: 1.02em;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	color: var(--text-normal);
+}
+
+.media-dashboard-panel-description {
+	font-size: 0.84em;
+	line-height: 1.45;
+	color: var(--text-muted);
+}
+
+.media-dashboard-chart-controls {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.media-dashboard-chart-controls-label {
+	width: 100%;
+	font-size: 0.68em;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--text-faint);
+}
+
+.media-dashboard-chart-button {
+	padding: 6px 10px;
+	border-radius: 999px;
+	border: 1px solid var(--background-modifier-border);
+	background: rgba(255,255,255,0.04);
+	color: var(--text-muted);
+	font-size: 0.82em;
+	font-weight: 600;
+}
+
+.media-dashboard-chart-button.is-active {
+	background: linear-gradient(135deg, var(--ml-accent-soft), rgba(255, 255, 255, 0.05));
+	border-color: var(--ml-accent-line);
+	color: var(--text-normal);
+}
+
+.media-dashboard-chart-area {
+	min-height: 170px;
+	display: flex;
+	align-items: stretch;
+}
+
+.media-dashboard-bar-list {
+	display: grid;
+	gap: 10px;
+	width: 100%;
+}
+
+.media-dashboard-bar-row {
+	display: grid;
+	grid-template-columns: minmax(84px, 110px) minmax(0, 1fr) 28px;
+	gap: 10px;
+	align-items: center;
+}
+

@@ -1,7 +1,8 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "media-library-plugin",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "A media library plugin for browsing and organizing media in your vault.",
+	"author": "nini",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
