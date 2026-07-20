@@ -1,6 +1,6 @@
 // src/views/LibraryView.ts
 
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, Modal, Notice, WorkspaceLeaf } from "obsidian";
 
 import { MediaLibrary } from "../core/MediaLibrary";
 import { ViewRegistry } from "../core/ViewRegistry";
@@ -13,11 +13,14 @@ import {
 	DashboardScopeMode,
 	LibraryPageTab,
 	MediaLibrarySettings,
+	SocialHubTab,
 } from "../settings";
+import * as ListService from "../services/ListService";
+import { addTagToMediaNote } from "../services/TagService";
 import { ActivityLogService } from "../services/ActivityLogService";
 import { MediaActivityModal } from "../ui/MediaActivityModal";
 import { CardView } from "./CardView";
-import { ShowcaseView } from "./ShowcaseView";
+import { GalleryView } from "./GalleryView";
 import { ViewSwitcher } from "./ViewSwitcher";
 import { renderLibraryHeader } from "./library/LibraryHeader";
 import { renderMediaDashboard } from "./library/MediaDashboard";
@@ -31,8 +34,9 @@ export class LibraryView extends ItemView {
 	private readonly library: MediaLibrary;
 	private readonly viewRegistry: ViewRegistry;
 	private readonly settings: MediaLibrarySettings;
+	private readonly persistSettings: () => Promise<void>;
 	private readonly cardView: CardView;
-	private readonly showcaseView: ShowcaseView;
+	private readonly galleryView: GalleryView;
 	private readonly activityLogService: ActivityLogService;
 
 	private toolbarHost!: HTMLElement;
@@ -56,17 +60,26 @@ export class LibraryView extends ItemView {
 	private searchQuery = "";
 	private selectedItem: MediaItem | null = null;
 	private featuredPath: string | null = null;
+	private activeSocialTab: SocialHubTab;
 	private static readonly LIBRARY_PAGE_SIZE = 12;
 
-	constructor(leaf: WorkspaceLeaf, library: MediaLibrary, viewRegistry: ViewRegistry, settings: MediaLibrarySettings) {
+	constructor(
+		leaf: WorkspaceLeaf,
+		library: MediaLibrary,
+		viewRegistry: ViewRegistry,
+		settings: MediaLibrarySettings,
+		persistSettings: () => Promise<void>
+	) {
 		super(leaf);
 
 		this.library = library;
 		this.viewRegistry = viewRegistry;
 		this.settings = settings;
+		this.persistSettings = persistSettings;
 		this.cardView = new CardView(this.app);
-		this.showcaseView = new ShowcaseView(this.app);
+		this.galleryView = new GalleryView(this.app);
 		this.activityLogService = new ActivityLogService(this.app);
+		this.activeSocialTab = this.settings.defaultSocialTab;
 		this.activeLibraryViewId = this.viewRegistry.getDefault().id;
 	}
 
@@ -75,7 +88,7 @@ export class LibraryView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Media Library";
+		return "Media library";
 	}
 
 	getIcon(): string {
@@ -85,6 +98,7 @@ export class LibraryView extends ItemView {
 	async onOpen(): Promise<void> {
 		await this.library.refresh();
 		this.currentPageTab = this.settings.defaultPageTab;
+		this.activeSocialTab = this.settings.defaultSocialTab;
 		this.currentSort = this.settings.defaultSortMode;
 		this.dashboardConsumption = this.settings.dashboardDefaultConsumptionFilter;
 		this.dashboardScope = this.settings.dashboardDefaultScope;
@@ -101,6 +115,7 @@ export class LibraryView extends ItemView {
 	render(): void {
 		this.contentEl.empty();
 		this.contentEl.addClass("media-library");
+		this.contentEl.toggleClass("is-motion-off", !this.settings.enableUiAnimations);
 
 		this.toolbarHost = this.contentEl.createDiv();
 		this.headerHost = this.contentEl.createDiv();
@@ -214,7 +229,7 @@ export class LibraryView extends ItemView {
 
 	private renderHeaderArea(): void {
 		this.headerHost.empty();
-		if (this.currentPageTab === "dashboard" || this.isShowcaseViewActive()) {
+		if (this.currentPageTab === "dashboard" || this.isGalleryViewActive()) {
 			return;
 		}
 		renderLibraryHeader(this.headerHost, this.library, this.settings, this.currentPageTab);
@@ -230,9 +245,9 @@ export class LibraryView extends ItemView {
 			return;
 		}
 
-		if (this.activeLibraryViewId === "showcase") {
-			this.sidebarHost.addClass("is-hidden");
-			this.renderShowcaseLibraryView();
+		if (this.activeLibraryViewId === "gallery") {
+			this.sidebarHost.removeClass("is-hidden");
+			this.renderGalleryLibraryView();
 			return;
 		}
 
@@ -244,19 +259,43 @@ export class LibraryView extends ItemView {
 		this.updateStatusBar();
 	}
 
-	private renderShowcaseLibraryView(): void {
+	private renderGalleryLibraryView(): void {
 		this.currentLibraryItems = this.getVisibleItems();
-		this.showcaseView.render({
+		this.galleryView.render({
 			carouselHost: this.spotlightHost,
 			contentHost: this.contentHost,
 			sidebarHost: this.sidebarHost,
 			statusHost: this.statusHost,
 		}, this.currentLibraryItems, {
+			onSelectItem: (item) => {
+				this.selectItem(item);
+				this.renderActivePage();
+			},
 			onOpenItem: (item) => {
 				this.selectItem(item);
 				this.openActivityModal(item);
 			},
+			onToggleFavorite: (item) => {
+				this.toggleFavorite(item);
+			},
+			onTagItem: (item) => {
+				void this.promptAndAddTag(item);
+			},
+		}, {
+			activePath: this.selectedItem?.path ?? this.featuredPath,
+			social: {
+				state: this.getSocialHubState(),
+				callbacks: this.getSocialHubCallbacks(),
+			},
+			isFavorite: (path) => ListService.isFavorite(this.settings, path),
 		});
+		if (this.activeSocialTab === "lists" || this.activeSocialTab === "favorites") {
+			this.sidebarHost.addClass("is-hidden");
+		} else {
+			this.sidebarHost.removeClass("is-hidden");
+			this.renderSidebar("airy");
+		}
+		this.updateStatusBar();
 	}
 
 	private renderCurrentView(): void {
@@ -324,20 +363,23 @@ export class LibraryView extends ItemView {
 		new MediaActivityModal({
 			item,
 			activityLogService: this.activityLogService,
+			tagStorageFormat: this.settings.tagStorageFormat,
 			onSaved: async () => {
 				await this.library.refresh();
 				const refreshed = this.library.getByPath(item.path);
 				if (refreshed) {
 					this.selectItem(refreshed);
 				}
+				this.activeSocialTab = "activity";
 				this.render();
 			},
 		}).open();
 	}
 
-	private renderSidebar(): void {
+	private renderSidebar(variant: "default" | "airy" = "default"): void {
 		renderLibrarySidebar(this.sidebarHost, {
 			visibleItems: this.getVisibleItems(),
+			variant,
 		});
 	}
 
@@ -351,16 +393,204 @@ export class LibraryView extends ItemView {
 	}
 
 	private updateLayoutMode(): void {
-		const isShowcase = this.isShowcaseViewActive();
-		this.contentEl.toggleClass("is-showcase-mode", isShowcase);
-		this.toolbarHost.toggleClass("is-showcase-mode", isShowcase);
-		this.bodyHost?.toggleClass("is-showcase-mode", isShowcase);
-		this.mainHost?.toggleClass("is-showcase-mode", isShowcase);
-		this.headerHost?.toggleClass("is-hidden", isShowcase);
+		const isGalleryLayout = this.isGalleryViewActive();
+		this.contentEl.toggleClass("is-gallery-mode", isGalleryLayout);
+		this.toolbarHost.toggleClass("is-gallery-mode", isGalleryLayout);
+		this.bodyHost?.toggleClass("is-gallery-mode", isGalleryLayout);
+		this.mainHost?.toggleClass("is-gallery-mode", isGalleryLayout);
+		this.headerHost?.toggleClass("is-hidden", isGalleryLayout);
 	}
 
-	private isShowcaseViewActive(): boolean {
-		return this.currentPageTab === "library" && this.activeLibraryViewId === "showcase";
+	private isGalleryViewActive(): boolean {
+		return this.currentPageTab === "library" && this.activeLibraryViewId === "gallery";
+	}
+
+	private getSocialHubState() {
+		const allItems = this.library.getAll();
+		return {
+			app: this.app,
+			activeTab: this.activeSocialTab,
+			items: this.currentLibraryItems,
+			lists: this.settings.customLists,
+			favorites: ListService.getFavoritesList(this.settings) ?? null,
+			allItemsByPath: new Map(allItems.map((item) => [item.path, item])),
+			selectedItem: this.selectedItem,
+		};
+	}
+
+	private getSocialHubCallbacks() {
+		return {
+			onTabChange: (tab: SocialHubTab) => {
+				this.activeSocialTab = tab;
+				this.renderActivePage();
+			},
+			onCreateList: (name: string) => {
+				const created = ListService.createCustomList(this.settings, name);
+				if (!created) {
+					return;
+				}
+				void this.persistAndRender();
+			},
+			onDeleteList: (listId: string) => {
+				if (!this.deleteListById(listId)) {
+					return;
+				}
+				void this.persistAndRender();
+			},
+			onAddItemToList: (listId: string, itemPath: string) => {
+				if (!itemPath || !this.addItemToListById(listId, itemPath)) {
+					return;
+				}
+				void this.persistAndRender();
+			},
+			onRemoveItemFromList: (listId: string, itemPath: string) => {
+				if (!this.removeItemFromListById(listId, itemPath)) {
+					return;
+				}
+				void this.persistAndRender();
+			},
+			onOpenItem: (item: MediaItem) => {
+				this.selectItem(item);
+				this.openActivityModal(item);
+			},
+			onAddTag: (item: MediaItem, tag: string) => {
+				void this.addTagFromSocial(item, tag);
+			},
+		};
+	}
+
+	private async promptAndAddTag(item: MediaItem): Promise<void> {
+		const input = await this.askForTag();
+		if (!input || !input.trim()) {
+			return;
+		}
+
+		const result = await addTagToMediaNote(this.app, item.path, input, this.settings.tagStorageFormat);
+		if (!result.added) {
+			if (result.reason === "note-not-found") {
+				new Notice("Could not find note for this media item.");
+				return;
+			}
+			if (result.reason === "empty-tag") {
+				new Notice("Tag was empty.");
+				return;
+			}
+			new Notice("Tag already exists.");
+			return;
+		}
+
+		new Notice(`Added tag ${result.value}`);
+		await this.refreshLibraryAfterMutation(item.path);
+	}
+
+	private async addTagFromSocial(item: MediaItem, tag: string): Promise<void> {
+		if (!tag.trim()) {
+			return;
+		}
+
+		const result = await addTagToMediaNote(this.app, item.path, tag, this.settings.tagStorageFormat);
+		if (!result.added) {
+			if (result.reason === "note-not-found") {
+				new Notice("Could not find note for this media item.");
+				return;
+			}
+			if (result.reason === "empty-tag") {
+				new Notice("Tag was empty.");
+				return;
+			}
+			new Notice("Tag already exists.");
+			return;
+		}
+
+		new Notice(`Added tag ${result.value}`);
+		await this.refreshLibraryAfterMutation(item.path);
+	}
+
+	private toggleFavorite(item: MediaItem): void {
+		if (ListService.isFavorite(this.settings, item.path)) {
+			ListService.removeItemFromFavorites(this.settings, item.path);
+		} else {
+			ListService.addItemToFavorites(this.settings, item.path);
+		}
+		void this.persistAndRender();
+	}
+
+	private askForTag(): Promise<string | null> {
+		return new Promise((resolve) => {
+			const modal = new Modal(this.app);
+			modal.setTitle("Add tag");
+
+			const wrap = modal.contentEl.createDiv({ cls: "media-tag-modal" });
+			const input = wrap.createEl("input", {
+				type: "text",
+				placeholder: "tag-name",
+			});
+
+			const actions = wrap.createDiv({ cls: "media-tag-modal-actions" });
+			const cancel = actions.createEl("button", { text: "Cancel" });
+			cancel.type = "button";
+			cancel.addEventListener("click", () => {
+				modal.close();
+				resolve(null);
+			});
+
+			const add = actions.createEl("button", { text: "Add", cls: "mod-cta" });
+			add.type = "button";
+			add.addEventListener("click", () => {
+				const value = input.value.trim();
+				modal.close();
+				resolve(value.length > 0 ? value : null);
+			});
+
+			modal.onClose = () => {
+				resolve(null);
+			};
+
+			modal.open();
+			input.focus();
+		});
+	}
+
+	private async persistAndRender(): Promise<void> {
+		await this.persistSettings();
+		this.renderActivePage();
+	}
+
+	private async refreshLibraryAfterMutation(pathToReselect: string): Promise<void> {
+		await this.library.refresh();
+		const refreshed = this.library.getByPath(pathToReselect);
+		if (refreshed) {
+			this.selectItem(refreshed);
+		}
+		this.renderActivePage();
+	}
+
+	private deleteListById(listId: string): boolean {
+		const before = this.settings.customLists.length;
+		this.settings.customLists = this.settings.customLists.filter((list) => list.id !== listId);
+		return this.settings.customLists.length < before;
+	}
+
+	private addItemToListById(listId: string, itemPath: string): boolean {
+		const list = this.settings.customLists.find((entry) => entry.id === listId);
+		if (!list || list.itemPaths.includes(itemPath)) {
+			return false;
+		}
+
+		list.itemPaths = [...list.itemPaths, itemPath];
+		list.updatedAt = new Date().toISOString();
+		return true;
+	}
+
+	private removeItemFromListById(listId: string, itemPath: string): boolean {
+		const list = this.settings.customLists.find((entry) => entry.id === listId);
+		if (!list || !list.itemPaths.includes(itemPath)) {
+			return false;
+		}
+
+		list.itemPaths = list.itemPaths.filter((path) => path !== itemPath);
+		list.updatedAt = new Date().toISOString();
+		return true;
 	}
 
 	private renderShowMoreControl(totalItems: number, renderedItems: number): void {

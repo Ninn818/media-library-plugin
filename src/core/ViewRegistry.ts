@@ -41,9 +41,9 @@ export class ViewRegistry {
 			icon: "layout-grid",
 		},
 		{
-			id: "showcase",
-			name: "Showcase",
-			icon: "layout-template",
+			id: "gallery",
+			name: "Gallery",
+			icon: "image",
 		},
 
 		// Future views

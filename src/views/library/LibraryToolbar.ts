@@ -25,7 +25,7 @@ export function renderLibraryToolbar(
 	const toolbar = container.createDiv({ cls: "media-library-toolbar" });
 
 	const title = toolbar.createEl("h2");
-	title.setText("Media Library");
+	title.setText("Media library");
 
 	const controls = toolbar.createDiv({ cls: "media-library-controls" });
 

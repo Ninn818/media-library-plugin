@@ -1,7 +1,6 @@
 // src/main.ts
 
 import {
-	ItemView,
 	Plugin,
 	WorkspaceLeaf,
 } from "obsidian";
@@ -51,8 +50,6 @@ export default class MediaLibraryPlugin extends Plugin {
 
 	viewRegistry!: ViewRegistry;
 
-	view!: ItemView;
-
 	private leaf?: WorkspaceLeaf;
 
 	async onload(): Promise<void> {
@@ -91,14 +88,13 @@ export default class MediaLibraryPlugin extends Plugin {
 			"media-library-view",
 			(leaf: WorkspaceLeaf) => {
 				this.leaf = leaf;
-				this.view = new LibraryView(leaf, this.library, this.viewRegistry, this.settings);
-				return this.view;
+				return new LibraryView(leaf, this.library, this.viewRegistry, this.settings, () => this.saveSettings());
 			}
 		);
 
 		this.addRibbonIcon(
 			"library",
-			"Media Library",
+			"Media library",
 			() => {
 				void this.openLibrary();
 			}
@@ -108,13 +104,14 @@ export default class MediaLibraryPlugin extends Plugin {
 
 			id: "refresh-media-library",
 
-			name: "Refresh Media Library",
+			name: "Refresh media library",
 
 			callback: async () => {
 
 				await this.library.refresh();
-				if (this.view instanceof LibraryView) {
-					this.view.refresh();
+				const view = this.getLibraryView();
+				if (view) {
+					view.refresh();
 				}
 
 			},
@@ -128,8 +125,9 @@ export default class MediaLibraryPlugin extends Plugin {
 			active: true,
 		});
 		await this.library.refresh();
-		if (this.view instanceof LibraryView) {
-			this.view.refresh();
+		const view = this.getLibraryView();
+		if (view) {
+			view.refresh();
 		}
 	}
 
@@ -145,12 +143,19 @@ export default class MediaLibraryPlugin extends Plugin {
 
 
 	async loadSettings(): Promise<void> {
+		const loaded = (await this.loadData()) as Partial<MediaLibrarySettings> | null;
+		const dashboardGoals = {
+			...DEFAULT_SETTINGS.dashboardGoals,
+			...(loaded?.dashboardGoals ?? {}),
+		};
+		const customLists = Array.isArray(loaded?.customLists) ? loaded.customLists : DEFAULT_SETTINGS.customLists;
 
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			await this.loadData()
-		);
+		this.settings = {
+			...DEFAULT_SETTINGS,
+			...(loaded ?? {}),
+			dashboardGoals,
+			customLists,
+		};
 	}
 
 
@@ -160,5 +165,16 @@ export default class MediaLibraryPlugin extends Plugin {
 		await this.saveData(
 			this.settings
 		);
+	}
+
+	private getLibraryView(): LibraryView | null {
+		const leaves = this.app.workspace.getLeavesOfType("media-library-view");
+		for (const leaf of leaves) {
+			if (leaf.view instanceof LibraryView) {
+				return leaf.view;
+			}
+		}
+
+		return null;
 	}
 }

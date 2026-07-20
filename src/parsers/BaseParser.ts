@@ -489,12 +489,16 @@ export abstract class BaseParser<TFrontmatter> {
         publishDate?: unknown;
         datePublished?: unknown;
         dateReleased?: unknown;
+        year?: unknown;
+        releaseYear?: unknown;
     }): string | undefined {
         return this.normalizeDate(
             frontmatter.releaseDate ??
                 frontmatter.publishDate ??
                 frontmatter.datePublished ??
-                frontmatter.dateReleased
+                frontmatter.dateReleased ??
+                frontmatter.releaseYear ??
+                frontmatter.year
         );
     }
 

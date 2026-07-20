@@ -18,6 +18,7 @@ interface ActivityEvent {
 
 export interface LibrarySidebarState {
 	visibleItems: MediaItem[];
+	variant?: "default" | "airy";
 }
 
 export function renderLibrarySidebar(
@@ -27,14 +28,17 @@ export function renderLibrarySidebar(
 	container.empty();
 
 	const rail = container.createDiv({ cls: "media-library-sidebar-rail" });
+	if (state.variant === "airy") {
+		rail.addClass("is-airy");
+	}
 
 	renderMetricsSection(rail, state);
-	renderQueueSection(rail, state.visibleItems);
-	renderActivitySection(rail, state.visibleItems);
+	renderQueueSection(rail, state.visibleItems, state.variant);
+	renderActivitySection(rail, state.visibleItems, state.variant);
 }
 
 function renderMetricsSection(container: HTMLElement, state: LibrarySidebarState): void {
-	const section = createSection(container, "Library snapshot");
+	const section = createSection(container, "Library snapshot", state.variant);
 	const metrics = getMetrics(state);
 	const grid = section.createDiv({ cls: "media-library-sidebar-metrics" });
 
@@ -45,8 +49,8 @@ function renderMetricsSection(container: HTMLElement, state: LibrarySidebarState
 	}
 }
 
-function renderQueueSection(container: HTMLElement, items: MediaItem[]): void {
-	const section = createSection(container, "Up next");
+function renderQueueSection(container: HTMLElement, items: MediaItem[], variant?: "default" | "airy"): void {
+	const section = createSection(container, "Up next", variant);
 	const queuedItems = items
 		.filter((item) => item.status === "want to read" || item.status === "want to watch")
 		.slice(0, 4);
@@ -62,8 +66,8 @@ function renderQueueSection(container: HTMLElement, items: MediaItem[]): void {
 	})));
 }
 
-function renderActivitySection(container: HTMLElement, items: MediaItem[]): void {
-	const section = createSection(container, "Recent activity");
+function renderActivitySection(container: HTMLElement, items: MediaItem[], variant?: "default" | "airy"): void {
+	const section = createSection(container, "Recent activity", variant);
 	const recentEvents = getRecentActivityEvents(items).slice(0, 6);
 
 	if (!recentEvents.length) {
@@ -108,8 +112,12 @@ function renderRatingGraph(container: HTMLElement, items: MediaItem[]): void {
 	}
 }
 
-function createSection(container: HTMLElement, title: string): HTMLElement {
+
+function createSection(container: HTMLElement, title: string, variant?: "default" | "airy"): HTMLElement {
 	const section = container.createDiv({ cls: "media-library-sidebar-section" });
+	if (variant === "airy") {
+		section.addClass("is-airy");
+	}
 	section.createEl("h3", { text: title, cls: "media-library-sidebar-title" });
 	return section;
 }

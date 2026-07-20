@@ -22,9 +22,20 @@ export class ActivityLogService {
 		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 			frontmatter.status = entry.status ?? getCompletedStatus(item);
 			frontmatter.personalRating = entry.rating ?? undefined;
-			const dateField = isReadingItem(item) ? "dateRead" : "dateWatched";
 			const historyField = isReadingItem(item) ? "readHistory" : "watchHistory";
-			frontmatter[dateField] = entry.date;
+
+			if (isReadingItem(item)) {
+				frontmatter.dateRead = entry.date;
+				frontmatter.dateFinished = entry.date;
+			} else if (item.mediaType === "movie") {
+				delete frontmatter.dateWatched;
+				delete frontmatter.dateFinished;
+				delete frontmatter.lastWatched;
+			} else {
+				frontmatter.dateWatched = entry.date;
+				frontmatter.dateFinished = entry.date;
+				frontmatter.lastWatched = entry.date;
+			}
 
 			const history = Array.isArray(frontmatter[historyField])
 				? [...(frontmatter[historyField] as unknown[])]

@@ -17,10 +17,10 @@ export function renderLibraryHeader(
 
 	const header = container.createDiv({ cls: "media-library-header" });
 	if (activeTab !== "dashboard") {
-		header.createDiv({ cls: "media-library-header-eyebrow", text: "Welcome to" });
+		header.createDiv({ cls: "media-library-header-eyebrow", text: "Your media home" });
 	}
 	const title = header.createDiv({ cls: "media-library-header-title" });
-	title.setText("Media Library");
+	title.setText("Media library");
 	header.createDiv({
 		cls: "media-library-header-subtitle",
 		text: activeTab === "dashboard"
@@ -29,13 +29,19 @@ export function renderLibraryHeader(
 	});
 
 	if (settings.showCounts) {
-		const stats = header.createDiv({ cls: "media-library-header-stats" });
-		stats.createDiv({ text: `Average ${avgRating ?? "—"}/10`, cls: "media-library-header-pill" });
-		stats.createDiv({ text: `Books ${counts.books}`, cls: "media-library-header-pill" });
-		stats.createDiv({ text: `Films ${counts.movies}`, cls: "media-library-header-pill" });
-		stats.createDiv({ text: `Series ${counts.series}`, cls: "media-library-header-pill" });
-		stats.createDiv({ text: `Essays ${counts.essays}`, cls: "media-library-header-pill" });
+		const stats = header.createDiv({ cls: "media-library-header-stat-grid" });
+		renderStat(stats, "Average", `${avgRating ?? "—"}/10`);
+		renderStat(stats, "Books", String(counts.books));
+		renderStat(stats, "Films", String(counts.movies));
+		renderStat(stats, "Series", String(counts.series));
+		renderStat(stats, "Essays", String(counts.essays));
 	}
+}
+
+function renderStat(container: HTMLElement, label: string, value: string): void {
+	const card = container.createDiv({ cls: "media-library-header-stat" });
+	card.createDiv({ cls: "media-library-header-stat-label", text: label });
+	card.createDiv({ cls: "media-library-header-stat-value", text: value });
 }
 
 function getAverageRating(library: MediaLibrary): number | null {

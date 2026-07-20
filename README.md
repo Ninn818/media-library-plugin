@@ -2,7 +2,7 @@
 
 A modular Obsidian plugin for tracking books, essays, movies, and series with:
 
-- A Library page (cards + showcase view)
+- A Library page (cards + gallery view)
 - A Dashboard page (charts, quick picks, progress)
 - Activity logging stored directly in note body callouts
 - Frontmatter parsing with resilient status/cover normalization
@@ -15,7 +15,7 @@ It is intentionally split into layers:
 
 1. Plugin boot/lifecycle
 2. Domain/core (scan + parse + model)
-3. UI rendering (library/dashboard/showcase)
+3. UI rendering (library/dashboard/gallery)
 4. Persistence helpers (activity callouts + frontmatter updates)
 
 ## Build And Run
@@ -46,7 +46,7 @@ Compiled output used by Obsidian:
 - `LibraryView` decides between Library tab and Dashboard tab.
 - Library tab uses:
   - `CardView` for card grid
-  - `ShowcaseView` for editorial shelf layout
+  - `GalleryView` for poster-wall browsing
   - `LibrarySidebar` for metrics, queue, activity, and rating graph
 - Dashboard tab uses:
   - `MediaDashboardToolbar` for filter controls
@@ -279,10 +279,10 @@ Compiled output used by Obsidian:
 - Library card-grid renderer.
 - Connects item click behavior to higher-level callbacks.
 
-## `src/views/ShowcaseView.ts`
+## `src/views/GalleryView.ts`
 
-- Alternate curated "showcase" library layout.
-- Renders shelf, try-these picks, featured blocks, and edge-to-edge presentation.
+- Poster-wall library layout with quick media actions.
+- Integrates with social tabs while keeping media browsing focused.
 
 ## `src/views/ViewSwitcher.ts`
 

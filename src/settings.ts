@@ -6,6 +6,16 @@ export type LibraryPageTab = 'library' | 'dashboard';
 export type DashboardScopeMode = 'year' | 'all';
 export type DashboardMediaFilter = 'all' | 'text' | 'screen';
 export type DashboardConsumptionFilter = 'all' | 'consumed' | 'unconsumed';
+export type SocialHubTab = 'media' | 'activity' | 'lists' | 'favorites' | 'tags';
+export type TagStorageFormat = 'wikilink' | 'hashtag';
+
+export interface MediaLibraryCustomList {
+	id: string;
+	name: string;
+	itemPaths: string[];
+	createdAt: string;
+	updatedAt: string;
+}
 
 export interface MediaDashboardGoals {
 	book: number;
@@ -18,8 +28,11 @@ export interface MediaLibrarySettings {
 	openInSidebar: boolean;
 	defaultSortMode: LibrarySortMode;
 	defaultPageTab: LibraryPageTab;
+	defaultSocialTab: SocialHubTab;
+	tagStorageFormat: TagStorageFormat;
 	showCounts: boolean;
 	showReviewSection: boolean;
+	enableUiAnimations: boolean;
 	dashboardDefaultScope: DashboardScopeMode;
 	dashboardDefaultFilter: DashboardMediaFilter;
 	dashboardDefaultConsumptionFilter: DashboardConsumptionFilter;
@@ -28,14 +41,18 @@ export interface MediaLibrarySettings {
 	dashboardShowQuickPicks: boolean;
 	dashboardShowRatingsChart: boolean;
 	dashboardGoals: MediaDashboardGoals;
+	customLists: MediaLibraryCustomList[];
 }
 
 export const DEFAULT_SETTINGS: MediaLibrarySettings = {
 	openInSidebar: false,
 	defaultSortMode: 'date-created-desc',
 	defaultPageTab: 'library',
+	defaultSocialTab: 'media',
+	tagStorageFormat: 'hashtag',
 	showCounts: true,
 	showReviewSection: false,
+	enableUiAnimations: true,
 	dashboardDefaultScope: 'year',
 	dashboardDefaultFilter: 'all',
 	dashboardDefaultConsumptionFilter: 'consumed',
@@ -43,6 +60,7 @@ export const DEFAULT_SETTINGS: MediaLibrarySettings = {
 	dashboardShowGoals: true,
 	dashboardShowQuickPicks: true,
 	dashboardShowRatingsChart: true,
+	customLists: [],
 	dashboardGoals: {
 		book: 20,
 		movie: 24,
@@ -90,13 +108,44 @@ export class MediaLibrarySettingTab extends PluginSettingTab {
 						}),
 				);
 
+				new Setting(containerEl)
+					.setName('Default social tab')
+					.setDesc('Choose which social tab opens first in the gallery view.')
+					.addDropdown((dropdown: DropdownComponent) =>
+						dropdown
+							.addOption('media', 'Media')
+							.addOption('activity', 'Activity')
+							.addOption('lists', 'Lists')
+							.addOption('favorites', 'Favorites')
+							.addOption('tags', 'Tags')
+							.setValue(this.plugin.settings.defaultSocialTab)
+							.onChange(async (value: string) => {
+								this.plugin.settings.defaultSocialTab = value as SocialHubTab;
+								await this.plugin.saveSettings();
+							}),
+					);
+
+		new Setting(containerEl)
+			.setName('Tag style')
+			.setDesc('Choose how tags added from poster actions are stored in frontmatter.')
+			.addDropdown((dropdown: DropdownComponent) =>
+				dropdown
+					.addOption('hashtag', 'Hashtag (#tag)')
+					.addOption('wikilink', 'Wiki link ([[tag]])')
+					.setValue(this.plugin.settings.tagStorageFormat)
+					.onChange(async (value: string) => {
+						this.plugin.settings.tagStorageFormat = value as TagStorageFormat;
+						await this.plugin.saveSettings();
+					}),
+			);
+
 		new Setting(containerEl)
 			.setName('Default sort')
 			.setDesc('Choose the default sorting when the library opens.')
 			.addDropdown((dropdown: DropdownComponent) =>
 				dropdown
 					.addOption('date-created-desc', 'Newest added')
-					.addOption('title-asc', 'Title A–Z')
+					.addOption('title-asc', 'Title a–z')
 					.addOption('rating-desc', 'Highest rating')
 					.addOption('year-desc', 'Newest year')
 					.setValue(this.plugin.settings.defaultSortMode)
@@ -120,7 +169,7 @@ export class MediaLibrarySettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Show review section')
-			.setDesc('Add a “My Review” section to the spotlight view so you can write and save reviews into the note.')
+			.setDesc('Add a “my review” section to the spotlight view so you can write and save reviews into the note.')
 			.addToggle((toggle: ToggleComponent) =>
 				toggle
 					.setValue(this.plugin.settings.showReviewSection)
@@ -130,7 +179,19 @@ export class MediaLibrarySettingTab extends PluginSettingTab {
 					}),
 			);
 
-		containerEl.createEl('h3', { text: 'Dashboard' });
+		new Setting(containerEl)
+			.setName('Enable animations')
+			.setDesc('Toggle hover transitions and motion effects in the library UI.')
+			.addToggle((toggle: ToggleComponent) =>
+				toggle
+					.setValue(this.plugin.settings.enableUiAnimations)
+					.onChange(async (value: boolean) => {
+						this.plugin.settings.enableUiAnimations = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl).setName('Dashboard').setHeading();
 
 		new Setting(containerEl)
 			.setName('Default dashboard scope')
@@ -224,7 +285,7 @@ export class MediaLibrarySettingTab extends PluginSettingTab {
 					}),
 			);
 
-		containerEl.createEl('h4', { text: 'Yearly goals' });
+		new Setting(containerEl).setName('Yearly goals').setHeading();
 		this.addGoalSetting(containerEl, 'Books goal', 'book');
 		this.addGoalSetting(containerEl, 'Movies goal', 'movie');
 		this.addGoalSetting(containerEl, 'Series goal', 'series');

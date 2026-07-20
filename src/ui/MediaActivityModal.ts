@@ -4,22 +4,27 @@ import { Poster } from "../components/Poster";
 import { MediaActivityEntry, MediaItem } from "../models";
 import { isMediaStatus } from "../models/MediaStatus";
 import { ActivityLogService, getFallbackActivityEntries } from "../services/ActivityLogService";
+import { addTagToMediaNote } from "../services/TagService";
+import { TagStorageFormat } from "../settings";
 
 interface MediaActivityModalOptions {
 	item: MediaItem;
 	activityLogService: ActivityLogService;
+	tagStorageFormat: TagStorageFormat;
 	onSaved: () => Promise<void>;
 }
 
 export class MediaActivityModal extends Modal {
 	private readonly item: MediaItem;
 	private readonly activityLogService: ActivityLogService;
+	private readonly tagStorageFormat: TagStorageFormat;
 	private readonly onSaved: () => Promise<void>;
 
 	constructor(options: MediaActivityModalOptions) {
 		super(options.activityLogService["app"]);
 		this.item = options.item;
 		this.activityLogService = options.activityLogService;
+		this.tagStorageFormat = options.tagStorageFormat;
 		this.onSaved = options.onSaved;
 	}
 
@@ -50,13 +55,23 @@ export class MediaActivityModal extends Modal {
 		const info = hero.createDiv({ cls: "media-activity-modal-info" });
 		info.createEl("h2", { text: this.item.title });
 		info.createDiv({ text: this.item.creator, cls: "media-activity-modal-creator" });
-		info.createDiv({ text: `${capitalize(this.item.mediaType)} • ${this.item.year ?? "Unknown year"}`, cls: "media-activity-modal-meta" });
+		info.createDiv({ text: `${capitalize(this.item.mediaType)} • ${getDisplayYear(this.item)}`, cls: "media-activity-modal-meta" });
+		const tags = readTagsFromFileCache(this.app, file);
+		if (tags.length) {
+			const tagRow = info.createDiv({ cls: "media-activity-modal-tags" });
+			tagRow.createDiv({ text: "Tags", cls: "media-activity-modal-tags-label" });
+			const chips = tagRow.createDiv({ cls: "media-activity-modal-tags-row" });
+			for (const tag of tags) {
+				chips.createDiv({ text: tag, cls: "media-activity-modal-tag-chip" });
+			}
+		}
 		if (this.item.summary) {
 			info.createEl("p", { text: this.item.summary, cls: "media-activity-modal-summary" });
 		}
 
 		const body = layout.createDiv({ cls: "media-activity-modal-body" });
 		this.renderEntryForm(body, file);
+		this.renderTagManager(body);
 		this.renderTimeline(body, entries);
 	}
 
@@ -102,10 +117,59 @@ export class MediaActivityModal extends Modal {
 					note: noteInput.value,
 					kind: isReadingItem(this.item) ? "read" : "watch",
 				});
+
 				await this.onSaved();
 				await this.render();
 			} finally {
 				saveButton.disabled = false;
+			}
+		});
+	}
+
+	private renderTagManager(container: HTMLElement): void {
+		const section = container.createDiv({ cls: "media-activity-section media-activity-tag-manager" });
+		section.createEl("h3", { text: "Manage tags" });
+
+		const field = section.createDiv({ cls: "media-activity-note-field" });
+		field.createEl("label", { text: "Add tags without logging activity" });
+		const tagInput = field.createEl("input", { cls: "media-activity-tag-input", type: "text" });
+		tagInput.placeholder = "comfort-watch, rewatch, cozy";
+
+		const actions = section.createDiv({ cls: "media-activity-form-actions" });
+		const addButton = actions.createEl("button", { text: "Save tags", cls: "mod-cta" });
+
+		addButton.addEventListener("click", async () => {
+			const tags = tagInput.value
+				.split(/[,\n]+/)
+				.map((entry) => entry.trim())
+				.filter((entry) => entry.length > 0);
+
+			if (!tags.length) {
+				new Notice("Enter at least one tag.");
+				return;
+			}
+
+			addButton.disabled = true;
+			try {
+				let addedCount = 0;
+				for (const tag of tags) {
+					const result = await addTagToMediaNote(this.app, this.item.path, tag, this.tagStorageFormat);
+					if (result.added) {
+						addedCount += 1;
+					}
+				}
+
+				if (addedCount === 0) {
+					new Notice("No new tags were added.");
+				} else {
+					new Notice(`Saved ${addedCount} tag${addedCount === 1 ? "" : "s"}.`);
+				}
+
+				tagInput.value = "";
+				await this.onSaved();
+				await this.render();
+			} finally {
+				addButton.disabled = false;
 			}
 		});
 	}
@@ -177,4 +241,49 @@ function getCompletedStatus(item: MediaItem): string {
 
 function capitalize(value: string): string {
 	return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function getDisplayYear(item: MediaItem): string {
+	if (typeof item.year === "number" && Number.isFinite(item.year)) {
+		return String(item.year);
+	}
+
+	const releaseMatch = item.releaseDate?.match(/\b(18|19|20)\d{2}\b/);
+	if (releaseMatch?.[0]) {
+		return releaseMatch[0];
+	}
+
+	const rawYear = item.raw?.year;
+	if (typeof rawYear === "number" && Number.isFinite(rawYear)) {
+		return String(rawYear);
+	}
+	if (typeof rawYear === "string") {
+		const rawMatch = rawYear.match(/\b(18|19|20)\d{2}\b/);
+		if (rawMatch?.[0]) {
+			return rawMatch[0];
+		}
+	}
+
+	return "Unknown year";
+}
+
+function readTagsFromFileCache(app: Modal["app"], file: TFile): string[] {
+	const cache = app.metadataCache.getFileCache(file);
+	const frontmatter = cache?.frontmatter as { mediaTags?: unknown } | undefined;
+	if (!frontmatter) {
+		return [];
+	}
+
+	if (Array.isArray(frontmatter.mediaTags)) {
+		return frontmatter.mediaTags.map((entry) => String(entry)).filter((entry) => entry.trim().length > 0);
+	}
+
+	if (typeof frontmatter.mediaTags === "string") {
+		return frontmatter.mediaTags
+			.split(/[\s,]+/)
+			.map((entry) => entry.trim())
+			.filter((entry) => entry.length > 0);
+	}
+
+	return [];
 }

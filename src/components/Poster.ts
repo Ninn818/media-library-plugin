@@ -1,8 +1,9 @@
 // src/components/Poster.ts
 
-import { App, TFile } from "obsidian";
+import { App } from "obsidian";
 
 import { MediaItem } from "../models";
+import { resolveCoverSource } from "../utils/Covers";
 
 export class Poster {
 	private readonly item: MediaItem;
@@ -48,67 +49,7 @@ export class Poster {
 	}
 
 	private resolveSource(source: string): string {
-		let normalized = source.trim();
-
-		for (let index = 0; index < 4; index += 1) {
-			const next = normalized
-				.replace(/^!\[[^\]]*\]\(([^)]+)\)$/, "$1")
-				.replace(/^\[[^\]]*\]\(([^)]+)\)$/, "$1")
-				.replace(/^!\[\[([^|\]#]+)(?:#[^|\]]+)?(?:\|[^\]]*)?\]\]$/, "$1")
-				.replace(/^\[\[([^|\]#]+)(?:#[^|\]]+)?(?:\|[^\]]*)?\]\]$/, "$1")
-				.replace(/^\((.*)\)$/, "$1")
-				.replace(/^<(.*)>$/, "$1")
-				.replace(/^"(.*)"$/, "$1");
-
-			if (next === normalized) {
-				break;
-			}
-
-			normalized = next.trim();
-		}
-
-		const external = normalized
-			.replace(/^http:\/\/books\.google\.com/i, "https://books.google.com")
-			.replace(/^https:\/\/books\.google\.com\/books\/content\?/i, "https://books.google.com/books/content?");
-
-		if (external.startsWith("http://") || external.startsWith("https://")) {
-			return external;
-		}
-
-		if (this.app) {
-			const directFile = this.app.vault.getAbstractFileByPath(normalized);
-			if (directFile instanceof TFile) {
-				return this.app.vault.getResourcePath(directFile);
-			}
-
-			const linkedFile = this.app.metadataCache.getFirstLinkpathDest(normalized, this.item.path);
-			if (linkedFile instanceof TFile) {
-				return this.app.vault.getResourcePath(linkedFile);
-			}
-
-			const linkedFromRoot = this.app.metadataCache.getFirstLinkpathDest(normalized, "");
-			if (linkedFromRoot instanceof TFile) {
-				return this.app.vault.getResourcePath(linkedFromRoot);
-			}
-
-			if (!normalized.startsWith("/") && this.item.path) {
-				const folder = this.item.path.includes("/") ? this.item.path.slice(0, this.item.path.lastIndexOf("/")) : "";
-				if (folder) {
-					const relativeCandidate = `${folder}/${normalized}`;
-					const relativeFile = this.app.vault.getAbstractFileByPath(relativeCandidate);
-					if (relativeFile instanceof TFile) {
-						return this.app.vault.getResourcePath(relativeFile);
-					}
-				}
-			}
-
-			const fileByPath = this.app.vault.getAbstractFileByPath(normalized);
-			if (fileByPath instanceof TFile) {
-				return this.app.vault.getResourcePath(fileByPath);
-			}
-		}
-
-		return normalized;
+		return resolveCoverSource(this.app, this.item.path, source);
 	}
 
 	destroy(): void {
