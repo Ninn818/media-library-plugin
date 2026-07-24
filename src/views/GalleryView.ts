@@ -2,7 +2,6 @@ import { App, setIcon } from "obsidian";
 
 import { Poster } from "../components/Poster";
 import { MediaItem } from "../models/MediaItem";
-import { LibrarySocialHubCallbacks, LibrarySocialHubState, renderLibrarySocialHub } from "./library/LibrarySocialHub";
 
 export interface GalleryViewHosts {
 	carouselHost: HTMLElement;
@@ -13,17 +12,13 @@ export interface GalleryViewHosts {
 
 export interface GalleryViewCallbacks {
 	onSelectItem(item: MediaItem): void;
-	onOpenItem(item: MediaItem): void;
+	onOpenNote(item: MediaItem): void;
+	onOpenModal(item: MediaItem): void;
 	onToggleFavorite(item: MediaItem): void;
-	onTagItem(item: MediaItem): void;
 }
 
 export interface GalleryViewOptions {
 	activePath?: string | null;
-	social?: {
-		state: LibrarySocialHubState;
-		callbacks: LibrarySocialHubCallbacks;
-	};
 	isFavorite?: (itemPath: string) => boolean;
 }
 
@@ -46,15 +41,6 @@ export class GalleryView {
 		}
 
 		const activeItem = this.pickActiveItem(items, options.activePath);
-		const socialTab = options.social?.state.activeTab;
-		if (options.social) {
-			renderLibrarySocialHub(hosts.contentHost, options.social.state, options.social.callbacks);
-		}
-		if (socialTab && socialTab !== "media") {
-			hosts.statusHost.setText(`${items.length} items in gallery view`);
-			return;
-		}
-
 		const grid = hosts.contentHost.createDiv({ cls: "media-gallery-grid" });
 		for (const item of items) {
 			this.renderPosterCard(grid, item, activeItem?.path === item.path, callbacks, options.isFavorite?.(item.path) ?? false);
@@ -86,16 +72,20 @@ export class GalleryView {
 
 		const posterHost = card.createDiv({ cls: "media-gallery-poster" });
 		new Poster(item, this.app).render(posterHost);
+		card.createDiv({
+			cls: "media-gallery-hover-title",
+			text: item.year ? `${item.title} (${item.year})` : item.title,
+		});
 
 		const actionBar = card.createDiv({ cls: "media-gallery-actions" });
-		this.createIconButton(actionBar, "View details", "eye", () => {
-			callbacks.onOpenItem(item);
+		this.createIconButton(actionBar, "Open note", "eye", () => {
+			callbacks.onOpenNote(item);
 		});
 		this.createIconButton(actionBar, "Favorite", "heart", () => {
 			callbacks.onToggleFavorite(item);
 		});
-		this.createIconButton(actionBar, "More options", "more-horizontal", () => {
-			callbacks.onTagItem(item);
+		this.createIconButton(actionBar, "Open modal", "more-horizontal", () => {
+			callbacks.onOpenModal(item);
 		});
 
 		if (isFavorite) {

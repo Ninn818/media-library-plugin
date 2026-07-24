@@ -253,8 +253,8 @@ export abstract class BaseParser<TFrontmatter> {
 
         for (let index = 0; index < 4; index += 1) {
             const next = normalized
-                .replace(/^!\[[^\]]*\]\(([^)]+)\)$/, "$1")
-                .replace(/^\[[^\]]*\]\(([^)]+)\)$/, "$1")
+                .replace(/^!\[[^\]]*\]\((.+)\)$/, "$1")
+                .replace(/^\[[^\]]*\]\((.+)\)$/, "$1")
                 .replace(/^!\[\[([^|\]#]+)(?:#[^|\]]+)?(?:\|[^\]]*)?\]\]$/, "$1")
                 .replace(/^\[\[([^|\]#]+)(?:#[^|\]]+)?(?:\|[^\]]*)?\]\]$/, "$1")
                 .replace(/^<(.*)>$/, "$1")

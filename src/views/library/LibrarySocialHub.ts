@@ -26,38 +26,41 @@ export interface LibrarySocialHubCallbacks {
 }
 
 const TAB_DEFINITIONS: Array<{ id: SocialHubTab; label: string }> = [
-	{ id: "media", label: "Media" },
 	{ id: "activity", label: "Activity" },
 	{ id: "lists", label: "Lists" },
 	{ id: "favorites", label: "Favorites" },
 	{ id: "tags", label: "Tags" },
 ];
 
-export function renderLibrarySocialHub(container: HTMLElement, state: LibrarySocialHubState, callbacks: LibrarySocialHubCallbacks): void {
-	const shell = container.createDiv({ cls: "media-social-hub" });
-	const tabs = shell.createDiv({ cls: "media-social-tabs" });
+export interface LibrarySocialHubOptions {
+	showTabs?: boolean;
+}
 
-	for (const tab of TAB_DEFINITIONS) {
-		const button = tabs.createEl("button", {
-			text: tab.label,
-			cls: "media-social-tab",
-		});
-		button.type = "button";
-		if (state.activeTab === tab.id) {
-			button.addClass("is-active");
+export function renderLibrarySocialHub(
+	container: HTMLElement,
+	state: LibrarySocialHubState,
+	callbacks: LibrarySocialHubCallbacks,
+	options: LibrarySocialHubOptions = {}
+): void {
+	const shell = container.createDiv({ cls: "media-social-hub" });
+
+	if (options.showTabs !== false) {
+		const tabs = shell.createDiv({ cls: "media-social-tabs" });
+
+		for (const tab of TAB_DEFINITIONS) {
+			const button = tabs.createEl("button", {
+				text: tab.label,
+				cls: "media-social-tab",
+			});
+			button.type = "button";
+			if (state.activeTab === tab.id) {
+				button.addClass("is-active");
+			}
+			button.addEventListener("click", () => callbacks.onTabChange(tab.id));
 		}
-		button.addEventListener("click", () => callbacks.onTabChange(tab.id));
 	}
 
 	const panel = shell.createDiv({ cls: "media-social-panel" });
-	if (state.activeTab === "media") {
-		panel.createDiv({
-			cls: "media-social-empty",
-			text: "Media mode is active. Switch tabs to focus on activity and lists.",
-		});
-		return;
-	}
-
 	if (state.activeTab === "activity") {
 		renderActivityPanel(panel, state, callbacks);
 		return;

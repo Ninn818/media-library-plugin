@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import { App, setIcon } from "obsidian";
 
 import { Poster } from "../../components/Poster";
 import { MediaItem } from "../../models/MediaItem";
@@ -6,6 +6,11 @@ import { MediaItem } from "../../models/MediaItem";
 export interface LibraryCardOptions {
 	selected?: boolean;
 	onSelect?: (item: MediaItem) => void;
+	onOpenNote?: (item: MediaItem) => void;
+	onOpenModal?: (item: MediaItem) => void;
+	onToggleFavorite?: (item: MediaItem) => void;
+	isFavorite?: boolean;
+	onCreatorClick?: (creator: string) => void;
 }
 
 export function renderLibraryCard(
@@ -27,9 +32,28 @@ export function renderLibraryCard(
 	const posterShell = card.createDiv({ cls: "media-card-poster-shell" });
 	new Poster(item, app).render(posterShell);
 
+	const actionBar = posterShell.createDiv({ cls: "media-card-actions" });
+	createIconButton(actionBar, "Open note", "eye", () => {
+		options.onOpenNote?.(item);
+	});
+	createIconButton(actionBar, "Favorite", "heart", () => {
+		options.onToggleFavorite?.(item);
+	});
+	createIconButton(actionBar, "Open modal", "more-horizontal", () => {
+		options.onOpenModal?.(item);
+	});
+	if (options.isFavorite) {
+		actionBar.addClass("is-favorite");
+	}
+
 	const body = card.createDiv({ cls: "media-card-body" });
 	body.createEl("h3", { text: item.title });
-	body.createDiv({ text: item.creator, cls: "media-card-creator" });
+	const creator = body.createDiv({ text: item.creator, cls: "media-card-creator" });
+	creator.addEventListener("click", (event) => {
+		event.preventDefault();
+		event.stopPropagation();
+		options.onCreatorClick?.(item.creator);
+	});
 
 	const chips = body.createDiv({ cls: "media-card-chip-row" });
 	if (item.genres?.length) {
@@ -51,4 +75,20 @@ export function renderLibraryCard(
 	}
 
 	return card;
+}
+
+function createIconButton(container: HTMLElement, label: string, icon: string, onClick: () => void): void {
+	const button = container.createEl("button", {
+		cls: "media-card-action-button",
+		attr: { "aria-label": label, title: label },
+	});
+
+	const glyph = button.createSpan({ cls: "media-card-action-icon" });
+	setIcon(glyph, icon);
+
+	button.addEventListener("click", (event) => {
+		event.preventDefault();
+		event.stopPropagation();
+		onClick();
+	});
 }

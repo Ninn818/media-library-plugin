@@ -6,6 +6,11 @@ import { renderLibraryCard } from "./LibraryCard";
 export interface LibraryCardTrackOptions {
 	selectedItem?: MediaItem | null;
 	onSelect?: (item: MediaItem) => void;
+	onOpenNote?: (item: MediaItem) => void;
+	onOpenModal?: (item: MediaItem) => void;
+	onToggleFavorite?: (item: MediaItem) => void;
+	isFavorite?: (itemPath: string) => boolean;
+	onCreatorClick?: (creator: string) => void;
 }
 
 export function renderLibraryCardTrack(
@@ -28,6 +33,11 @@ export function renderLibraryCardTrack(
 		renderLibraryCard(grid, item, app, {
 			selected: options.selectedItem?.path === item.path,
 			onSelect: options.onSelect,
+			onOpenNote: options.onOpenNote,
+			onOpenModal: options.onOpenModal,
+			onToggleFavorite: options.onToggleFavorite,
+			isFavorite: options.isFavorite?.(item.path) ?? false,
+			onCreatorClick: options.onCreatorClick,
 		});
 	}
 }

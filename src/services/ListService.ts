@@ -1,6 +1,7 @@
 import { MediaLibraryCustomList, MediaLibrarySettings } from "../settings";
 
 const FAVORITES_LIST_NAME = "Favorites";
+const UP_NEXT_LIST_NAME = "Up Next";
 
 function nowIso(): string {
 	return new Date().toISOString();
@@ -27,6 +28,10 @@ export function getFavoritesList(settings: MediaLibrarySettings): MediaLibraryCu
 	return findByName(settings, FAVORITES_LIST_NAME);
 }
 
+export function getUpNextList(settings: MediaLibrarySettings): MediaLibraryCustomList | undefined {
+	return findByName(settings, UP_NEXT_LIST_NAME);
+}
+
 export function ensureFavoritesList(settings: MediaLibrarySettings): MediaLibraryCustomList {
 	const existing = getFavoritesList(settings);
 	if (existing) {
@@ -36,6 +41,23 @@ export function ensureFavoritesList(settings: MediaLibrarySettings): MediaLibrar
 	const created: MediaLibraryCustomList = {
 		id: makeListId(FAVORITES_LIST_NAME),
 		name: FAVORITES_LIST_NAME,
+		itemPaths: [],
+		createdAt: nowIso(),
+		updatedAt: nowIso(),
+	};
+	settings.customLists = [...settings.customLists, created];
+	return created;
+}
+
+export function ensureUpNextList(settings: MediaLibrarySettings): MediaLibraryCustomList {
+	const existing = getUpNextList(settings);
+	if (existing) {
+		return existing;
+	}
+
+	const created: MediaLibraryCustomList = {
+		id: makeListId(UP_NEXT_LIST_NAME),
+		name: UP_NEXT_LIST_NAME,
 		itemPaths: [],
 		createdAt: nowIso(),
 		updatedAt: nowIso(),

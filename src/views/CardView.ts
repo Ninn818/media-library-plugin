@@ -7,6 +7,14 @@ import { renderLibraryCardTrack } from "./cards/LibraryCardTrack";
 
 export type CardSelectionHandler = (item: MediaItem | null) => void;
 
+export interface CardViewCallbacks {
+	onOpenNote?: (item: MediaItem) => void;
+	onOpenModal?: (item: MediaItem) => void;
+	onToggleFavorite?: (item: MediaItem) => void;
+	isFavorite?: (itemPath: string) => boolean;
+	onCreatorClick?: (creator: string) => void;
+}
+
 /**
  * CardView
  *
@@ -36,11 +44,17 @@ export class CardView {
 		container: HTMLElement,
 		items: MediaItem[],
 		selectedItem: MediaItem | null = null,
-		onSelect: CardSelectionHandler | null = null
+		onSelect: CardSelectionHandler | null = null,
+		callbacks: CardViewCallbacks = {}
 	): void {
 		renderLibraryCardTrack(container, items, this.app, {
 			selectedItem,
 			onSelect: onSelect ?? undefined,
+			onOpenNote: callbacks.onOpenNote,
+			onOpenModal: callbacks.onOpenModal,
+			onToggleFavorite: callbacks.onToggleFavorite,
+			isFavorite: callbacks.isFavorite,
+			onCreatorClick: callbacks.onCreatorClick,
 		});
 	}
 }

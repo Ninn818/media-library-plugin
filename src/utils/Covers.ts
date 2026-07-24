@@ -5,8 +5,8 @@ function unwrapCoverSource(source: string): string {
 
 	for (let index = 0; index < 4; index += 1) {
 		const next = normalized
-			.replace(/^!\[[^\]]*\]\(([^)]+)\)$/, "$1")
-			.replace(/^\[[^\]]*\]\(([^)]+)\)$/, "$1")
+			.replace(/^!\[[^\]]*\]\((.+)\)$/, "$1")
+			.replace(/^\[[^\]]*\]\((.+)\)$/, "$1")
 			.replace(/^!\[\[([^|\]#]+)(?:#[^|\]]+)?(?:\|[^\]]*)?\]\]$/, "$1")
 			.replace(/^\[\[([^|\]#]+)(?:#[^|\]]+)?(?:\|[^\]]*)?\]\]$/, "$1")
 			.replace(/^\((.*)\)$/, "$1")
@@ -117,6 +117,22 @@ function resolveByLoosePathMatch(app: App, candidates: string[]): string | null 
 			const filePath = file.path.toLowerCase();
 			if (filePath.endsWith(suffixed)) {
 				return app.vault.getResourcePath(file);
+			}
+		}
+	}
+
+	// Fallback for moved/renamed folders: match by filename when path prefixes drift.
+	for (const candidate of candidates) {
+		const filename = candidate.split("/").pop()?.toLowerCase();
+		if (!filename) {
+			continue;
+		}
+
+		const matches = files.filter((file) => file.name.toLowerCase() === filename);
+		if (matches.length === 1) {
+			const match = matches[0];
+			if (match) {
+				return app.vault.getResourcePath(match);
 			}
 		}
 	}

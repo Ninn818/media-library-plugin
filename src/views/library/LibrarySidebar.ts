@@ -1,4 +1,5 @@
 import { MediaItem } from "../../models/MediaItem";
+import { timeAgoFromDate } from "../../utils/TimeAgo";
 
 interface SidebarMetric {
 	label: string;
@@ -19,6 +20,7 @@ interface ActivityEvent {
 export interface LibrarySidebarState {
 	visibleItems: MediaItem[];
 	variant?: "default" | "airy";
+	mode?: "default" | "home";
 }
 
 export function renderLibrarySidebar(
@@ -34,13 +36,16 @@ export function renderLibrarySidebar(
 
 	renderMetricsSection(rail, state);
 	renderQueueSection(rail, state.visibleItems, state.variant);
-	renderActivitySection(rail, state.visibleItems, state.variant);
+	renderActivitySection(rail, state.visibleItems, state.variant, state.mode);
 }
 
 function renderMetricsSection(container: HTMLElement, state: LibrarySidebarState): void {
 	const section = createSection(container, "Library snapshot", state.variant);
-	const metrics = getMetrics(state);
+	const metrics = getMetrics(state.visibleItems, state.mode ?? "default");
 	const grid = section.createDiv({ cls: "media-library-sidebar-metrics" });
+	if ((state.mode ?? "default") === "home") {
+		grid.addClass("is-home-metrics");
+	}
 
 	for (const metric of metrics) {
 		const card = grid.createDiv({ cls: "media-library-sidebar-metric" });
@@ -66,9 +71,14 @@ function renderQueueSection(container: HTMLElement, items: MediaItem[], variant?
 	})));
 }
 
-function renderActivitySection(container: HTMLElement, items: MediaItem[], variant?: "default" | "airy"): void {
+function renderActivitySection(
+	container: HTMLElement,
+	items: MediaItem[],
+	variant?: "default" | "airy",
+	mode: "default" | "home" = "default"
+): void {
 	const section = createSection(container, "Recent activity", variant);
-	const recentEvents = getRecentActivityEvents(items).slice(0, 6);
+	const recentEvents = getRecentActivityEvents(items, mode).slice(0, 6);
 
 	if (!recentEvents.length) {
 		renderEmptyState(section, "No activity logged yet.");
@@ -136,27 +146,43 @@ function renderEmptyState(container: HTMLElement, message: string): void {
 	container.createDiv({ text: message, cls: "media-library-sidebar-empty" });
 }
 
-function getMetrics(state: LibrarySidebarState): SidebarMetric[] {
-	const ratedItems = state.visibleItems.filter((item) => typeof item.rating === "number");
+function getMetrics(items: MediaItem[], mode: "default" | "home"): SidebarMetric[] {
+	const ratedItems = items.filter((item) => typeof item.rating === "number");
 	const averageRating = ratedItems.length
 		? (ratedItems.reduce((sum, item) => sum + (item.rating ?? 0), 0) / ratedItems.length).toFixed(1)
 		: "-";
-	const completedThisYear = state.visibleItems.filter((item) => isInCurrentYear(item.date)).length;
-	const queuedCount = state.visibleItems.filter((item) => item.status === "want to read" || item.status === "want to watch").length;
+
+	if (mode === "home") {
+		const books = items.filter((item) => item.mediaType === "book").length;
+		const films = items.filter((item) => item.mediaType === "movie").length;
+		const series = items.filter((item) => item.mediaType === "series").length;
+		const essays = items.filter((item) => item.mediaType === "essay").length;
+
+		return [
+			{ label: "Average", value: averageRating === "-" ? "-" : `${averageRating}/10` },
+			{ label: "Books", value: String(books) },
+			{ label: "Films", value: String(films) },
+			{ label: "Series", value: String(series) },
+			{ label: "Essays", value: String(essays) },
+		];
+	}
+
+	const completedThisYear = items.filter((item) => isInCurrentYear(item.date)).length;
+	const queuedCount = items.filter((item) => item.status === "want to read" || item.status === "want to watch").length;
 
 	return [
-		{ label: "Visible", value: String(state.visibleItems.length) },
+		{ label: "Visible", value: String(items.length) },
 		{ label: "This year", value: String(completedThisYear) },
 		{ label: "Queued", value: String(queuedCount) },
 		{ label: "Avg rating", value: averageRating },
 	];
 }
 
-function getRecentActivityEvents(items: MediaItem[]): ActivityEvent[] {
+function getRecentActivityEvents(items: MediaItem[], mode: "default" | "home"): ActivityEvent[] {
 	return items
 		.flatMap((item) => {
 			const events: ActivityEvent[] = [];
-			if (item.addedDate) {
+			if (mode !== "home" && item.addedDate) {
 				events.push({
 					date: item.addedDate,
 					title: `You added ${item.title}`,
@@ -167,12 +193,19 @@ function getRecentActivityEvents(items: MediaItem[]): ActivityEvent[] {
 				events.push({
 					date: item.date,
 					title: `${isReadingType(item) ? "You read" : "You watched"} ${item.title}`,
-					meta: formatActivityMeta(item, "completed"),
+					meta: mode === "home" ? formatHomeActivityMeta(item) : formatActivityMeta(item, "completed"),
 				});
 			}
 			return events;
 		})
 		.sort((left, right) => right.date.localeCompare(left.date));
+}
+
+function formatHomeActivityMeta(item: MediaItem): string {
+	const estimate = getTimeEstimate(item);
+	const ago = item.date ? timeAgoFromDate(item.date) : "";
+	const agoLabel = ago !== "unknown" ? ago : "";
+	return [estimate, agoLabel, item.creator].filter(Boolean).join(" • ");
 }
 
 function isInCurrentYear(value: string | undefined): boolean {

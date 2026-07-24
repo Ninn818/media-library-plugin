@@ -11,8 +11,13 @@ export function renderLibraryPageTabs(
 ): void {
 	const tabs = container.createDiv({ cls: "media-library-page-tabs" });
 
-	renderTabButton(tabs, "library", "Library", activeTab, callbacks);
+	renderTabButton(tabs, "home", "Home", activeTab, callbacks);
 	renderTabButton(tabs, "dashboard", "Dashboard", activeTab, callbacks);
+	renderTabButton(tabs, "media", "Media", activeTab, callbacks);
+	renderTabButton(tabs, "diary", "Diary", activeTab, callbacks);
+	renderTabButton(tabs, "activity", "Activity", activeTab, callbacks);
+	renderTabButton(tabs, "lists", "Lists", activeTab, callbacks);
+	renderTabButton(tabs, "tags", "Tags", activeTab, callbacks);
 }
 
 function renderTabButton(

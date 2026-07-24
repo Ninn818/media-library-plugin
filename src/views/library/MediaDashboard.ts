@@ -47,7 +47,6 @@ export interface MediaDashboardCallbacks {
 
 export function renderMediaDashboard(
 	hosts: MediaDashboardHosts,
-	app: App,
 	state: MediaDashboardState,
 	callbacks: MediaDashboardCallbacks
 ): void {
@@ -60,7 +59,7 @@ export function renderMediaDashboard(
 
 	renderHero(hosts.heroHost, activeItems, state, callbacks);
 	renderContent(hosts.contentHost, activeItems, state);
-	renderSidebar(hosts.sidebarHost, app, state, activeItems, callbacks);
+	renderSidebar(hosts.sidebarHost, state, activeItems, callbacks);
 	renderStatus(hosts.statusHost, state.items, activeItems, state.scope, state.consumption);
 }
 
@@ -116,7 +115,6 @@ function renderContent(
 
 function renderSidebar(
 	container: HTMLElement,
-	app: App,
 	state: MediaDashboardState,
 	activeItems: MediaItem[],
 	callbacks: MediaDashboardCallbacks
@@ -134,9 +132,6 @@ function renderSidebar(
 	if (state.settings.dashboardShowGoals) {
 		renderGoalProgress(sidebar, activeItems, state.settings.dashboardGoals, state.consumption);
 	}
-
-	renderRecentActivity(sidebar, activeItems, callbacks, state.consumption);
-	renderQueuePanel(sidebar, state.items, app, callbacks);
 }
 
 function renderStatus(
@@ -390,60 +385,6 @@ function renderGoalProgress(
 		const fill = track.createDiv({ cls: "media-dashboard-goal-fill" });
 		fill.style.width = `${goal > 0 ? Math.min(current / goal, 1) * 100 : 0}%`;
 		row.createDiv({ text: goal > 0 ? `${remaining} left` : "No goal set", cls: "media-dashboard-goal-note" });
-	}
-}
-
-function renderRecentActivity(
-	container: HTMLElement,
-	activeItems: MediaItem[],
-	callbacks: MediaDashboardCallbacks,
-	consumption: DashboardConsumptionFilter
-): void {
-	if (consumption === "unconsumed") {
-		return;
-	}
-
-	const section = createSidebarSection(container, "Recent activity");
-	const recent = [...activeItems]
-		.filter((item) => Boolean(item.date))
-		.sort((left, right) => (right.date ?? "").localeCompare(left.date ?? ""))
-		.slice(0, 5);
-
-	if (!recent.length) {
-		section.createDiv({ text: "Nothing completed yet in this view.", cls: "media-dashboard-sidebar-copy" });
-		return;
-	}
-
-	for (const item of recent) {
-		const row = section.createDiv({ cls: "media-dashboard-feed-item is-clickable" });
-		row.createDiv({ text: item.title, cls: "media-dashboard-feed-title" });
-		row.createDiv({ text: getActivitySentence(item), cls: "media-dashboard-feed-meta" });
-		row.addEventListener("click", () => callbacks.onOpenItem(item));
-	}
-}
-
-function renderQueuePanel(
-	container: HTMLElement,
-	items: MediaItem[],
-	app: App,
-	callbacks: MediaDashboardCallbacks
-): void {
-	void app;
-	const section = createSidebarSection(container, "Queued now");
-	const queued = items
-		.filter((item) => isQueued(item.status))
-		.slice(0, 5);
-
-	if (!queued.length) {
-		section.createDiv({ text: "No queued titles right now.", cls: "media-dashboard-sidebar-copy" });
-		return;
-	}
-
-	for (const item of queued) {
-		const row = section.createDiv({ cls: "media-dashboard-feed-item is-clickable" });
-		row.createDiv({ text: item.title, cls: "media-dashboard-feed-title" });
-		row.createDiv({ text: [capitalize(item.mediaType), item.creator].join(" • "), cls: "media-dashboard-feed-meta" });
-		row.addEventListener("click", () => callbacks.onOpenItem(item));
 	}
 }
 

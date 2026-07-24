@@ -1,6 +1,6 @@
 // src/views/LibraryView.ts
 
-import { ItemView, Modal, Notice, WorkspaceLeaf } from "obsidian";
+import { ItemView, Modal, Notice, WorkspaceLeaf, setIcon } from "obsidian";
 
 import { MediaLibrary } from "../core/MediaLibrary";
 import { ViewRegistry } from "../core/ViewRegistry";
@@ -19,18 +19,22 @@ import * as ListService from "../services/ListService";
 import { addTagToMediaNote } from "../services/TagService";
 import { ActivityLogService } from "../services/ActivityLogService";
 import { MediaActivityModal } from "../ui/MediaActivityModal";
+import { Poster } from "../components/Poster";
+import { resolveCoverSource } from "../utils/Covers";
+import { timeAgoFromDate } from "../utils/TimeAgo";
 import { CardView } from "./CardView";
 import { GalleryView } from "./GalleryView";
 import { ViewSwitcher } from "./ViewSwitcher";
-import { renderLibraryHeader } from "./library/LibraryHeader";
 import { renderMediaDashboard } from "./library/MediaDashboard";
 import { renderMediaDashboardToolbar } from "./library/MediaDashboardToolbar";
 import { renderLibraryPageTabs } from "./library/LibraryPageTabs";
 import { renderLibraryShell } from "./library/LibraryShell";
 import { renderLibrarySidebar } from "./library/LibrarySidebar";
+import { renderLibrarySocialHub } from "./library/LibrarySocialHub";
 import { renderLibraryToolbar } from "./library/LibraryToolbar";
 
 export class LibraryView extends ItemView {
+	// Core dependencies
 	private readonly library: MediaLibrary;
 	private readonly viewRegistry: ViewRegistry;
 	private readonly settings: MediaLibrarySettings;
@@ -39,6 +43,7 @@ export class LibraryView extends ItemView {
 	private readonly galleryView: GalleryView;
 	private readonly activityLogService: ActivityLogService;
 
+	// Root DOM hosts
 	private toolbarHost!: HTMLElement;
 	private headerHost!: HTMLElement;
 	private bodyHost!: HTMLElement;
@@ -48,7 +53,8 @@ export class LibraryView extends ItemView {
 	private contentHost!: HTMLElement;
 	private statusHost!: HTMLElement;
 
-	private currentPageTab: LibraryPageTab = "library";
+	// View state
+	private currentPageTab: LibraryPageTab = "home";
 	private activeLibraryViewId: string;
 	private currentFilter: MediaType | "all" = "all";
 	private currentSort: SortType = "date-created-desc";
@@ -56,12 +62,14 @@ export class LibraryView extends ItemView {
 	private dashboardScope: DashboardScopeMode = "year";
 	private dashboardFilter: DashboardMediaFilter = "all";
 	private currentLibraryItems: MediaItem[] = [];
-	private visibleItemCount = 12;
+	private visibleItemCount = LibraryView.LIBRARY_PAGE_SIZE;
 	private searchQuery = "";
 	private selectedItem: MediaItem | null = null;
 	private featuredPath: string | null = null;
 	private activeSocialTab: SocialHubTab;
-	private static readonly LIBRARY_PAGE_SIZE = 12;
+	private isSidebarVisible = true;
+	private static readonly LIBRARY_PAGE_SIZE = 40;
+	private static readonly GALLERY_PAGE_SIZE = 40;
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -97,14 +105,15 @@ export class LibraryView extends ItemView {
 
 	async onOpen(): Promise<void> {
 		await this.library.refresh();
-		this.currentPageTab = this.settings.defaultPageTab;
+		this.currentPageTab = this.normalizePageTab(this.settings.defaultPageTab);
 		this.activeSocialTab = this.settings.defaultSocialTab;
 		this.currentSort = this.settings.defaultSortMode;
 		this.dashboardConsumption = this.settings.dashboardDefaultConsumptionFilter;
 		this.dashboardScope = this.settings.dashboardDefaultScope;
 		this.dashboardFilter = this.settings.dashboardDefaultFilter;
-		this.visibleItemCount = LibraryView.LIBRARY_PAGE_SIZE;
+		this.visibleItemCount = this.getPageSizeStep();
 		this.featuredPath = null;
+		this.ensureCoreLists();
 		this.render();
 	}
 
@@ -117,8 +126,8 @@ export class LibraryView extends ItemView {
 		this.contentEl.addClass("media-library");
 		this.contentEl.toggleClass("is-motion-off", !this.settings.enableUiAnimations);
 
-		this.toolbarHost = this.contentEl.createDiv();
-		this.headerHost = this.contentEl.createDiv();
+		this.toolbarHost = this.contentEl.createDiv({ cls: "media-library-toolbar-host" });
+		this.headerHost = this.contentEl.createDiv({ cls: "media-library-header-host" });
 		this.renderToolbarArea();
 		this.renderHeaderArea();
 
@@ -138,6 +147,7 @@ export class LibraryView extends ItemView {
 		this.renderActivePage();
 	}
 
+	// Toolbar + tab controls
 	private getToolbarState() {
 		return {
 			searchQuery: this.searchQuery,
@@ -149,18 +159,41 @@ export class LibraryView extends ItemView {
 
 	private renderToolbarArea(): void {
 		this.toolbarHost.empty();
+		this.toolbarHost.toggleClass("is-dashboard-tab", this.currentPageTab === "dashboard");
+		this.toolbarHost.toggleClass("is-media-tab", this.currentPageTab === "media");
 
-		renderLibraryPageTabs(this.toolbarHost, this.currentPageTab, {
+		const tabsRow = this.toolbarHost.createDiv({ cls: "media-library-toolbar-row" });
+		renderLibraryPageTabs(tabsRow, this.currentPageTab, {
 			onTabChange: (tab) => {
-				this.currentPageTab = tab;
+				this.currentPageTab = this.normalizePageTab(tab);
 				this.renderToolbarArea();
 				this.renderHeaderArea();
 				this.renderActivePage();
 			},
 		});
 
-		const controlsHost = this.toolbarHost.createDiv();
-		if (this.currentPageTab === "library") {
+		const sidebarButton = tabsRow.createEl("button", {
+			cls: "media-library-sidebar-toggle",
+			attr: {
+				title: this.isSidebarVisible ? "Hide sidebar" : "Show sidebar",
+				"aria-label": this.isSidebarVisible ? "Hide sidebar" : "Show sidebar",
+			},
+		});
+		sidebarButton.type = "button";
+		setIcon(sidebarButton, this.isSidebarVisible ? "panel-right-close" : "panel-right-open");
+		sidebarButton.addEventListener("click", () => {
+			this.isSidebarVisible = !this.isSidebarVisible;
+			this.renderToolbarArea();
+			this.renderActivePage();
+		});
+
+		if (this.currentPageTab === "home") {
+			return;
+		}
+
+		if (this.currentPageTab === "media") {
+			const mediaControlsShell = this.toolbarHost.createDiv({ cls: "media-library-media-controls-shell" });
+			const controlsHost = mediaControlsShell.createDiv();
 			renderLibraryToolbar(controlsHost, this.getToolbarState(), {
 				onSearchChange: (value) => {
 					this.searchQuery = value;
@@ -191,18 +224,25 @@ export class LibraryView extends ItemView {
 				},
 			});
 
-			const switcherHost = this.toolbarHost.createDiv();
+			const switcherHost = mediaControlsShell.createDiv({ cls: "media-library-media-switcher-host" });
 			new ViewSwitcher({
 				container: switcherHost,
 				viewRegistry: this.viewRegistry,
 				initialView: this.activeLibraryViewId,
 				onChange: (viewId) => {
 					this.activeLibraryViewId = viewId;
+					this.resetVisibleItemCount();
 					this.renderActivePage();
 				},
 			});
 			return;
 		}
+
+		if (this.currentPageTab !== "dashboard") {
+			return;
+		}
+
+		const controlsHost = this.toolbarHost.createDiv();
 
 		renderMediaDashboardToolbar(controlsHost, {
 			consumption: this.dashboardConsumption,
@@ -227,27 +267,74 @@ export class LibraryView extends ItemView {
 		});
 	}
 
+	// Top header area (non-home pages)
 	private renderHeaderArea(): void {
 		this.headerHost.empty();
-		if (this.currentPageTab === "dashboard" || this.isGalleryViewActive()) {
-			return;
-		}
-		renderLibraryHeader(this.headerHost, this.library, this.settings, this.currentPageTab);
+		// Keep the hero header persistent while switching top tabs.
+		this.renderHomeHero(this.headerHost);
 	}
 
+	// Main page routing
 	private renderActivePage(): void {
+		this.contentEl.toggleClass("is-home-page", this.currentPageTab === "home");
+		this.bodyHost?.toggleClass("is-home-layout", this.currentPageTab === "home");
+		this.bodyHost?.removeClass("is-social-layout");
 		this.updateLayoutMode();
+
+		if (this.currentPageTab === "home") {
+			this.spotlightHost.empty();
+			this.spotlightHost.addClass("is-hidden");
+			this.sidebarHost.removeClass("is-hidden");
+			this.renderHomePage();
+			this.applySidebarVisibility();
+			return;
+		}
 
 		if (this.currentPageTab === "dashboard") {
 			this.spotlightHost.removeClass("is-hidden");
 			this.sidebarHost.removeClass("is-hidden");
 			this.renderDashboardPage();
+			this.applySidebarVisibility();
+			return;
+		}
+
+		if (this.currentPageTab === "diary") {
+			this.renderTopSocialPage("activity");
+			return;
+		}
+
+		if (this.currentPageTab === "activity") {
+			this.renderActivityTimelinePage();
+			return;
+		}
+
+		if (this.currentPageTab === "lists") {
+			this.renderTopSocialPage("lists");
+			return;
+		}
+
+		if (this.currentPageTab === "tags") {
+			this.renderTopSocialPage("tags");
 			return;
 		}
 
 		if (this.activeLibraryViewId === "gallery") {
-			this.sidebarHost.removeClass("is-hidden");
+			if (this.visibleItemCount < LibraryView.GALLERY_PAGE_SIZE) {
+				this.visibleItemCount = LibraryView.GALLERY_PAGE_SIZE;
+			}
+			this.sidebarHost.addClass("is-hidden");
+			this.bodyHost?.addClass("is-sidebar-hidden");
 			this.renderGalleryLibraryView();
+			return;
+		}
+
+		if (this.currentPageTab === "media") {
+			this.spotlightHost.empty();
+			this.spotlightHost.addClass("is-hidden");
+			this.sidebarHost.addClass("is-hidden");
+			this.bodyHost?.addClass("is-sidebar-hidden");
+			this.renderCurrentView();
+			this.statusHost.empty();
 			return;
 		}
 
@@ -257,45 +344,362 @@ export class LibraryView extends ItemView {
 		this.renderCurrentView();
 		this.renderSidebar();
 		this.updateStatusBar();
+		this.applySidebarVisibility();
 	}
 
+	private renderTopSocialPage(tab: SocialHubTab): void {
+		this.spotlightHost.empty();
+		this.spotlightHost.addClass("is-hidden");
+		this.contentHost.empty();
+		this.sidebarHost.addClass("is-hidden");
+		this.bodyHost?.addClass("is-social-layout");
+
+		renderLibrarySocialHub(this.contentHost, {
+			...this.getSocialHubState(),
+			activeTab: tab,
+		}, this.getSocialHubCallbacks(), {
+			showTabs: false,
+		});
+
+		this.statusHost.setText(tab.charAt(0).toUpperCase() + tab.slice(1));
+	}
+
+	private renderActivityTimelinePage(): void {
+		this.spotlightHost.empty();
+		this.spotlightHost.addClass("is-hidden");
+		this.contentHost.empty();
+		this.sidebarHost.addClass("is-hidden");
+		this.bodyHost?.addClass("is-social-layout");
+
+		const wrap = this.contentHost.createDiv({ cls: "media-home-activity-page" });
+		const header = wrap.createDiv({ cls: "media-home-sidebar-header" });
+		header.createDiv({ cls: "media-home-sidebar-title", text: "Activity" });
+
+		const byPath = new Map(this.library.getAll().map((item) => [item.path, item]));
+		const events = this.getHomeActivityItems(this.getUpNextItems(byPath), 40);
+		if (!events.length) {
+			wrap.createDiv({ cls: "media-home-empty", text: "No activity yet." });
+			this.statusHost.setText("Activity");
+			return;
+		}
+
+		const list = wrap.createDiv({ cls: "media-home-activity-list is-expanded" });
+		for (const [index, entry] of events.entries()) {
+			const row = list.createDiv({ cls: "media-home-activity-item" });
+			const node = row.createDiv({ cls: "media-home-activity-node" });
+			node.createDiv({ cls: "media-home-activity-dot" });
+			if (index < events.length - 1) {
+				node.createDiv({ cls: "media-home-activity-stem" });
+			}
+
+			const body = row.createDiv({ cls: "media-home-activity-body" });
+			const line = body.createDiv({ cls: "media-home-activity-line" });
+			line.createSpan({ text: entry.prefix });
+			line.createSpan({ cls: "media-home-activity-title-emphasis", text: entry.item.title });
+			line.createSpan({ text: entry.suffix });
+			body.createDiv({ cls: "media-home-activity-meta", text: entry.when });
+
+			row.addEventListener("click", () => {
+				this.selectItem(entry.item);
+				this.openActivityModal(entry.item);
+			});
+		}
+	}
+
+	// Home page composition
+	private renderHomePage(): void {
+		this.contentHost.empty();
+		const allItems = this.library.getAll();
+		const byPath = new Map(allItems.map((item) => [item.path, item]));
+
+		const shell = this.contentHost.createDiv({ cls: "media-home-shell" });
+		const favorites = this.getFavoritesHomeItems(byPath);
+		const recent = this.getRecentHomeItems();
+
+		this.renderHomeShelf(shell, "Favorites", favorites);
+		this.renderHomeShelf(shell, "Recent activity", recent, true);
+
+		this.renderHomeSidebar(byPath);
+	}
+
+	// Home hero block
+	private renderHomeHero(container: HTMLElement): void {
+		if (!this.settings.homeHeroEnabled) {
+			return;
+		}
+
+		const hero = container.createDiv({ cls: "media-home-hero" });
+		hero.style.setProperty("--ml-home-hero-height", `${this.settings.homeHeroHeight}px`);
+		hero.style.setProperty("--ml-home-hero-blur", `${this.settings.homeHeroBlur}px`);
+
+		const imageValue = this.settings.homeHeroImage.trim();
+		if (imageValue.length > 0) {
+			const resolvedImage = resolveCoverSource(this.app, "", imageValue);
+			const background = hero.createDiv({ cls: "media-home-hero-bg" });
+			background.style.backgroundImage = `url("${resolvedImage.replace(/"/g, "\\\"")}")`;
+			const blurBand = hero.createDiv({ cls: "media-home-hero-bg-blur" });
+			blurBand.style.backgroundImage = `url("${resolvedImage.replace(/"/g, "\\\"")}")`;
+			hero.createDiv({ cls: "media-home-hero-fade" });
+		} else {
+			hero.addClass("is-no-image");
+		}
+
+		const content = hero.createDiv({ cls: "media-home-hero-content" });
+		content.style.color = this.settings.homeHeroTextColor;
+		content.style.fontFamily = getHomeHeroFontFamily(
+			this.settings.homeHeroFont,
+			this.settings.homeHeroCustomFontFamily
+		);
+
+		const title = this.settings.homeHeroTitle.trim() || "My media world";
+		content.createEl("h2", { cls: "media-home-hero-title", text: title });
+
+		const subtitle = this.settings.homeHeroSubtitle.trim();
+		if (subtitle.length > 0) {
+			content.createEl("p", { cls: "media-home-hero-subtitle", text: subtitle });
+		}
+	}
+
+
+	// Home right rail
+	private renderHomeSidebar(allItemsByPath: Map<string, MediaItem>): void {
+		this.sidebarHost.empty();
+		const rail = this.sidebarHost.createDiv({ cls: "media-home-sidebar" });
+
+		const upNext = this.getUpNextItems(allItemsByPath);
+		const upNextSection = rail.createDiv({ cls: "media-home-sidebar-section" });
+		const watchlistHeader = upNextSection.createDiv({ cls: "media-home-sidebar-header" });
+		watchlistHeader.createDiv({ cls: "media-home-sidebar-title", text: "Up next" });
+		watchlistHeader.createDiv({ cls: "media-home-sidebar-count", text: String(upNext.length) });
+		if (!upNext.length) {
+			upNextSection.createDiv({ cls: "media-home-empty", text: "No titles in up next." });
+		} else {
+			const strip = upNextSection.createDiv({ cls: "media-home-watchlist-stack" });
+			for (const item of upNext.slice(0, 6)) {
+				const card = strip.createDiv({ cls: "media-home-watchlist-card" });
+				card.setAttr("title", item.title);
+				card.addEventListener("click", () => {
+					this.selectItem(item);
+					this.openActivityModal(item);
+				});
+				new Poster(item, this.app).render(card);
+			}
+		}
+
+		const diaryItems = this.getHomeDiaryItems();
+		const diarySection = rail.createDiv({ cls: "media-home-sidebar-section" });
+		const diaryHeader = diarySection.createDiv({ cls: "media-home-sidebar-header" });
+		diaryHeader.createDiv({ cls: "media-home-sidebar-title", text: "Diary" });
+		const diaryHeaderRight = diaryHeader.createDiv({ cls: "media-home-sidebar-header-right" });
+		diaryHeaderRight.createDiv({ cls: "media-home-sidebar-count", text: String(diaryItems.length) });
+		const diaryAllButton = diaryHeaderRight.createEl("button", { cls: "media-home-sidebar-all", text: "All" });
+		diaryAllButton.type = "button";
+		diaryAllButton.addEventListener("click", () => {
+			this.currentPageTab = "diary";
+			this.renderToolbarArea();
+			this.renderHeaderArea();
+			this.renderActivePage();
+		});
+		if (!diaryItems.length) {
+			diarySection.createDiv({ cls: "media-home-empty", text: "No diary entries yet." });
+		} else {
+			const diaryList = diarySection.createDiv({ cls: "media-home-diary-list" });
+			let previousMonth = "";
+			for (const [index, item] of diaryItems.entries()) {
+				void index;
+				const row = diaryList.createDiv({ cls: "media-home-diary-item" });
+				const badge = row.createDiv({ cls: "media-home-diary-badge" });
+				const monthAbbrev = getMonthAbbreviation(item.date);
+				const showMonth = monthAbbrev !== previousMonth;
+				badge.createDiv({
+					cls: showMonth ? "media-home-diary-badge-month" : "media-home-diary-badge-month is-muted",
+					text: showMonth ? monthAbbrev : "",
+				});
+				previousMonth = monthAbbrev;
+				const label = row.createDiv({ cls: "media-home-diary-label" });
+				label.createSpan({ cls: "media-home-diary-index", text: getDayOfMonth(item.date) });
+				label.createSpan({ cls: "media-home-diary-title", text: item.title });
+				row.addEventListener("click", () => {
+					this.selectItem(item);
+					this.openActivityModal(item);
+				});
+			}
+		}
+
+		const activitySection = rail.createDiv({ cls: "media-home-sidebar-section" });
+		const activityHeader = activitySection.createDiv({ cls: "media-home-sidebar-header" });
+		activityHeader.createDiv({ cls: "media-home-sidebar-title", text: "Activity" });
+		const allButton = activityHeader.createEl("button", { cls: "media-home-sidebar-all", text: "All" });
+		allButton.type = "button";
+		allButton.addEventListener("click", () => {
+			this.currentPageTab = "diary";
+			this.renderToolbarArea();
+			this.renderHeaderArea();
+			this.renderActivePage();
+		});
+
+		const activityItems = this.getHomeActivityItems(upNext);
+		if (!activityItems.length) {
+			activitySection.createDiv({ cls: "media-home-empty", text: "No activity yet." });
+			return;
+		}
+
+		const list = activitySection.createDiv({ cls: "media-home-activity-list" });
+		for (const [index, entry] of activityItems.entries()) {
+			const row = list.createDiv({ cls: "media-home-activity-item" });
+			const node = row.createDiv({ cls: "media-home-activity-node" });
+			node.createDiv({ cls: "media-home-activity-dot" });
+			if (index < activityItems.length - 1) {
+				node.createDiv({ cls: "media-home-activity-stem" });
+			}
+
+			const body = row.createDiv({ cls: "media-home-activity-body" });
+			const line = body.createDiv({ cls: "media-home-activity-line" });
+			line.createSpan({ text: entry.prefix });
+			line.createSpan({ cls: "media-home-activity-title-emphasis", text: entry.item.title });
+			line.createSpan({ text: entry.suffix });
+			body.createDiv({ cls: "media-home-activity-meta", text: entry.when });
+
+			row.addEventListener("click", () => {
+				this.selectItem(entry.item);
+				this.openActivityModal(entry.item);
+			});
+		}
+	}
+
+	private getHomeDiaryItems(): MediaItem[] {
+		return this.library.getAll()
+			.filter((item) => Boolean(item.date))
+			.sort((left, right) => (right.date ?? "").localeCompare(left.date ?? ""))
+			.slice(0, 4);
+	}
+
+	private getHomeActivityItems(upNextItems: MediaItem[], limit = 6): Array<{
+		item: MediaItem;
+		prefix: string;
+		suffix: string;
+		when: string;
+		date: string;
+	}> {
+		const upNextPaths = new Set(upNextItems.map((item) => item.path));
+		return this.library.getAll()
+			.flatMap((item) => {
+				const events: Array<{
+					item: MediaItem;
+					prefix: string;
+					suffix: string;
+					when: string;
+					date: string;
+				}> = [];
+
+				if (upNextPaths.has(item.path) && item.addedDate) {
+					const listLabel = item.mediaType === "book" || item.mediaType === "essay"
+						? "readlist"
+						: "watchlist";
+					events.push({
+						item,
+						prefix: "You added ",
+						suffix: ` to your ${listLabel}`,
+						when: formatCompactRelative(item.addedDate),
+						date: item.addedDate,
+					});
+				}
+
+				if (item.date) {
+					events.push({
+						item,
+						prefix: item.mediaType === "book" || item.mediaType === "essay" ? "You read " : "You watched ",
+						suffix: "",
+						when: formatCompactRelative(item.date),
+						date: item.date,
+					});
+				}
+
+				return events;
+			})
+			.sort((left, right) => right.date.localeCompare(left.date))
+			.slice(0, limit);
+	}
+
+	// Home data providers
+	private getFavoritesHomeItems(allItemsByPath: Map<string, MediaItem>): MediaItem[] {
+		const favorites = ListService.getFavoritesList(this.settings);
+		if (favorites?.itemPaths.length) {
+			return favorites.itemPaths
+				.map((path) => allItemsByPath.get(path))
+				.filter((item): item is MediaItem => Boolean(item))
+				.slice(0, 8);
+		}
+
+		return this.library
+			.getAll()
+			.filter((item) => item.rating != null && item.rating >= 8)
+			.slice(0, 8);
+	}
+
+	private getRecentHomeItems(): MediaItem[] {
+		return [...this.library.getAll()]
+			.sort((left, right) => {
+				const rightDate = right.date ?? right.addedDate ?? "";
+				const leftDate = left.date ?? left.addedDate ?? "";
+				return rightDate.localeCompare(leftDate);
+			})
+			.slice(0, 8);
+	}
+
+	private getUpNextItems(allItemsByPath: Map<string, MediaItem>): MediaItem[] {
+		const upNext = ListService.getUpNextList(this.settings);
+		if (upNext?.itemPaths.length) {
+			return upNext.itemPaths
+				.map((path) => allItemsByPath.get(path))
+				.filter((item): item is MediaItem => Boolean(item))
+				.slice(0, 8);
+		}
+
+		return this.library
+			.getAll()
+			.filter((item) => item.status === "want to read" || item.status === "want to watch")
+			.slice(0, 8);
+	}
+
+	// Media gallery/cards/dashboard renderers
 	private renderGalleryLibraryView(): void {
 		this.currentLibraryItems = this.getVisibleItems();
+		const renderedItems = this.currentLibraryItems.slice(0, this.visibleItemCount);
 		this.galleryView.render({
 			carouselHost: this.spotlightHost,
 			contentHost: this.contentHost,
 			sidebarHost: this.sidebarHost,
 			statusHost: this.statusHost,
-		}, this.currentLibraryItems, {
+		}, renderedItems, {
 			onSelectItem: (item) => {
 				this.selectItem(item);
 				this.renderActivePage();
 			},
-			onOpenItem: (item) => {
+			onOpenNote: (item) => {
+				this.selectItem(item);
+				void this.app.workspace.openLinkText(item.path, "", false);
+			},
+			onOpenModal: (item) => {
 				this.selectItem(item);
 				this.openActivityModal(item);
 			},
 			onToggleFavorite: (item) => {
 				this.toggleFavorite(item);
 			},
-			onTagItem: (item) => {
-				void this.promptAndAddTag(item);
-			},
 		}, {
 			activePath: this.selectedItem?.path ?? this.featuredPath,
-			social: {
-				state: this.getSocialHubState(),
-				callbacks: this.getSocialHubCallbacks(),
-			},
 			isFavorite: (path) => ListService.isFavorite(this.settings, path),
 		});
-		if (this.activeSocialTab === "lists" || this.activeSocialTab === "favorites") {
-			this.sidebarHost.addClass("is-hidden");
-		} else {
-			this.sidebarHost.removeClass("is-hidden");
-			this.renderSidebar("airy");
+		if (this.topUpVisibleToCompleteRow(".media-gallery-grid", this.currentLibraryItems.length)) {
+			this.renderGalleryLibraryView();
+			return;
 		}
-		this.updateStatusBar();
+		this.renderShowMoreControl(this.currentLibraryItems.length, renderedItems.length, () => {
+			this.renderGalleryLibraryView();
+		});
+		this.sidebarHost.addClass("is-hidden");
+		this.statusHost.empty();
 	}
 
 	private renderCurrentView(): void {
@@ -305,11 +709,35 @@ export class LibraryView extends ItemView {
 		const renderedItems = this.currentLibraryItems.slice(0, this.visibleItemCount);
 		this.cardView.render(this.contentHost, renderedItems, this.selectedItem, (item) => {
 			this.selectItem(item);
-			this.renderSidebar();
-			this.updateStatusBar();
 			this.openActivityModal(item);
+		}, {
+			onOpenNote: (item) => {
+				this.selectItem(item);
+				void this.app.workspace.openLinkText(item.path, "", false);
+			},
+			onOpenModal: (item) => {
+				this.selectItem(item);
+				this.openActivityModal(item);
+			},
+			onToggleFavorite: (item) => {
+				this.toggleFavorite(item);
+			},
+			isFavorite: (path) => ListService.isFavorite(this.settings, path),
+			onCreatorClick: (creator) => {
+				this.searchQuery = creator;
+				this.resetVisibleItemCount();
+				this.renderToolbarArea();
+				this.renderActivePage();
+			},
 		});
-		this.renderShowMoreControl(this.currentLibraryItems.length, renderedItems.length);
+		if (this.topUpVisibleToCompleteRow(".media-library-grid", this.currentLibraryItems.length)) {
+			this.renderCurrentView();
+			return;
+		}
+		this.renderShowMoreControl(this.currentLibraryItems.length, renderedItems.length, () => {
+			this.renderCurrentView();
+		});
+		this.statusHost.empty();
 	}
 
 	private renderDashboardPage(): void {
@@ -318,7 +746,7 @@ export class LibraryView extends ItemView {
 			contentHost: this.contentHost,
 			sidebarHost: this.sidebarHost,
 			statusHost: this.statusHost,
-		}, this.app, {
+		}, {
 			items: this.library.getAll(),
 			consumption: this.dashboardConsumption,
 			scope: this.dashboardScope,
@@ -339,13 +767,38 @@ export class LibraryView extends ItemView {
 		const renderedItems = this.currentLibraryItems.slice(0, this.visibleItemCount);
 		this.cardView.render(this.contentHost, renderedItems, this.selectedItem, (item) => {
 			this.selectItem(item);
-			this.renderSidebar();
-			this.updateStatusBar();
 			this.openActivityModal(item);
+		}, {
+			onOpenNote: (item) => {
+				this.selectItem(item);
+				void this.app.workspace.openLinkText(item.path, "", false);
+			},
+			onOpenModal: (item) => {
+				this.selectItem(item);
+				this.openActivityModal(item);
+			},
+			onToggleFavorite: (item) => {
+				this.toggleFavorite(item);
+			},
+			isFavorite: (path) => ListService.isFavorite(this.settings, path),
+			onCreatorClick: (creator) => {
+				this.searchQuery = creator;
+				this.resetVisibleItemCount();
+				this.renderToolbarArea();
+				this.renderActivePage();
+			},
 		});
-		this.renderShowMoreControl(this.currentLibraryItems.length, renderedItems.length);
+		if (this.topUpVisibleToCompleteRow(".media-library-grid", this.currentLibraryItems.length)) {
+			this.renderShuffledView();
+			return;
+		}
+		this.renderShowMoreControl(this.currentLibraryItems.length, renderedItems.length, () => {
+			this.renderShuffledView();
+		});
+		this.statusHost.empty();
 	}
 
+	// Selection + modal helpers
 	private selectItem(item: MediaItem | null): void {
 		if (!item) {
 			return;
@@ -376,6 +829,7 @@ export class LibraryView extends ItemView {
 		}).open();
 	}
 
+	// Sidebar + status helpers
 	private renderSidebar(variant: "default" | "airy" = "default"): void {
 		renderLibrarySidebar(this.sidebarHost, {
 			visibleItems: this.getVisibleItems(),
@@ -392,25 +846,49 @@ export class LibraryView extends ItemView {
 		);
 	}
 
+	// Layout mode + tab normalization
 	private updateLayoutMode(): void {
 		const isGalleryLayout = this.isGalleryViewActive();
 		this.contentEl.toggleClass("is-gallery-mode", isGalleryLayout);
 		this.toolbarHost.toggleClass("is-gallery-mode", isGalleryLayout);
 		this.bodyHost?.toggleClass("is-gallery-mode", isGalleryLayout);
 		this.mainHost?.toggleClass("is-gallery-mode", isGalleryLayout);
-		this.headerHost?.toggleClass("is-hidden", isGalleryLayout);
 	}
 
 	private isGalleryViewActive(): boolean {
-		return this.currentPageTab === "library" && this.activeLibraryViewId === "gallery";
+		return this.currentPageTab === "media" && this.activeLibraryViewId === "gallery";
 	}
 
+	private normalizePageTab(tab: LibraryPageTab): LibraryPageTab {
+		if (tab === "library") {
+			return "media";
+		}
+
+		return tab;
+	}
+
+	private ensureCoreLists(): void {
+		const before = this.settings.customLists.length;
+		ListService.ensureFavoritesList(this.settings);
+		ListService.ensureUpNextList(this.settings);
+		if (this.settings.customLists.length !== before) {
+			void this.persistSettings();
+		}
+	}
+
+	private applySidebarVisibility(): void {
+		const hidden = !this.isSidebarVisible;
+		this.sidebarHost.toggleClass("is-hidden", hidden);
+		this.bodyHost?.toggleClass("is-sidebar-hidden", hidden);
+	}
+
+	// Social/list/tag actions
 	private getSocialHubState() {
 		const allItems = this.library.getAll();
 		return {
 			app: this.app,
 			activeTab: this.activeSocialTab,
-			items: this.currentLibraryItems,
+			items: allItems,
 			lists: this.settings.customLists,
 			favorites: ListService.getFavoritesList(this.settings) ?? null,
 			allItemsByPath: new Map(allItems.map((item) => [item.path, item])),
@@ -593,7 +1071,8 @@ export class LibraryView extends ItemView {
 		return true;
 	}
 
-	private renderShowMoreControl(totalItems: number, renderedItems: number): void {
+	private renderShowMoreControl(totalItems: number, renderedItems: number, onShowMore?: () => void): void {
+		const pageSize = this.getPageSizeStep();
 		if (renderedItems >= totalItems || totalItems === 0) {
 			return;
 		}
@@ -605,18 +1084,20 @@ export class LibraryView extends ItemView {
 		});
 
 		const button = footer.createEl("button", {
-			text: `Show more (${Math.min(totalItems - renderedItems, LibraryView.LIBRARY_PAGE_SIZE)})`,
+			text: `Show more (${Math.min(totalItems - renderedItems, pageSize)})`,
 		});
 		button.addEventListener("click", () => {
-			this.visibleItemCount += LibraryView.LIBRARY_PAGE_SIZE;
-			this.renderCurrentView();
-			this.renderSidebar();
-			this.updateStatusBar();
+			this.visibleItemCount += pageSize;
+			onShowMore?.();
 		});
 	}
 
 	private resetVisibleItemCount(): void {
-		this.visibleItemCount = LibraryView.LIBRARY_PAGE_SIZE;
+		this.visibleItemCount = this.getPageSizeStep();
+	}
+
+	private getPageSizeStep(): number {
+		return this.isGalleryViewActive() ? LibraryView.GALLERY_PAGE_SIZE : LibraryView.LIBRARY_PAGE_SIZE;
 	}
 
 	private getVisibleItems(): MediaItem[] {
@@ -634,4 +1115,103 @@ export class LibraryView extends ItemView {
 		return this.library.sort(items, this.currentSort);
 	}
 
+	private topUpVisibleToCompleteRow(gridSelector: string, totalItems: number): boolean {
+		const grid = this.contentHost.querySelector<HTMLElement>(gridSelector);
+		if (!grid || totalItems <= this.visibleItemCount) {
+			return false;
+		}
+
+		const styles = window.getComputedStyle(grid);
+		const columns = styles.gridTemplateColumns
+			.split(" ")
+			.map((value) => value.trim())
+			.filter((value) => value.length > 0).length;
+		if (columns <= 1) {
+			return false;
+		}
+
+		const rendered = Math.min(this.visibleItemCount, totalItems);
+		const remainder = rendered % columns;
+		if (remainder === 0) {
+			return false;
+		}
+
+		const topUp = Math.min(totalItems, rendered + (columns - remainder));
+		if (topUp <= this.visibleItemCount) {
+			return false;
+		}
+
+		this.visibleItemCount = topUp;
+		return true;
+	}
+
+}
+
+function formatCompactRelative(dateValue: string): string {
+	const human = timeAgoFromDate(dateValue);
+	const dayMatch = human.match(/^(\d+) day/);
+	if (dayMatch) {
+		return `${dayMatch[1]}d`;
+	}
+
+	const hourMatch = human.match(/^(\d+) hr/);
+	if (hourMatch) {
+		return `${hourMatch[1]}h`;
+	}
+
+	const minuteMatch = human.match(/^(\d+) min/);
+	if (minuteMatch) {
+		return `${minuteMatch[1]}m`;
+	}
+
+	return human === "just now" ? "now" : human;
+}
+
+function getMonthAbbreviation(dateValue: string | undefined): string {
+	if (!dateValue) {
+		return "---";
+	}
+
+	const parsed = new Date(dateValue);
+	if (Number.isNaN(parsed.getTime())) {
+		return "---";
+	}
+
+	return parsed.toLocaleString("en-US", { month: "short" }).toUpperCase();
+}
+
+function getDayOfMonth(dateValue: string | undefined): string {
+	if (!dateValue) {
+		return "--";
+	}
+
+	const parsed = new Date(dateValue);
+	if (Number.isNaN(parsed.getTime())) {
+		return "--";
+	}
+
+	return String(parsed.getDate()).padStart(2, "0");
+}
+
+function getHomeHeroFontFamily(
+	font: MediaLibrarySettings["homeHeroFont"],
+	customFontFamily: string
+): string {
+	if (font === "custom") {
+		return customFontFamily.trim() || "var(--font-interface), var(--font-text), sans-serif";
+	}
+
+	if (font === "serif") {
+		return "var(--font-text), Georgia, serif";
+	}
+
+	if (font === "sans") {
+		return "Inter, var(--font-interface), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+	}
+
+	if (font === "mono") {
+		return "var(--font-monospace), 'SFMono-Regular', Consolas, monospace";
+	}
+
+	return "var(--font-interface), var(--font-text), sans-serif";
 }
