@@ -4,7 +4,7 @@ export interface LibraryShellElements {
 	spotlightHost: HTMLElement;
 	contentHost: HTMLElement;
 	sidebarHost: HTMLElement;
-	statusHost: HTMLElement;
+
 }
 
 export function renderLibraryShell(container: HTMLElement): LibraryShellElements {
@@ -14,7 +14,7 @@ export function renderLibraryShell(container: HTMLElement): LibraryShellElements
 
 	const spotlightHost = mainColumn.createDiv({ cls: "media-library-spotlight-shell" });
 	const contentHost = mainColumn.createDiv({ cls: "media-library-content" });
-	const statusHost = mainColumn.createDiv({ cls: "media-library-status" });
+	
 
 	return {
 		bodyHost: body,
@@ -22,6 +22,5 @@ export function renderLibraryShell(container: HTMLElement): LibraryShellElements
 		spotlightHost,
 		contentHost,
 		sidebarHost,
-		statusHost,
 	};
 }

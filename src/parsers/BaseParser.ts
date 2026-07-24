@@ -345,6 +345,14 @@ export abstract class BaseParser<TFrontmatter> {
             return "want to read";
         }
 
+        if (normalized.includes("to watch")) {
+            return "unwatched";
+        }
+
+        if (normalized.includes("to read")) {
+            return "unread";
+        }
+
         if (normalized.includes("currently watching")) {
             return "watching";
         }

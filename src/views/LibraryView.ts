@@ -1,12 +1,15 @@
 // src/views/LibraryView.ts
 
+//update to add sort direction dropdown and shuffle button to the library toolbar, and update modules that use this toolbar to include the new sort direction dropdown and shuffle button such as LibraryView, LibraryToolbar, and any other views that use the toolbar
+
+
 import { ItemView, Modal, Notice, WorkspaceLeaf, setIcon } from "obsidian";
 
 import { MediaLibrary } from "../core/MediaLibrary";
 import { ViewRegistry } from "../core/ViewRegistry";
 import { MediaItem } from "../models/MediaItem";
 import { MediaType } from "../models/MediaType";
-import { SortType } from "../models/SortType";
+import { SortType, SortDirection, SortMode} from "../models/SortType";
 import {
 	DashboardConsumptionFilter,
 	DashboardMediaFilter,
@@ -51,13 +54,12 @@ export class LibraryView extends ItemView {
 	private spotlightHost!: HTMLElement;
 	private sidebarHost!: HTMLElement;
 	private contentHost!: HTMLElement;
-	private statusHost!: HTMLElement;
 
 	// View state
 	private currentPageTab: LibraryPageTab = "home";
 	private activeLibraryViewId: string;
 	private currentFilter: MediaType | "all" = "all";
-	private currentSort: SortType = "date-created-desc";
+	private currentSort: SortType = { mode: "latest", direction: "desc" };
 	private dashboardConsumption: DashboardConsumptionFilter = "consumed";
 	private dashboardScope: DashboardScopeMode = "year";
 	private dashboardFilter: DashboardMediaFilter = "all";
@@ -107,7 +109,6 @@ export class LibraryView extends ItemView {
 		await this.library.refresh();
 		this.currentPageTab = this.normalizePageTab(this.settings.defaultPageTab);
 		this.activeSocialTab = this.settings.defaultSocialTab;
-		this.currentSort = this.settings.defaultSortMode;
 		this.dashboardConsumption = this.settings.dashboardDefaultConsumptionFilter;
 		this.dashboardScope = this.settings.dashboardDefaultScope;
 		this.dashboardFilter = this.settings.dashboardDefaultFilter;
@@ -137,7 +138,6 @@ export class LibraryView extends ItemView {
 		this.spotlightHost = shell.spotlightHost;
 		this.sidebarHost = shell.sidebarHost;
 		this.contentHost = shell.contentHost;
-		this.statusHost = shell.statusHost;
 
 		this.renderActivePage();
 	}
@@ -147,12 +147,34 @@ export class LibraryView extends ItemView {
 		this.renderActivePage();
 	}
 
+	private toSortType(mode: SortMode): SortType {
+		switch (mode) {
+			case "title":
+				return { mode: "title", direction: "asc" };
+			case "creator":
+				return { mode: "creator", direction: "asc" };
+			case "year":
+				return { mode: "year", direction: "desc" };
+			case "rating":
+				return { mode: "rating", direction: "desc" };
+			case "latest":
+			default:
+				return { mode: "latest", direction: "desc" };
+		}
+	}
+
 	// Toolbar + tab controls
 	private getToolbarState() {
+		const mode = this.currentSort.mode;
+		const direction: "asc" | "desc" =
+			mode === "random" ? "desc" : this.currentSort.direction;
+
 		return {
 			searchQuery: this.searchQuery,
 			currentFilter: this.currentFilter,
+			currentSortMode: mode,
 			currentSort: this.currentSort,
+			currentSortDirection: direction,
 			settings: this.settings,
 		};
 	}
@@ -194,6 +216,7 @@ export class LibraryView extends ItemView {
 		if (this.currentPageTab === "media") {
 			const mediaControlsShell = this.toolbarHost.createDiv({ cls: "media-library-media-controls-shell" });
 			const controlsHost = mediaControlsShell.createDiv();
+			//render the library toolbar with search, filter, sort mode, and sort direction controls
 			renderLibraryToolbar(controlsHost, this.getToolbarState(), {
 				onSearchChange: (value) => {
 					this.searchQuery = value;
@@ -205,6 +228,26 @@ export class LibraryView extends ItemView {
 					this.resetVisibleItemCount();
 					this.refresh();
 				},
+				onSortModeChange: (value) => {
+					// switch mode but keep direction when possible
+					const direction =
+					this.currentSort.mode === "random"
+						? "desc"
+						: this.currentSort.direction;
+					this.currentSort = { mode: value, direction };
+					this.resetVisibleItemCount();
+					this.refresh();
+				},
+				onSortDirectionChange: (value) => {
+					if (this.currentSort.mode === "random") {
+					// switch out of random into latest with chosen direction
+					this.currentSort = { mode: "latest", direction: value };
+					} else {
+					this.currentSort = { ...this.currentSort, direction: value };
+					}
+					this.resetVisibleItemCount();
+					this.refresh();
+				},
 				onSortChange: (value) => {
 					this.currentSort = value;
 					this.resetVisibleItemCount();
@@ -212,7 +255,7 @@ export class LibraryView extends ItemView {
 				},
 				onReset: () => {
 					this.currentFilter = "all";
-					this.currentSort = this.settings.defaultSortMode;
+					this.currentSort = this.toSortType(this.settings.defaultSortMode);
 					this.searchQuery = "";
 					this.selectedItem = null;
 					this.featuredPath = null;
@@ -334,7 +377,6 @@ export class LibraryView extends ItemView {
 			this.sidebarHost.addClass("is-hidden");
 			this.bodyHost?.addClass("is-sidebar-hidden");
 			this.renderCurrentView();
-			this.statusHost.empty();
 			return;
 		}
 
@@ -343,7 +385,6 @@ export class LibraryView extends ItemView {
 		this.sidebarHost.removeClass("is-hidden");
 		this.renderCurrentView();
 		this.renderSidebar();
-		this.updateStatusBar();
 		this.applySidebarVisibility();
 	}
 
@@ -360,8 +401,6 @@ export class LibraryView extends ItemView {
 		}, this.getSocialHubCallbacks(), {
 			showTabs: false,
 		});
-
-		this.statusHost.setText(tab.charAt(0).toUpperCase() + tab.slice(1));
 	}
 
 	private renderActivityTimelinePage(): void {
@@ -379,7 +418,6 @@ export class LibraryView extends ItemView {
 		const events = this.getHomeActivityItems(this.getUpNextItems(byPath), 40);
 		if (!events.length) {
 			wrap.createDiv({ cls: "media-home-empty", text: "No activity yet." });
-			this.statusHost.setText("Activity");
 			return;
 		}
 
@@ -420,6 +458,37 @@ export class LibraryView extends ItemView {
 		this.renderHomeShelf(shell, "Recent activity", recent, true);
 
 		this.renderHomeSidebar(byPath);
+	}
+
+	//home shelf 
+	private renderHomeShelf(
+		container: HTMLElement,
+		title: string,
+		items: MediaItem[],
+		_compact: boolean = false,
+	): void {
+		const section = container.createDiv({ cls: "media-home-section" });
+		const header = section.createDiv({ cls: "media-home-section-header" });
+		header.createDiv({ cls: "media-home-section-title", text: title });
+
+		if (!items.length) {
+			section.createDiv({
+				cls: "media-home-empty",
+				text: `No items in ${title.toLowerCase()} yet.`,
+			});
+			return;
+		}
+
+		const row = section.createDiv({ cls: "media-home-poster-row" });
+		for (const item of items) {
+		const card = row.createDiv({ cls: "media-home-poster-card" });
+		card.setAttr("title", `${item.title} • ${item.creator}`);
+		card.addEventListener("click", () => {
+			this.selectItem(item);
+			this.openActivityModal(item);
+		});
+		new Poster(item, this.app).render(card);
+		}
 	}
 
 	// Home hero block
@@ -636,7 +705,7 @@ export class LibraryView extends ItemView {
 			.filter((item) => item.rating != null && item.rating >= 8)
 			.slice(0, 8);
 	}
-
+    //show 4 recent items on home page
 	private getRecentHomeItems(): MediaItem[] {
 		return [...this.library.getAll()]
 			.sort((left, right) => {
@@ -670,7 +739,6 @@ export class LibraryView extends ItemView {
 			carouselHost: this.spotlightHost,
 			contentHost: this.contentHost,
 			sidebarHost: this.sidebarHost,
-			statusHost: this.statusHost,
 		}, renderedItems, {
 			onSelectItem: (item) => {
 				this.selectItem(item);
@@ -699,7 +767,6 @@ export class LibraryView extends ItemView {
 			this.renderGalleryLibraryView();
 		});
 		this.sidebarHost.addClass("is-hidden");
-		this.statusHost.empty();
 	}
 
 	private renderCurrentView(): void {
@@ -737,7 +804,6 @@ export class LibraryView extends ItemView {
 		this.renderShowMoreControl(this.currentLibraryItems.length, renderedItems.length, () => {
 			this.renderCurrentView();
 		});
-		this.statusHost.empty();
 	}
 
 	private renderDashboardPage(): void {
@@ -745,7 +811,6 @@ export class LibraryView extends ItemView {
 			heroHost: this.spotlightHost,
 			contentHost: this.contentHost,
 			sidebarHost: this.sidebarHost,
-			statusHost: this.statusHost,
 		}, {
 			items: this.library.getAll(),
 			consumption: this.dashboardConsumption,
@@ -795,7 +860,6 @@ export class LibraryView extends ItemView {
 		this.renderShowMoreControl(this.currentLibraryItems.length, renderedItems.length, () => {
 			this.renderShuffledView();
 		});
-		this.statusHost.empty();
 	}
 
 	// Selection + modal helpers
@@ -835,15 +899,6 @@ export class LibraryView extends ItemView {
 			visibleItems: this.getVisibleItems(),
 			variant,
 		});
-	}
-
-	private updateStatusBar(): void {
-		this.statusHost.empty();
-		const visibleItems = this.getVisibleItems();
-		const shownCount = Math.min(this.visibleItemCount, this.currentLibraryItems.length || visibleItems.length);
-		this.statusHost.setText(
-			`${shownCount} shown of ${visibleItems.length} filtered • ${this.library.getCount()} media items • ${this.library.getBookCount()} books • ${this.library.getMovieCount()} movies • ${this.library.getSeriesCount()} series • ${this.library.getEssayCount()} essays`
-		);
 	}
 
 	// Layout mode + tab normalization

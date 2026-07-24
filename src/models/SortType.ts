@@ -6,69 +6,24 @@
  * These values are used by the toolbar, settings,
  * and sorting utilities.
  */
+// SortType.ts
+
+// Which field we sort by (recency = "latest" is handled by the sorter using your data, e.g. year)
+export type SortMode = "latest" | "title" | "creator" | "year" | "rating" | "random";
+
+// Sort direction
+export type SortDirection = "asc" | "desc";
+
+// Sort options:
+// - For deterministic sorting: provide { mode, direction }
+// - For random ordering: use { mode: "random" }
 export type SortType =
-	| "title-asc"
-	| "title-desc"
-	| "creator-asc"
-	| "creator-desc"
-	| "year-asc"
-	| "year-desc"
-	| "rating-asc"
-	| "rating-desc"
-	| "date-added-asc"
-	| "date-added-desc"
-	| "date-created-asc"
-	| "date-created-desc"
-	| "date-completed-asc"
-	| "date-completed-desc"
-	| "media-type"
-	| "random";
-
-/**
- * List of every supported sort type.
- *
- * Useful for:
- * - Dropdown menus
- * - Settings
- * - Validation
- */
-export const SORT_TYPES: readonly SortType[] = [
-	"title-asc",
-	"title-desc",
-
-	"creator-asc",
-	"creator-desc",
-
-	"year-asc",
-	"year-desc",
-
-	"rating-asc",
-	"rating-desc",
-
-	"date-added-asc",
-	"date-added-desc",
-
-	"date-created-asc",
-	"date-created-desc",
-
-	"date-completed-asc",
-	"date-completed-desc",
-
-	"media-type",
-
-	"random",
-];
-
-/**
- * Returns true if a value is a valid SortType.
- */
-export function isSortType(value: string): value is SortType {
-	return SORT_TYPES.includes(value as SortType);
-}
+  | { mode: SortMode; direction: SortDirection }
+  | { mode: "random" };
 
 /**
  * Default sort order used when opening the library.
  *
  * This can later be overridden by plugin settings.
  */
-export const DEFAULT_SORT: SortType = "date-completed-desc";
+export const DEFAULT_SORT: SortType = { mode: "latest", direction: "desc" };

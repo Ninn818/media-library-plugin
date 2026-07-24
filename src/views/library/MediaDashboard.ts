@@ -9,7 +9,6 @@ import {
 	MediaDashboardGoals,
 	MediaLibrarySettings,
 } from "../../settings";
-
 type DashboardDatum = [string, number];
 type DashboardChartMode = "bar" | "pie" | "spotlight";
 
@@ -30,7 +29,6 @@ export interface MediaDashboardHosts {
 	heroHost: HTMLElement;
 	contentHost: HTMLElement;
 	sidebarHost: HTMLElement;
-	statusHost: HTMLElement;
 }
 
 export interface MediaDashboardState {
@@ -55,12 +53,11 @@ export function renderMediaDashboard(
 	hosts.heroHost.empty();
 	hosts.contentHost.empty();
 	hosts.sidebarHost.empty();
-	hosts.statusHost.empty();
 
 	renderHero(hosts.heroHost, activeItems, state, callbacks);
 	renderContent(hosts.contentHost, activeItems, state);
 	renderSidebar(hosts.sidebarHost, state, activeItems, callbacks);
-	renderStatus(hosts.statusHost, state.items, activeItems, state.scope, state.consumption);
+	// renderStatus(hosts.statusHost, state.items, activeItems, state.scope, state.consumption);
 }
 
 function renderHero(

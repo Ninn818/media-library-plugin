@@ -7,7 +7,6 @@ export interface GalleryViewHosts {
 	carouselHost: HTMLElement;
 	contentHost: HTMLElement;
 	sidebarHost: HTMLElement;
-	statusHost: HTMLElement;
 }
 
 export interface GalleryViewCallbacks {
@@ -33,7 +32,6 @@ export class GalleryView {
 		hosts.carouselHost.empty();
 		hosts.carouselHost.addClass("is-hidden");
 		hosts.contentHost.empty();
-		hosts.statusHost.empty();
 
 		if (!items.length) {
 			hosts.contentHost.createDiv({ cls: "media-library-empty", text: "No media found for this view." });
@@ -46,7 +44,7 @@ export class GalleryView {
 			this.renderPosterCard(grid, item, activeItem?.path === item.path, callbacks, options.isFavorite?.(item.path) ?? false);
 		}
 
-		hosts.statusHost.setText(`${items.length} items in gallery view`);
+		// hosts.statusHost.setText(`${items.length} items in gallery view`);
 	}
 
 	private pickActiveItem(items: MediaItem[], activePath?: string | null): MediaItem {

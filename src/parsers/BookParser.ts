@@ -38,9 +38,9 @@ export class BookParser extends BaseParser<BookFrontmatter> {
             title,
             creator: this.getCreator(frontmatter),
             mediaType: "book",
-
+            //
             status: this.getStatus(frontmatter),
-
+            //
             genres: this.getGenres(frontmatter),
 
             summary: this.getSummary(frontmatter),
@@ -50,7 +50,7 @@ export class BookParser extends BaseParser<BookFrontmatter> {
             synopsis: frontmatter.synopsis,
 
             rating: this.getRating(frontmatter),
-
+            //date 
             date: this.getCompletedDate(frontmatter),
 
             year: this.extractYear(releaseDate),

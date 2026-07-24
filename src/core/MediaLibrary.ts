@@ -89,6 +89,7 @@ export class MediaLibrary {
 		});
 	}
 
+
 	/**
 	 * Returns every item sorted.
 	 */
@@ -99,65 +100,41 @@ export class MediaLibrary {
 
 		const sorted = [...items];
 
-		switch (sort) {
-
-			case "title-asc":
-				return sorted.sort((a, b) =>
-					a.title.localeCompare(b.title)
-				);
-
-			case "title-desc":
-				return sorted.sort((a, b) =>
-					b.title.localeCompare(a.title)
-				);
-
-			case "creator-asc":
-				return sorted.sort((a, b) =>
-					a.creator.localeCompare(b.creator)
-				);
-
-			case "creator-desc":
-				return sorted.sort((a, b) =>
-					b.creator.localeCompare(a.creator)
-				);
-
-			case "year-asc":
-				return sorted.sort(
-					(a, b) =>
-						(a.year ?? 0) -
-						(b.year ?? 0)
-				);
-
-			case "year-desc":
-				return sorted.sort(
-					(a, b) =>
-						(b.year ?? 0) -
-						(a.year ?? 0)
-				);
-
-			case "rating-asc":
-				return sorted.sort(
-					(a, b) =>
-						(a.rating ?? 0) -
-						(b.rating ?? 0)
-				);
-
-			case "rating-desc":
-				return sorted.sort(
-					(a, b) =>
-						(b.rating ?? 0) -
-						(a.rating ?? 0)
-				);
-
-			case "random":
-				return sorted.sort(
-					() => Math.random() - 0.5
-				);
-
-			default:
-				return sorted;
+		if (sort.mode === "random") {
+			return sorted.sort(() => Math.random() - 0.5);// Randomize the order of items
 		}
+		//Direction factor(1 for ascending, -1 for descending
+		const dir = sort.direction === "desc" ? -1 : 1;
+
+		// comparators
+		const stringCmp = (a?: string, b?: string) =>
+		((a ?? "").toLowerCase().localeCompare((b ?? "").toLowerCase())) * dir;
+
+		const numCmp = (a: number | null | undefined, b: number | null | undefined) =>
+		(((a ?? 0) - (b ?? 0)) * dir);
+
+		// compare ISO date strings like "2024-01-02"
+		const dateCmp = (a?: string, b?: string) =>
+		((a ?? "").localeCompare(b ?? "")) * dir;
+
+		return sorted.sort((a, b) => {
+		switch (sort.mode) {
+			case "title":
+			return stringCmp(a.title, b.title);
+			case "creator":
+			return stringCmp(a.creator, b.creator);
+			case "year":
+			return numCmp(a.year, b.year);
+			case "rating":
+			return numCmp(a.rating, b.rating);
+			case "latest":
+			return dateCmp(a.addedDate, b.addedDate);
+			default:
+			return 0;
+		}
+		});
 	}
+
 
 	/**
 	 * Number of media items.

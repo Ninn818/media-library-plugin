@@ -1082,6 +1082,9 @@
 	justify-content: space-between;
 	align-items: center;
 	gap: 8px;
+	min-width: 0;
+	width: 100%;
+	overflow: hidden;
 }
 
 .media-social-list-delete {
@@ -1267,6 +1270,60 @@
 	text-transform: uppercase;
 	color: var(--text-muted);
 }
+
+/* Constrain everything inside the hub to the panel width */
+.media-social-hub,
+.media-social-panel {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* The top row: stop it forcing overflow */
+.media-social-tabs {
+  width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;           /* already set, keep */
+  overflow: hidden;
+}
+
+/* Tabs: allow shrink + prevent long text from expanding */
+.media-social-tab {
+  min-width: 0;
+  flex: 0 1 auto;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Grid cards: ensure they can't exceed their grid cell */
+.media-social-list-grid,
+.media-social-mini-grid {
+  width: 100%;
+  min-width: 0;
+}
+
+.media-social-list-card,
+.media-social-row,
+.media-social-mini-card {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Most common offender: any flex child inside cards must be allowed to shrink */
+.media-social-list-head,
+.media-social-list-manage,
+.media-social-tags-row {
+  min-width: 0;
+}
+
+.media-social-list-head > *,
+.media-social-list-manage > *,
+.media-social-tags-row > * {
+  min-width: 0;
+}
+
 
 /* Gallery cards */
 .media-gallery-grid {

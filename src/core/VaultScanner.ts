@@ -101,7 +101,7 @@ export class VaultScanner {
 		item.activityEntries = await this.activityLogService.loadEntries(file, item);
 
 		// Add file dates
-
+		//
 		item.addedDate = this.toISODate(
 			new Date(file.stat.ctime)
 		);

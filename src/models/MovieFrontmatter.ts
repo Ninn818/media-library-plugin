@@ -36,10 +36,8 @@ export interface MovieFrontmatter {
 	personalRating?: number | string ;
 	releaseYear?: string | number;
 	releaseDate?: string;
-	publishDate?: string;
-	datePublished?: string;
-    created?: string;
-	dateCreated?: string;
+    created?: string; // date the note was created, not the movie
+	year?: string | number; // release year
 	createdAt?: string;
 
 	lastWatched?: string;

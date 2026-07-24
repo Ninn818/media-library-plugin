@@ -5,6 +5,7 @@
 	"author": "nini",
 	"main": "main.js",
 	"type": "module",
+	"beautify": "file",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",

@@ -7,30 +7,10 @@ export interface SeriesFrontmatter {
   // Core identity
     title?: string;
 
-  // Creators / showrunners
+  // Creators 
     creator?: string | string[];
     creators?: string | string[];
 
-  // Cast
-    cast?: string | string[];
-    actors?: string | string[];
-
-  // Production
-    studio?: string;
-    network?: string;
-    streamingService?: string | string[];
-
-  // Structure / progress
-    seasons?: number | string;
-    seasonCount?: number | string;
-
-    episodes?: number | string;
-    episodeCount?: number | string;
-    totalEpisodes?: number | string;
-
-    currentSeason?: number | string;
-    currentEpisode?: number | string;
-    lastEpisodeWatched?: string;
 
   // Genres / categories
     genres?: string[] | string;
@@ -61,7 +41,7 @@ export interface SeriesFrontmatter {
 
   // Dates & years
     releaseYear?: string | number;
-    year?: string | number;
+    year?: string | number; //years aired, e.g. 2019-2021
     releaseDate?: string;
     publishDate?: string;
     datePublished?: string;
@@ -70,7 +50,7 @@ export interface SeriesFrontmatter {
     lastAired?: string;
     airDate?: string;
 
-    created?: string;
+    created?: string; // date the note was created, not the series
     dateCreated?: string;
     createdAt?: string;
 

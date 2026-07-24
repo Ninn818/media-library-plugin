@@ -1,7 +1,8 @@
 import { App, DropdownComponent, PluginSettingTab, Setting, ToggleComponent } from 'obsidian';
 import MediaLibraryPlugin from './main';
+import type { SortMode, SortType } from "./models/SortType"; // add near top with other imports
 
-export type LibrarySortMode = 'date-created-desc' | 'title-asc' | 'rating-desc' | 'year-desc';
+export type LibrarySortMode = SortMode; // "latest" | "title" | "creator" | "year" | "rating" | "random"
 export type LibraryPageTab = 'home' | 'dashboard' | 'media' | 'diary' | 'activity' | 'lists' | 'tags' | 'library';
 export type DashboardScopeMode = 'year' | 'all';
 export type DashboardMediaFilter = 'all' | 'text' | 'screen';
@@ -27,6 +28,7 @@ export interface MediaDashboardGoals {
 export interface MediaLibrarySettings {
 	openInSidebar: boolean;
 	defaultSortMode: LibrarySortMode;
+	defaultSort: SortType;        
 	defaultPageTab: LibraryPageTab;
 	defaultSocialTab: SocialHubTab;
 	homeHeroEnabled: boolean;
@@ -55,7 +57,8 @@ export interface MediaLibrarySettings {
 
 export const DEFAULT_SETTINGS: MediaLibrarySettings = {
 	openInSidebar: false,
-	defaultSortMode: 'date-created-desc',
+	defaultSortMode: 'latest',
+	defaultSort: { mode: 'latest', direction: 'asc' },
 	defaultPageTab: 'home',
 	defaultSocialTab: 'media',
 	homeHeroEnabled: true,
@@ -167,13 +170,23 @@ export class MediaLibrarySettingTab extends PluginSettingTab {
 			.setDesc('Choose the default sorting when the library opens.')
 			.addDropdown((dropdown: DropdownComponent) =>
 				dropdown
-					.addOption('date-created-desc', 'Newest added')
-					.addOption('title-asc', 'Title a–z')
-					.addOption('rating-desc', 'Highest rating')
-					.addOption('year-desc', 'Newest year')
+					.addOption('latest', 'Newest added')
+					.addOption('title', 'Title a–z')
+					.addOption('rating', 'Highest rating')
+					.addOption('year', 'Newest year')
+					.addOption('creator', 'Creator')
 					.setValue(this.plugin.settings.defaultSortMode)
 					.onChange(async (value: string) => {
 						this.plugin.settings.defaultSortMode = value as LibrarySortMode;
+						// keep defaultSort in sync, if you want:
+						this.plugin.settings.defaultSort = {
+						mode: this.plugin.settings.defaultSortMode,
+						direction:
+							this.plugin.settings.defaultSortMode === "title" ||
+							this.plugin.settings.defaultSortMode === "creator"
+							? "asc"
+							: "desc",
+						};
 						await this.plugin.saveSettings();
 					}),
 			);
