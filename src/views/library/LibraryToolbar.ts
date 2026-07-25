@@ -3,10 +3,12 @@
 import { MEDIA_TYPES, MediaType } from "../../models/MediaType";
 import { SortMode, SortType } from "../../models/SortType";
 import { MediaLibrarySettings } from "../../settings";
+import { MEDIA_STATUSES, MediaStatus } from "../../models/MediaStatus";
 
 export interface LibraryToolbarState {
 	searchQuery: string;
 	currentFilter: MediaType | "all";
+	currentStatus: MediaStatus | "all"; 
 	currentSortMode: SortMode;
 	currentSort: SortType;
 	settings: MediaLibrarySettings;
@@ -16,11 +18,11 @@ export interface LibraryToolbarState {
 export interface LibraryToolbarCallbacks {
 	onSearchChange(value: string): void;
 	onFilterChange(value: MediaType | "all"): void;
+	onStatusChange(value: MediaStatus | "all"): void;
 	onSortModeChange(value: SortMode): void;
 	onSortDirectionChange(value: "asc" | "desc"): void;
 	onSortChange(value: SortType): void;
 	onReset(): void;
-	onShuffle(): void;
 }
 
 export function renderLibraryToolbar(
@@ -49,6 +51,19 @@ export function renderLibraryToolbar(
 		callbacks.onFilterChange((event.target as HTMLSelectElement).value as MediaType | "all");
 	});
 
+	// NEW: status filter
+	const statusSelect = controls.createEl("select");
+	statusSelect.createEl("option", { text: "All statuses", value: "all" });
+		for (const status of MEDIA_STATUSES) {
+			statusSelect.createEl("option", { text: status, value: status });
+		}
+		statusSelect.value = state.currentStatus;
+		statusSelect.addEventListener("change", (event) => {
+			callbacks.onStatusChange(
+			(event.target as HTMLSelectElement).value as MediaStatus | "all",
+			);
+		});
+
 	//sort modes
 	const SORT_MODES: SortMode[] = ["latest", "title", "creator", "year", "rating", "random"];
 	//mode dropdown 
@@ -64,6 +79,7 @@ export function renderLibraryToolbar(
 		//if the current sort mode is not random, add a direction dropdown
 		if (state.currentSortMode !== "random") {
 		const directionSelect = controls.createEl("select");
+		directionSelect.addClass("media-library-direction-select");
 		const sortDirection = state.currentSortDirection;
 
 		const ascOption = directionSelect.createEl("option", {
@@ -83,19 +99,14 @@ export function renderLibraryToolbar(
 			(event.target as HTMLSelectElement).value as "asc" | "desc",
 			);
 		});
+
+		// Open the native select dropdown on hover
+		directionSelect.addEventListener("mouseenter", () => {
+			const el = directionSelect as HTMLSelectElement & { showPicker?: () => void };
+			el.showPicker?.();
+		});
 		}
 
-	//asc button
-	const ascButton = controls.createEl("button", { text: "Asc" });
-	ascButton.addEventListener("click", () => {
-		callbacks.onSortDirectionChange("asc");
-	});
-
-	//desc button
-	const descButton = controls.createEl("button", { text: "Desc" });
-	descButton.addEventListener("click", () => {
-		callbacks.onSortDirectionChange("desc");
-	});
 
 	//reset button
 	const resetButton = controls.createEl("button", { text: "Reset" });
@@ -106,10 +117,6 @@ export function renderLibraryToolbar(
 		sortSelect.value = state.currentSortMode;
 	});
 
-	const shuffleButton = controls.createEl("button", { text: "Shuffle" });
-	shuffleButton.addEventListener("click", () => {
-		callbacks.onShuffle();
-	});
 }
 
 //go and update modules that use this toolbar to include the new sort direction dropdown and shuffle button such as LibraryView, LibraryToolbar, and any other views that use the toolbar

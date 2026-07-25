@@ -10,20 +10,8 @@
 export const MEDIA_STATUSES = [
 	"unread",
 	"read",
-	"reading",
-	"finished",
-	"want to read",
 	"unwatched",
 	"watched",
-	"watching",
-	"want to watch",
-	"completed",
-	"dropped",
-	"paused",
-	"on hold",
-	"abandoned",
-	"planned",
-	"favorite",
 ] as const;
 
 /**
@@ -43,31 +31,22 @@ export function isMediaStatus(value: string): value is MediaStatus {
  * Book-specific statuses.
  */
 export const BOOK_STATUSES: readonly MediaStatus[] = [
-	"want to read",
-	"reading",
-	"finished",
-	"dropped",
-	"paused",
-	"favorite",
+	"unread",
+	"read",
 ];
 
 /**
  * Movie-specific statuses.
  */
 export const MOVIE_STATUSES: readonly MediaStatus[] = [
-	"want to watch",
+	"unwatched",
 	"watched",
-	"favorite",
 ];
 
 /**
  * Series-specific statuses.
  */
 export const SERIES_STATUSES: readonly MediaStatus[] = [
-	"want to watch",
-	"watching",
-	"completed",
-	"paused",
-	"dropped",
-	"favorite",
+	"unwatched",
+	"watched",
 ];

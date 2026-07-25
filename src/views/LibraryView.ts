@@ -1,6 +1,6 @@
 // src/views/LibraryView.ts
 
-//update to add sort direction dropdown and shuffle button to the library toolbar, and update modules that use this toolbar to include the new sort direction dropdown and shuffle button such as LibraryView, LibraryToolbar, and any other views that use the toolbar
+//update to add sort direction dropdown and shuffle button to the library toolbar, and update modules that use this toolbar to include the new sort direction dropdown  such as LibraryView, LibraryToolbar, and any other views that use the toolbar
 
 
 import { ItemView, Modal, Notice, WorkspaceLeaf, setIcon } from "obsidian";
@@ -9,6 +9,7 @@ import { MediaLibrary } from "../core/MediaLibrary";
 import { ViewRegistry } from "../core/ViewRegistry";
 import { MediaItem } from "../models/MediaItem";
 import { MediaType } from "../models/MediaType";
+import { MediaStatus } from "../models/MediaStatus";
 import { SortType, SortDirection, SortMode} from "../models/SortType";
 import {
 	DashboardConsumptionFilter,
@@ -59,6 +60,7 @@ export class LibraryView extends ItemView {
 	private currentPageTab: LibraryPageTab = "home";
 	private activeLibraryViewId: string;
 	private currentFilter: MediaType | "all" = "all";
+	private currentStatus: MediaStatus | "all" = "all";   // NEW
 	private currentSort: SortType = { mode: "latest", direction: "desc" };
 	private dashboardConsumption: DashboardConsumptionFilter = "consumed";
 	private dashboardScope: DashboardScopeMode = "year";
@@ -172,6 +174,7 @@ export class LibraryView extends ItemView {
 		return {
 			searchQuery: this.searchQuery,
 			currentFilter: this.currentFilter,
+			currentStatus: this.currentStatus,     // NEW
 			currentSortMode: mode,
 			currentSort: this.currentSort,
 			currentSortDirection: direction,
@@ -228,6 +231,11 @@ export class LibraryView extends ItemView {
 					this.resetVisibleItemCount();
 					this.refresh();
 				},
+				  onStatusChange: (value) => {               // NEW
+					this.currentStatus = value;
+					this.resetVisibleItemCount();
+					this.refresh();
+				},
 				onSortModeChange: (value) => {
 					// switch mode but keep direction when possible
 					const direction =
@@ -255,15 +263,13 @@ export class LibraryView extends ItemView {
 				},
 				onReset: () => {
 					this.currentFilter = "all";
+					this.currentStatus = "all";
 					this.currentSort = this.toSortType(this.settings.defaultSortMode);
 					this.searchQuery = "";
 					this.selectedItem = null;
 					this.featuredPath = null;
 					this.resetVisibleItemCount();
 					this.refresh();
-				},
-				onShuffle: () => {
-					this.renderShuffledView();
 				},
 			});
 
@@ -826,42 +832,6 @@ export class LibraryView extends ItemView {
 		});
 	}
 
-	private renderShuffledView(): void {
-		this.currentLibraryItems = [...this.getVisibleItems()].sort(() => Math.random() - 0.5);
-		this.contentHost.empty();
-		const renderedItems = this.currentLibraryItems.slice(0, this.visibleItemCount);
-		this.cardView.render(this.contentHost, renderedItems, this.selectedItem, (item) => {
-			this.selectItem(item);
-			this.openActivityModal(item);
-		}, {
-			onOpenNote: (item) => {
-				this.selectItem(item);
-				void this.app.workspace.openLinkText(item.path, "", false);
-			},
-			onOpenModal: (item) => {
-				this.selectItem(item);
-				this.openActivityModal(item);
-			},
-			onToggleFavorite: (item) => {
-				this.toggleFavorite(item);
-			},
-			isFavorite: (path) => ListService.isFavorite(this.settings, path),
-			onCreatorClick: (creator) => {
-				this.searchQuery = creator;
-				this.resetVisibleItemCount();
-				this.renderToolbarArea();
-				this.renderActivePage();
-			},
-		});
-		if (this.topUpVisibleToCompleteRow(".media-library-grid", this.currentLibraryItems.length)) {
-			this.renderShuffledView();
-			return;
-		}
-		this.renderShowMoreControl(this.currentLibraryItems.length, renderedItems.length, () => {
-			this.renderShuffledView();
-		});
-	}
-
 	// Selection + modal helpers
 	private selectItem(item: MediaItem | null): void {
 		if (!item) {
@@ -1160,6 +1130,9 @@ export class LibraryView extends ItemView {
 
 		if (this.currentFilter !== "all") {
 			items = items.filter((item) => item.mediaType === this.currentFilter);
+		}
+		if (this.currentStatus !== "all") {             // NEW
+			items = items.filter((item) => item.status === this.currentStatus);
 		}
 
 		if (this.searchQuery.trim()) {
