@@ -23,6 +23,7 @@ export interface LibrarySocialHubCallbacks {
 	onRemoveItemFromList(listId: string, itemPath: string): void;
 	onOpenItem(item: MediaItem): void;
 	onAddTag(item: MediaItem, tag: string): void;
+	onOpenList?(list: MediaLibraryCustomList): void;   // NEW (optional)
 }
 
 const TAB_DEFINITIONS: Array<{ id: SocialHubTab; label: string }> = [
@@ -153,82 +154,125 @@ function getCompletionDates(item: MediaItem): string[] {
 	return [...dates];
 }
 
-function renderListsPanel(container: HTMLElement, state: LibrarySocialHubState, callbacks: LibrarySocialHubCallbacks): void {
-	const createRow = container.createDiv({ cls: "media-social-create-row" });
-	const nameInput = createRow.createEl("input", {
-		type: "text",
-		placeholder: "Create a list",
-	});
-	const createButton = createRow.createEl("button", { text: "Add" });
-	createButton.type = "button";
-	createButton.addEventListener("click", () => {
-		callbacks.onCreateList(nameInput.value);
-		nameInput.value = "";
-	});
-	nameInput.addEventListener("keydown", (event) => {
-		if (event.key === "Enter") {
-			event.preventDefault();
-			callbacks.onCreateList(nameInput.value);
-			nameInput.value = "";
-		}
-	});
+function renderListsPanel(
+  container: HTMLElement,
+  state: LibrarySocialHubState,
+  callbacks: LibrarySocialHubCallbacks,
+): void {
+  const createRow = container.createDiv({ cls: "media-social-create-row" });
+  const nameInput = createRow.createEl("input", {
+    type: "text",
+    placeholder: "Create a list",
+  });
+  const createButton = createRow.createEl("button", { text: "Add" });
+  createButton.type = "button";
+  createButton.addEventListener("click", () => {
+    callbacks.onCreateList(nameInput.value);
+    nameInput.value = "";
+  });
+  nameInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      callbacks.onCreateList(nameInput.value);
+      nameInput.value = "";
+    }
+  });
 
-	if (!state.lists.length) {
-		container.createDiv({ cls: "media-social-empty", text: "No lists yet. Create one above." });
-		return;
-	}
+  if (!state.lists.length) {
+    container.createDiv({
+      cls: "media-social-empty",
+      text: "No lists yet. Create one above.",
+    });
+    return;
+  }
 
-	const listGrid = container.createDiv({ cls: "media-social-list-grid" });
-	for (const list of state.lists) {
-		const card = listGrid.createDiv({ cls: "media-social-list-card" });
-		const head = card.createDiv({ cls: "media-social-list-head" });
-		head.createDiv({ cls: "media-social-list-name", text: list.name });
-		const deleteButton = head.createEl("button", { cls: "media-social-list-delete", text: "Delete" });
-		deleteButton.type = "button";
-		deleteButton.addEventListener("click", () => {
-			callbacks.onDeleteList(list.id);
-		});
+  const listGrid = container.createDiv({ cls: "media-social-list-grid" });
+  for (const list of state.lists) {
+    const card = listGrid.createDiv({ cls: "media-social-list-card" });
 
-		card.createDiv({
-			cls: "media-social-list-meta",
-			text: `${list.itemPaths.length} ${list.itemPaths.length === 1 ? "item" : "items"}`,
-		});
+    // Header (name + delete)
+    const head = card.createDiv({ cls: "media-social-list-head" });
+    head.createDiv({ cls: "media-social-list-name", text: list.name });
+    const deleteButton = head.createEl("button", {
+      cls: "media-social-list-delete",
+      text: "Delete",
+    });
+    deleteButton.type = "button";
+    deleteButton.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      callbacks.onDeleteList(list.id);
+    });
 
-		const manageRow = card.createDiv({ cls: "media-social-list-manage" });
-		const picker = manageRow.createEl("select");
-		for (const item of state.items) {
-			picker.createEl("option", {
-				value: item.path,
-				text: item.title,
-			});
-		}
-		if (state.selectedItem) {
-			picker.value = state.selectedItem.path;
-		}
-		const addButton = manageRow.createEl("button", { text: "Add media" });
-		addButton.type = "button";
-		addButton.addEventListener("click", () => {
-			callbacks.onAddItemToList(list.id, picker.value);
-		});
+    // Meta line
+    card.createDiv({
+      cls: "media-social-list-meta",
+      text: `${list.itemPaths.length} ${
+        list.itemPaths.length === 1 ? "item" : "items"
+      }`,
+    });
 
-		if (!list.itemPaths.length) {
-			card.createDiv({ cls: "media-social-empty", text: "No media in this list yet." });
-			continue;
-		}
+    // Add-media controls inside the card
+    const manageRow = card.createDiv({ cls: "media-social-list-manage" });
+    const picker = manageRow.createEl("select");
+    for (const item of state.items) {
+      picker.createEl("option", {
+        value: item.path,
+        text: item.title,
+      });
+    }
+    if (state.selectedItem) {
+      picker.value = state.selectedItem.path;
+    }
+    const addButton = manageRow.createEl("button", { text: "Add media" });
+    addButton.type = "button";
+    addButton.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      callbacks.onAddItemToList(list.id, picker.value);
+    });
 
-		const previewGrid = card.createDiv({ cls: "media-social-mini-grid" });
-		for (const path of list.itemPaths) {
-			const item = state.allItemsByPath.get(path);
-			if (!item) {
-				continue;
-			}
-			renderMiniCard(previewGrid, state.app, item, () => {
-				callbacks.onOpenItem(item);
-			}, () => {
-				callbacks.onRemoveItemFromList(list.id, path);
-			});
-		}
-	}
+    // Limited preview: up to 5
+    if (!list.itemPaths.length) {
+      card.createDiv({
+        cls: "media-social-empty",
+        text: "No media in this list yet.",
+      });
+    } else {
+      const previewGrid = card.createDiv({ cls: "media-social-mini-grid" });
+      const PREVIEW_LIMIT = 5;
+      const paths = list.itemPaths.slice(0, PREVIEW_LIMIT);
+
+      for (const path of paths) {
+        const item = state.allItemsByPath.get(path);
+        if (!item) {
+          continue;
+        }
+        renderMiniCard(
+          previewGrid,
+          state.app,
+          item,
+          () => {
+            callbacks.onOpenItem(item);
+          },
+          (/* onRemove */) => {
+            callbacks.onRemoveItemFromList(list.id, path);
+          },
+        );
+      }
+
+      const remaining = list.itemPaths.length - PREVIEW_LIMIT;
+      if (remaining > 0) {
+        card.createDiv({
+          cls: "media-social-list-footer",
+          text: `+ ${remaining} more…`,
+        });
+      }
+    }
+
+    // Clicking anywhere on the card (except specific buttons) opens detail modal
+    card.addEventListener("click", () => {
+      callbacks.onOpenList?.(list);
+    });
+  }
 }
 
 function renderFavoritesPanel(container: HTMLElement, state: LibrarySocialHubState, callbacks: LibrarySocialHubCallbacks): void {

@@ -36,6 +36,7 @@ import { renderLibraryShell } from "./library/LibraryShell";
 import { renderLibrarySidebar } from "./library/LibrarySidebar";
 import { renderLibrarySocialHub } from "./library/LibrarySocialHub";
 import { renderLibraryToolbar } from "./library/LibraryToolbar";
+import { MediaListModal } from "../ui/MediaListModal";
 
 export class LibraryView extends ItemView {
 	// Core dependencies
@@ -74,6 +75,10 @@ export class LibraryView extends ItemView {
 	private isSidebarVisible = true;
 	private static readonly LIBRARY_PAGE_SIZE = 40;
 	private static readonly GALLERY_PAGE_SIZE = 40;
+	private static readonly DIARY_PAGE_SIZE = 40;
+	private static readonly ACTIVITY_PAGE_SIZE = 40;
+	private diaryPage = 0;
+	private activityPage = 0;
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -348,11 +353,13 @@ export class LibraryView extends ItemView {
 		}
 
 		if (this.currentPageTab === "diary") {
-			this.renderTopSocialPage("activity");
+			this.diaryPage = 0; // NEW
+			this.renderDiaryTablePage();
 			return;
 		}
 
 		if (this.currentPageTab === "activity") {
+			this.activityPage = 0; // NEW
 			this.renderActivityTimelinePage();
 			return;
 		}
@@ -409,6 +416,51 @@ export class LibraryView extends ItemView {
 		});
 	}
 
+	private renderPaginationControls(
+		container: HTMLElement,
+		page: number,
+		pageSize: number,
+		totalItems: number,
+		onPageChange: (page: number) => void,
+		): void {
+		if (totalItems <= pageSize) return;
+
+		const totalPages = Math.ceil(totalItems / pageSize);
+		const pager = container.createDiv({ cls: "media-pagination" });
+
+		const info = pager.createDiv({ cls: "media-pagination-info" });
+		info.textContent = `Page ${page + 1} of ${totalPages}`;
+
+		const buttons = pager.createDiv({ cls: "media-pagination-buttons" });
+
+		const prev = buttons.createEl("button", {
+			cls: "media-pagination-prev",
+			text: "Previous",
+		});
+		prev.type = "button";
+		prev.disabled = page === 0;
+		prev.addEventListener("click", () => {
+			if (this.currentPageTab === "diary" && this.diaryPage > 0) {
+				onPageChange(page - 1);
+			} else if (this.currentPageTab === "activity" && this.activityPage > 0) {
+				onPageChange(page - 1);
+			}
+		});
+
+		const next = buttons.createEl("button", {
+			cls: "media-pagination-next",
+			text: "Next",
+		});
+		next.type = "button";
+		next.disabled = page >= totalPages - 1;
+		next.addEventListener("click", () => {
+			if (page < totalPages - 1) {
+			onPageChange(page + 1);
+			}
+		});
+	}
+
+
 	private renderActivityTimelinePage(): void {
 		this.spotlightHost.empty();
 		this.spotlightHost.addClass("is-hidden");
@@ -416,40 +468,180 @@ export class LibraryView extends ItemView {
 		this.sidebarHost.addClass("is-hidden");
 		this.bodyHost?.addClass("is-social-layout");
 
-		const wrap = this.contentHost.createDiv({ cls: "media-home-activity-page" });
-		const header = wrap.createDiv({ cls: "media-home-sidebar-header" });
+		const wrap = this.contentHost.createDiv({ cls: "media-home-activity" });
+		const header = wrap.createDiv({ cls: "media-home-header" });
 		header.createDiv({ cls: "media-home-sidebar-title", text: "Activity" });
 
 		const byPath = new Map(this.library.getAll().map((item) => [item.path, item]));
-		const events = this.getHomeActivityItems(this.getUpNextItems(byPath), 40);
-		if (!events.length) {
+		const allEvents = this.getHomeActivityItems(this.getUpNextItems(byPath), Infinity);
+
+		if (!allEvents.length) {
 			wrap.createDiv({ cls: "media-home-empty", text: "No activity yet." });
 			return;
 		}
 
+		const pageSize = LibraryView.ACTIVITY_PAGE_SIZE;
+		const start = this.activityPage * pageSize;
+		const pageEvents = allEvents.slice(start, start + pageSize);
+
 		const list = wrap.createDiv({ cls: "media-home-activity-list is-expanded" });
-		for (const [index, entry] of events.entries()) {
+		for (const [index, entry] of pageEvents.entries()) {
 			const row = list.createDiv({ cls: "media-home-activity-item" });
 			const node = row.createDiv({ cls: "media-home-activity-node" });
 			node.createDiv({ cls: "media-home-activity-dot" });
-			if (index < events.length - 1) {
-				node.createDiv({ cls: "media-home-activity-stem" });
+			if (index < pageEvents.length - 1) {
+			node.createDiv({ cls: "media-home-activity-stem" });
 			}
 
 			const body = row.createDiv({ cls: "media-home-activity-body" });
 			const line = body.createDiv({ cls: "media-home-activity-line" });
 			line.createSpan({ text: entry.prefix });
-			line.createSpan({ cls: "media-home-activity-title-emphasis", text: entry.item.title });
+			line.createSpan({
+			cls: "media-home-activity-title-emphasis",
+			text: entry.item.title,
+			});
 			line.createSpan({ text: entry.suffix });
 			body.createDiv({ cls: "media-home-activity-meta", text: entry.when });
 
 			row.addEventListener("click", () => {
-				this.selectItem(entry.item);
-				this.openActivityModal(entry.item);
+			this.selectItem(entry.item);
+			this.openActivityModal(entry.item);
 			});
 		}
+
+		this.renderPaginationControls(
+			wrap,
+			this.activityPage,
+			pageSize,
+			allEvents.length,
+			(nextPage) => {
+			this.activityPage = nextPage;
+			this.renderActivityTimelinePage();
+			},
+		);
 	}
 
+
+	// Diary table page (Letterboxd-style)
+	private renderDiaryTablePage(): void {
+		this.spotlightHost.empty();
+		this.spotlightHost.addClass("is-hidden");
+		this.contentHost.empty();
+		this.sidebarHost.addClass("is-hidden");
+		this.bodyHost?.addClass("is-social-layout");
+
+		const wrap = this.contentHost.createDiv({ cls: "media-diary-page" });
+
+		// Header row
+		const header = wrap.createDiv({ cls: "media-diary-header" });
+
+		const leftHeader = header.createDiv({ cls: "media-diary-header-left" });
+		leftHeader.createDiv({ cls: "media-diary-title", text: "Diary" });
+
+		const cols = header.createDiv({ cls: "media-diary-header-cols" });
+		cols.createSpan({ text: "Released", cls: "media-diary-col-label" });
+		cols.createSpan({ text: "Rating", cls: "media-diary-col-label" });
+		cols.createSpan({ text: "Review", cls: "media-diary-col-label" });
+
+		// All items with a date, newest first
+		const allItems = this.library
+			.getAll()
+			.filter((item) => Boolean(item.date))
+			.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+
+		if (!allItems.length) {
+			wrap.createDiv({
+			cls: "media-home-empty",
+			text: "No diary entries yet.",
+			});
+			return;
+		}
+
+		const pageSize = LibraryView.DIARY_PAGE_SIZE;
+		const start = this.diaryPage * pageSize;
+		const items = allItems.slice(start, start + pageSize);
+
+		const list = wrap.createDiv({ cls: "media-diary-list" });
+
+		for (const item of items) {
+			const row = list.createDiv({ cls: "media-diary-row" });
+
+			// Date block
+			const dateCell = row.createDiv({ cls: "media-diary-date" });
+			const dateValue = item.date ? new Date(item.date) : null;
+			const month =
+			dateValue && !Number.isNaN(dateValue.getTime())
+				? dateValue.toLocaleString("en-US", { month: "short" }).toUpperCase()
+				: "---";
+			const day =
+			dateValue && !Number.isNaN(dateValue.getTime())
+				? String(dateValue.getDate()).padStart(2, "0")
+				: "--";
+
+			dateCell.createDiv({ cls: "media-diary-date-month", text: month });
+			dateCell.createDiv({ cls: "media-diary-date-day", text: day });
+
+			// Poster + title
+			const mainCell = row.createDiv({ cls: "media-diary-main" });
+
+			const posterHost = mainCell.createDiv({ cls: "media-diary-poster" });
+			new Poster(item, this.app).render(posterHost);
+
+			const text = mainCell.createDiv({ cls: "media-diary-text" });
+			text.createDiv({ cls: "media-diary-film-title", text: item.title });
+			if (item.year) {
+			text.createDiv({
+				cls: "media-diary-film-meta",
+				text: String(item.year),
+			});
+			}
+
+			// Released year
+			const yearCell = row.createDiv({ cls: "media-diary-year" });
+			yearCell.createSpan({ text: item.year ? String(item.year) : "—" });
+
+			// Rating stars
+			const ratingCell = row.createDiv({ cls: "media-diary-rating" });
+			if (item.rating != null) {
+			const starsOutOfFive = Math.round(item.rating / 2);
+			ratingCell.createSpan({
+				cls: "media-diary-rating-stars",
+				text: "★".repeat(starsOutOfFive),
+			});
+			} else {
+			ratingCell.createSpan({ text: "—" });
+			}
+
+			// Review / actions
+			const reviewCell = row.createDiv({ cls: "media-diary-review" });
+			const openBtn = reviewCell.createEl("button", {
+			cls: "media-diary-review-button",
+			text: "Review",
+			});
+			openBtn.type = "button";
+			openBtn.addEventListener("click", () => {
+			this.selectItem(item);
+			this.openActivityModal(item);
+			});
+
+			row.addEventListener("click", (event) => {
+			if (event.target === openBtn) return;
+			this.selectItem(item);
+			void this.app.workspace.openLinkText(item.path, "", false);
+			});
+		}
+
+		this.renderPaginationControls(
+			wrap,
+			this.diaryPage,
+			pageSize,
+			allItems.length,
+			(nextPage) => {
+			this.diaryPage = nextPage;
+			this.renderDiaryTablePage();
+			},
+		);
+	}
 	// Home page composition
 	private renderHomePage(): void {
 		this.contentHost.empty();
@@ -545,7 +737,6 @@ export class LibraryView extends ItemView {
 		const upNextSection = rail.createDiv({ cls: "media-home-sidebar-section" });
 		const watchlistHeader = upNextSection.createDiv({ cls: "media-home-sidebar-header" });
 		watchlistHeader.createDiv({ cls: "media-home-sidebar-title", text: "Up next" });
-		watchlistHeader.createDiv({ cls: "media-home-sidebar-count", text: String(upNext.length) });
 		if (!upNext.length) {
 			upNextSection.createDiv({ cls: "media-home-empty", text: "No titles in up next." });
 		} else {
@@ -566,7 +757,6 @@ export class LibraryView extends ItemView {
 		const diaryHeader = diarySection.createDiv({ cls: "media-home-sidebar-header" });
 		diaryHeader.createDiv({ cls: "media-home-sidebar-title", text: "Diary" });
 		const diaryHeaderRight = diaryHeader.createDiv({ cls: "media-home-sidebar-header-right" });
-		diaryHeaderRight.createDiv({ cls: "media-home-sidebar-count", text: String(diaryItems.length) });
 		const diaryAllButton = diaryHeaderRight.createEl("button", { cls: "media-home-sidebar-all", text: "All" });
 		diaryAllButton.type = "button";
 		diaryAllButton.addEventListener("click", () => {
@@ -959,6 +1149,27 @@ export class LibraryView extends ItemView {
 			onAddTag: (item: MediaItem, tag: string) => {
 				void this.addTagFromSocial(item, tag);
 			},
+			onOpenList: (list) => {
+				const all = this.library.getAll();
+				const allMap = new Map(all.map((item) => [item.path, item]));
+
+				new MediaListModal({
+					app: this.app,
+					list,
+					allItemsByPath: allMap,
+					onSave: async (updated) => {
+					// write changes back into settings.customLists
+					const idx = this.settings.customLists.findIndex(
+						(l) => l.id === updated.id,
+					);
+					if (idx !== -1) {
+						this.settings.customLists[idx] = { ...updated };
+						await this.persistSettings();
+						this.renderActivePage();
+					}
+					},
+				}).open();
+				},
 		};
 	}
 

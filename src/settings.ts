@@ -14,6 +14,7 @@ export interface MediaLibraryCustomList {
 	id: string;
 	name: string;
 	itemPaths: string[];
+	description?: string;  
 	createdAt: string;
 	updatedAt: string;
 }

@@ -631,17 +631,17 @@
 	border-bottom: none;
 }
 
-.media-home-sidebar-count {
-	font-size: 0.92em;
-	color: var(--text-muted);
-}
-
 .media-home-sidebar-all {
 	padding: 0;
 	color: var(--text-muted);
 	letter-spacing: 0.1em;
 	text-transform: uppercase;
 	font-size: 0.78em;
+}
+button.media-home-sidebar-all{
+	background: transparent;
+	border: none;
+	box-shadow: none;
 }
 
 .media-library.is-home-page .media-library-sidebar-section,
@@ -778,13 +778,13 @@
 }
 
 .media-home-diary-index {
-	font-size: 1.02em;
+	font-size: 0.9em;
 	color: var(--text-muted);
 	min-width: 10px;
 }
 
 .media-home-diary-title {
-	font-size: 1em;
+	font-size: 0.90em;
 	font-weight: 480;
 	color: var(--text-normal);
 	overflow: hidden;
@@ -836,7 +836,7 @@
 }
 
 .media-home-activity-line {
-	font-size: 0.95em;
+	font-size: 0.90em;
 	line-height: 1.45;
 	color: var(--text-muted);
 	word-break: break-word;
@@ -2310,10 +2310,21 @@
 	color: var(--text-faint);
 }
 
+
+/* Make all custom modals feel more like app surfaces */
+.media-activity-modal-shell .modal,
+.media-list-modal .modal {
+	border-radius: 16px;
+	box-shadow:
+		0 18px 40px rgba(0, 0, 0, 0.35),
+		0 0 0 1px var(--background-modifier-border);
+	background: var(--background-primary);
+}
+
+
 /* Activity modal */
 .media-activity-modal-shell .modal {
-	width: min(1200px, 200vw);
-	max-width: 1200px;
+	max-width: 900px;
 }
 
 .media-activity-modal {
@@ -2497,6 +2508,276 @@
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
+}
+
+/* Diary page layout */
+
+.media-diary-page {
+  display: grid;
+  gap: 10px;
+  padding: 8px 0 12px;
+}
+
+/* Header row */
+
+.media-diary-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.4fr);
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.media-diary-header-left {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.media-diary-title {
+  font-size: 0.9em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.media-diary-header-cols {
+  display: grid;
+  grid-template-columns: 80px 90px 100px;
+  justify-content: end;
+  gap: 16px;
+  font-size: 0.78em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.media-diary-col-label {
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* Rows list */
+
+.media-diary-list {
+  display: grid;
+  gap: 1px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Row */
+
+.media-diary-row {
+  display: grid;
+  grid-template-columns:
+    90px              /* date block */
+    minmax(0, 1.4fr)  /* poster + title */
+    80px              /* released */
+    90px              /* rating */
+    110px;            /* review */
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(12, 16, 25, 0.95);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.media-diary-row:hover {
+  background: rgba(24, 32, 48, 0.98);
+}
+
+/* Date cell */
+
+.media-diary-date {
+	display: grid;
+	align-items: center;
+	justify-items: center;
+	justify-self: start;
+	width: 68px;
+	padding: 6px 0;
+	border-radius: 6px;
+	border: 1px solid color-mix(in srgb, var(--background-modifier-border) 70%, transparent);
+	background: linear-gradient(180deg, #1a2230, #0d111b);
+}
+
+.media-diary-date-month {
+	font-size: 0.65em;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--text-faint);
+}
+
+.media-diary-date-day {
+	font-size: 1.4em;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+/* Main cell: poster + title */
+
+.media-diary-main {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
+}
+
+.media-diary-poster {
+	width: 40px;
+	min-width: 40px;
+	aspect-ratio: 2 / 3;
+	overflow: hidden;
+	border-radius: 3px;
+	background: var(--background-secondary);
+	border: 1px solid color-mix(in srgb, var(--background-modifier-border) 70%, transparent);
+	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.5);
+}
+
+.media-diary-poster .media-poster,
+.media-diary-poster .media-poster-image {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.media-diary-text {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.media-diary-film-title {
+	font-size: 1.05em;
+	font-weight: 600;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.media-diary-film-meta {
+	font-size: 0.82em;
+	color: var(--text-muted);
+}
+
+/* Released year */
+
+.media-diary-year {
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+/* Rating cell */
+
+.media-diary-rating {
+	font-size: 0.9em;
+	color: #39e67c; /* bright green stars */
+}
+
+.media-diary-rating-stars {
+	letter-spacing: 0.08em;
+}
+
+/* Review cell */
+
+.media-diary-review {
+	display: flex;
+	justify-content: flex-start;
+}
+
+.media-diary-review-button {
+	padding: 6px 12px;
+	border-radius: 999px;
+	border: 1px solid var(--background-modifier-border, rgba(255, 255, 255, 0.04));
+	color: var(--text-normal);
+	font-size: 0.78em;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+/* Responsive: stack tighter on small widths */
+
+@media (max-width: 900px) {
+	.media-diary-header {
+		grid-template-columns: 1fr;
+		row-gap: 6px;
+	}
+
+	.media-diary-header-cols {
+		justify-content: flex-start;
+	}
+
+	.media-diary-row {
+		grid-template-columns:
+		80px
+		minmax(0, 1.2fr)
+		70px
+		80px
+		90px;
+		padding-inline: 8px;
+	}
+
+	.media-diary-date {
+		width: 60px;
+	}
+
+	.media-diary-main {
+		gap: 8px;
+	}
+}
+
+
+/* Shared pagination controls */
+.media-pagination {
+	margin-top: 1.5rem;
+	padding-top: 0.75rem;
+	border-top: 1px solid var(--background-modifier-border);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	font-size: 12px;
+}
+
+.media-pagination-info {
+	color: var(--text-muted);
+}
+
+.media-pagination-buttons {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.media-pagination-prev,
+.media-pagination-next {
+	border-radius: 999px;
+	padding: 4px 10px;
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.media-pagination-prev:hover,
+.media-pagination-next:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.media-pagination-prev:disabled,
+.media-pagination-next:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
+/* Optional: make pagination sit nicely under diary/activity lists */
+.media-diary-page > .media-pagination,
+.media-home-activity-page > .media-pagination {
+	margin-bottom: 0.5rem;
 }
 
 /* Motion toggle */
