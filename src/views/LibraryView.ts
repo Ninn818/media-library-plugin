@@ -297,28 +297,7 @@ export class LibraryView extends ItemView {
 		}
 
 		const controlsHost = this.toolbarHost.createDiv();
-
-		renderMediaDashboardToolbar(controlsHost, {
-			consumption: this.dashboardConsumption,
-			scope: this.dashboardScope,
-			filter: this.dashboardFilter,
-		}, {
-			onConsumptionChange: (filter) => {
-				this.dashboardConsumption = filter;
-				this.renderToolbarArea();
-				this.renderActivePage();
-			},
-			onScopeChange: (scope) => {
-				this.dashboardScope = scope;
-				this.renderToolbarArea();
-				this.renderActivePage();
-			},
-			onFilterChange: (filter) => {
-				this.dashboardFilter = filter;
-				this.renderToolbarArea();
-				this.renderActivePage();
-			},
-		});
+		renderMediaDashboardToolbar(controlsHost);
 	}
 
 	// Top header area (non-home pages)
@@ -893,13 +872,13 @@ export class LibraryView extends ItemView {
 			return favorites.itemPaths
 				.map((path) => allItemsByPath.get(path))
 				.filter((item): item is MediaItem => Boolean(item))
-				.slice(0, 8);
+				.slice(0, 4);
 		}
 
 		return this.library
 			.getAll()
 			.filter((item) => item.rating != null && item.rating >= 8)
-			.slice(0, 8);
+			.slice(0, 4);
 	}
     //show 4 recent items on home page
 	private getRecentHomeItems(): MediaItem[] {
@@ -909,7 +888,7 @@ export class LibraryView extends ItemView {
 				const leftDate = left.date ?? left.addedDate ?? "";
 				return rightDate.localeCompare(leftDate);
 			})
-			.slice(0, 8);
+			.slice(0, 4);
 	}
 
 	private getUpNextItems(allItemsByPath: Map<string, MediaItem>): MediaItem[] {
@@ -918,13 +897,13 @@ export class LibraryView extends ItemView {
 			return upNext.itemPaths
 				.map((path) => allItemsByPath.get(path))
 				.filter((item): item is MediaItem => Boolean(item))
-				.slice(0, 8);
+				.slice(0, 4);
 		}
 
 		return this.library
 			.getAll()
 			.filter((item) => item.status === "want to read" || item.status === "want to watch")
-			.slice(0, 8);
+			.slice(0, 4);
 	}
 
 	// Media gallery/cards/dashboard renderers
@@ -1018,6 +997,18 @@ export class LibraryView extends ItemView {
 				this.selectedItem = item;
 				this.featuredPath = item.path;
 				void this.app.workspace.openLinkText(item.path, "", false);
+			},
+			onConsumptionChange: (filter) => {
+				this.dashboardConsumption = filter;
+				this.renderActivePage();
+			},
+			onScopeChange: (scope) => {
+				this.dashboardScope = scope;
+				this.renderActivePage();
+			},
+			onFilterChange: (filter) => {
+				this.dashboardFilter = filter;
+				this.renderActivePage();
 			},
 		});
 	}

@@ -46,12 +46,6 @@ export class ViewRegistry {
 			icon: "image",
 		},
 
-		{
-			id: "base",                // NEW
-			name: "Base",
-			icon: "layout-dashboard",  // or any Obsidian icon name you like
-		},
-
 		// {
 		// 	id: "gallery",
 		// 	name: "Gallery",

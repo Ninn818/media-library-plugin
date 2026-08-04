@@ -1,4 +1,4 @@
-import { App, Notice } from "obsidian";
+import { Notice, setIcon } from "obsidian";
 
 import { MediaItem } from "../../models/MediaItem";
 import { MediaType } from "../../models/MediaType";
@@ -41,6 +41,9 @@ export interface MediaDashboardState {
 
 export interface MediaDashboardCallbacks {
 	onOpenItem(item: MediaItem): void;
+	onConsumptionChange(filter: DashboardConsumptionFilter): void;
+	onScopeChange(scope: DashboardScopeMode): void;
+	onFilterChange(filter: DashboardMediaFilter): void;
 }
 
 export function renderMediaDashboard(
@@ -117,6 +120,7 @@ function renderSidebar(
 	callbacks: MediaDashboardCallbacks
 ): void {
 	const sidebar = container.createDiv({ cls: "media-dashboard-sidebar" });
+	renderFilterRail(sidebar, state, callbacks);
 
 	if (state.settings.dashboardShowSummary) {
 		renderSummaryPanel(sidebar, activeItems, state.scope, state.consumption);
@@ -128,6 +132,79 @@ function renderSidebar(
 
 	if (state.settings.dashboardShowGoals) {
 		renderGoalProgress(sidebar, activeItems, state.settings.dashboardGoals, state.consumption);
+	}
+}
+
+function renderFilterRail(
+	container: HTMLElement,
+	state: MediaDashboardState,
+	callbacks: MediaDashboardCallbacks
+): void {
+	const section = createSidebarSection(container, "Filters", "sliders-horizontal");
+	section.addClass("media-dashboard-filters");
+
+	renderFilterGroup(
+		section,
+		"Focus",
+		"target",
+		[
+			{ value: "consumed", label: "Completed" },
+			{ value: "unconsumed", label: "Backlog" },
+			{ value: "all", label: "Everything" },
+		],
+		state.consumption,
+		(value) => callbacks.onConsumptionChange(value as DashboardConsumptionFilter)
+	);
+
+	renderFilterGroup(
+		section,
+		"Scope",
+		"calendar-range",
+		[
+			{ value: "year", label: "This year" },
+			{ value: "all", label: "All time" },
+		],
+		state.scope,
+		(value) => callbacks.onScopeChange(value as DashboardScopeMode)
+	);
+
+	renderFilterGroup(
+		section,
+		"Media",
+		"library",
+		[
+			{ value: "all", label: "All media" },
+			{ value: "text", label: "Books + essays" },
+			{ value: "screen", label: "Movies + series" },
+		],
+		state.filter,
+		(value) => callbacks.onFilterChange(value as DashboardMediaFilter)
+	);
+}
+
+function renderFilterGroup(
+	container: HTMLElement,
+	title: string,
+	icon: string,
+	options: Array<{ value: string; label: string }>,
+	activeValue: string,
+	onChange: (value: string) => void
+): void {
+	const group = container.createDiv({ cls: "media-dashboard-filter-group" });
+	const titleRow = group.createDiv({ cls: "media-dashboard-filter-title-row" });
+	createIcon(titleRow, icon, "media-dashboard-filter-title-icon");
+	titleRow.createDiv({ text: title, cls: "media-dashboard-filter-title" });
+
+	const row = group.createDiv({ cls: "media-dashboard-filter-buttons" });
+	for (const option of options) {
+		const button = row.createEl("button", {
+			text: option.label,
+			cls: "media-dashboard-filter-button",
+		});
+		button.type = "button";
+		button.toggleClass("is-active", option.value === activeValue);
+		button.setAttr("aria-pressed", option.value === activeValue ? "true" : "false");
+		button.addEventListener("click", () => onChange(option.value));
 	}
 }
 
@@ -162,22 +239,25 @@ function renderDashboardChart(
 	const header = panel.createDiv({ cls: "media-dashboard-panel-header" });
 	const titleWrap = header.createDiv({ cls: "media-dashboard-panel-title-wrap" });
 	titleWrap.createDiv({ text: title, cls: "media-dashboard-panel-title" });
-	titleWrap.createDiv({ text: description, cls: "media-dashboard-panel-description" });
 
 	const controls = header.createDiv({ cls: "media-dashboard-chart-controls" });
-	controls.createDiv({ text: "Chart type", cls: "media-dashboard-chart-controls-label" });
+	const info = panel.createDiv({ text: description, cls: "media-dashboard-chart-meta" });
 	const area = panel.createDiv({ cls: "media-dashboard-chart-area" });
 
 	let mode: DashboardChartMode = data.length === 1 ? "spotlight" : "bar";
+	let isInfoVisible = false;
 	const buttons = new Map<DashboardChartMode, HTMLButtonElement>();
 
 	for (const option of [
-		{ mode: "bar" as DashboardChartMode, label: "Bar" },
-		{ mode: "pie" as DashboardChartMode, label: "Pie" },
-		{ mode: "spotlight" as DashboardChartMode, label: "Focus" },
+		{ mode: "bar" as DashboardChartMode, label: "Bar chart", icon: "chart-column" },
+		{ mode: "pie" as DashboardChartMode, label: "Pie chart", icon: "chart-pie" },
+		{ mode: "spotlight" as DashboardChartMode, label: "Focus chart", icon: "focus" },
 	]) {
-		const button = controls.createEl("button", { text: option.label, cls: "media-dashboard-chart-button" });
+		const button = controls.createEl("button", { cls: "media-dashboard-chart-button" });
 		button.type = "button";
+		button.setAttr("aria-label", option.label);
+		button.setAttr("title", option.label);
+		createIcon(button, option.icon, "media-dashboard-chart-button-icon");
 		button.addEventListener("click", () => {
 			mode = option.mode;
 			updateButtons();
@@ -185,6 +265,19 @@ function renderDashboardChart(
 		});
 		buttons.set(option.mode, button);
 	}
+
+	const infoButton = controls.createEl("button", { cls: "media-dashboard-chart-button" });
+	infoButton.type = "button";
+	infoButton.setAttr("aria-label", "Chart information");
+	infoButton.setAttr("title", "Chart information");
+	infoButton.setAttr("aria-pressed", "false");
+	createIcon(infoButton, "info", "media-dashboard-chart-button-icon");
+	infoButton.addEventListener("click", () => {
+		isInfoVisible = !isInfoVisible;
+		info.toggleClass("is-visible", isInfoVisible);
+		infoButton.toggleClass("is-active", isInfoVisible);
+		infoButton.setAttr("aria-pressed", isInfoVisible ? "true" : "false");
+	});
 
 	const updateButtons = () => {
 		for (const [key, button] of buttons) {
@@ -313,7 +406,7 @@ function renderSummaryPanel(
 	scope: DashboardScopeMode,
 	consumption: DashboardConsumptionFilter
 ): void {
-	const section = createSidebarSection(container, "Summary");
+	const section = createSidebarSection(container, "Summary", "sparkles");
 	const topGenre = countBy(activeItems.flatMap((item) => item.genres), (genre) => genre)[0]?.[0] ?? "varied tastes";
 	const topCreator = countBy(activeItems.map((item) => item.creator), (creator) => creator)[0]?.[0] ?? "different creators";
 	const averageRating = getAverageRating(activeItems);
@@ -331,21 +424,27 @@ function renderQuickPicks(
 	items: MediaItem[],
 	callbacks: MediaDashboardCallbacks
 ): void {
-	const section = createSidebarSection(container, "Quick picks");
+	const section = createSidebarSection(container, "Quick picks", "dice-5");
 	const picks: DashboardQuickPick[] = [
-		{ label: "Read next", types: ["book", "essay"], buttonLabel: "Read next" },
-		{ label: "Watch next", types: ["movie", "series"], buttonLabel: "Watch next" },
-		{ label: "Wildcard", types: ["book", "movie", "series", "essay"], buttonLabel: "Surprise me" },
+		{ label: "Next book", types: ["book"], buttonLabel: "Next book" },
+		{ label: "Next essay", types: ["essay"], buttonLabel: "Next essay" },
+		{ label: "Next film", types: ["movie"], buttonLabel: "Next film" },
+		{ label: "Next show", types: ["series"], buttonLabel: "Next show" },
 	];
+	const icons: Record<string, string> = {
+		"Next book": "book-open",
+		"Next essay": "feather",
+		"Next film": "film",
+		"Next show": "tv",
+	};
 	const buttonRow = section.createDiv({ cls: "media-dashboard-quick-picks" });
 
 	for (const pick of picks) {
-		const button = buttonRow.createEl("button", {
-			text: pick.buttonLabel,
-			cls: "media-dashboard-action-button media-dashboard-quick-pick-button",
-		});
+		const button = buttonRow.createEl("button", { cls: "media-dashboard-action-button media-dashboard-quick-pick-button" });
 		button.type = "button";
 		button.setAttr("aria-label", pick.label);
+		createIcon(button, icons[pick.label] ?? "sparkles", "media-dashboard-action-icon");
+		button.createSpan({ text: pick.buttonLabel, cls: "media-dashboard-action-label" });
 		button.addEventListener("click", () => {
 			const chosen = pickRandomQueuedItem(items, pick.types);
 			if (!chosen) {
@@ -368,7 +467,7 @@ function renderGoalProgress(
 		return;
 	}
 
-	const section = createSidebarSection(container, "Year progress");
+	const section = createSidebarSection(container, "Year progress", "goal");
 	const types: MediaType[] = ["book", "movie", "series", "essay"];
 
 	for (const type of types) {
@@ -385,10 +484,20 @@ function renderGoalProgress(
 	}
 }
 
-function createSidebarSection(container: HTMLElement, title: string): HTMLElement {
+function createSidebarSection(container: HTMLElement, title: string, icon?: string): HTMLElement {
 	const section = container.createDiv({ cls: "media-dashboard-sidebar-section" });
-	section.createEl("h3", { text: title, cls: "media-dashboard-sidebar-title" });
+	const header = section.createDiv({ cls: "media-dashboard-sidebar-header" });
+	if (icon) {
+		createIcon(header, icon, "media-dashboard-sidebar-title-icon");
+	}
+	header.createEl("h3", { text: title, cls: "media-dashboard-sidebar-title" });
 	return section;
+}
+
+function createIcon(container: HTMLElement, icon: string, cls: string): void {
+	const iconEl = container.createSpan({ cls });
+	setIcon(iconEl, icon);
+	iconEl.setAttr("aria-hidden", "true");
 }
 
 function getHeroMetrics(
@@ -444,9 +553,19 @@ function getChartConfigs(items: MediaItem[], settings: MediaLibrarySettings): Ar
 			data: getBookPageBuckets(items),
 		},
 		{
-			title: "Top creators",
-			description: "Writers, directors, and creators that repeat most often.",
+			title: "Top Authors",
+			description: "Authors of books.",
 			data: countBy(items.map((item) => item.creator), (creator) => creator),
+		},
+		{
+			title: "Top Essayists",
+			description: "Essayists that repeat most often.",
+			data: countBy(items.filter((item) => item.mediaType === "essay").map((item) => item.creator), (creator) => creator),
+		},
+		{
+			title: "Top Directors",
+			description: "Directors of movies.",
+			data: countBy(items.filter((item) => item.mediaType === "movie").map((item) => item.creator), (creator) => creator),
 		},
 	];
 
@@ -537,12 +656,14 @@ function countBy<T>(items: T[], getKey: (item: T) => string | null | undefined):
 }
 
 function pickRandomQueuedItem(items: MediaItem[], types: MediaType[]): MediaItem | null {
-	const queued = items.filter((item) => types.includes(item.mediaType) && isQueued(item.status));
-	if (!queued.length) {
+	const pool = items.filter((item) =>
+		types.includes(item.mediaType) && !isConsumed(item)
+	);
+	if (!pool.length) {
 		return null;
 	}
 
-	return queued[Math.floor(Math.random() * queued.length)] ?? null;
+	return pool[Math.floor(Math.random() * pool.length)] ?? null;
 }
 
 function getAverageRating(items: MediaItem[]): number | null {
