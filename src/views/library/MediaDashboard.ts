@@ -72,10 +72,6 @@ function renderHero(
 	const hero = container.createDiv({ cls: "media-dashboard-hero" });
 	hero.createDiv({ text: "Insights", cls: "media-dashboard-eyebrow" });
 	hero.createEl("h3", { text: "Media dashboard", cls: "media-dashboard-title" });
-	hero.createDiv({
-		text: getHeroSubtitle(state.scope, state.consumption),
-		cls: "media-dashboard-subtitle",
-	});
 
 	const metricGrid = hero.createDiv({ cls: "media-dashboard-metric-grid" });
 	for (const metric of getHeroMetrics(state.items, activeItems, state.scope, state.consumption)) {

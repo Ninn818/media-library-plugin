@@ -57,7 +57,7 @@ function renderMetricsSection(container: HTMLElement, state: LibrarySidebarState
 function renderQueueSection(container: HTMLElement, items: MediaItem[], variant?: "default" | "airy"): void {
 	const section = createSection(container, "Up next", variant);
 	const queuedItems = items
-		.filter((item) => item.status === "want to read" || item.status === "want to watch")
+		.filter((item) => item.status === null)
 		.slice(0, 4);
 
 	if (!queuedItems.length) {
@@ -168,7 +168,7 @@ function getMetrics(items: MediaItem[], mode: "default" | "home"): SidebarMetric
 	}
 
 	const completedThisYear = items.filter((item) => isInCurrentYear(item.date)).length;
-	const queuedCount = items.filter((item) => item.status === "want to read" || item.status === "want to watch").length;
+	const queuedCount = items.filter((item) => item.status === null).length;
 
 	return [
 		{ label: "Visible", value: String(items.length) },

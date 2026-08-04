@@ -323,6 +323,12 @@ export abstract class BaseParser<TFrontmatter> {
             return value ? "completed" : null;
         }
 
+		// Handle arrays (take first element)
+		if (Array.isArray(value)) {
+			if (value.length === 0) return null;
+			return this.normalizeStatus(value[0]);
+		}
+
 		if (typeof value !== "string") {
 			return null;
 		}

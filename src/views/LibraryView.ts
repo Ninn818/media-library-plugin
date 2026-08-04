@@ -17,6 +17,7 @@ import {
 	DashboardScopeMode,
 	LibraryPageTab,
 	MediaLibrarySettings,
+	MediaLibraryCustomList,
 	SocialHubTab,
 } from "../settings";
 import * as ListService from "../services/ListService";
@@ -30,7 +31,6 @@ import { CardView } from "./CardView";
 import { GalleryView } from "./GalleryView";
 import { ViewSwitcher } from "./ViewSwitcher";
 import { renderMediaDashboard } from "./library/MediaDashboard";
-import { renderMediaDashboardToolbar } from "./library/MediaDashboardToolbar";
 import { renderLibraryPageTabs } from "./library/LibraryPageTabs";
 import { renderLibraryShell } from "./library/LibraryShell";
 import { renderLibrarySidebar } from "./library/LibrarySidebar";
@@ -61,7 +61,7 @@ export class LibraryView extends ItemView {
 	private currentPageTab: LibraryPageTab = "home";
 	private activeLibraryViewId: string;
 	private currentFilter: MediaType | "all" = "all";
-	private currentStatus: MediaStatus | "all" = "all";   // NEW
+	private currentStatus: MediaStatus | "all" | "completed" | "uncompleted" = "all";
 	private currentSort: SortType = { mode: "latest", direction: "desc" };
 	private dashboardConsumption: DashboardConsumptionFilter = "consumed";
 	private dashboardScope: DashboardScopeMode = "year";
@@ -79,6 +79,8 @@ export class LibraryView extends ItemView {
 	private static readonly ACTIVITY_PAGE_SIZE = 40;
 	private diaryPage = 0;
 	private activityPage = 0;
+	private diarySortKey: "date" | "rating" | "year" = "date";
+	private diarySortDirection: "asc" | "desc" = "desc";
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -296,8 +298,6 @@ export class LibraryView extends ItemView {
 			return;
 		}
 
-		const controlsHost = this.toolbarHost.createDiv();
-		renderMediaDashboardToolbar(controlsHost);
 	}
 
 	// Top header area (non-home pages)
@@ -518,15 +518,52 @@ export class LibraryView extends ItemView {
 		leftHeader.createDiv({ cls: "media-diary-title", text: "Diary" });
 
 		const cols = header.createDiv({ cls: "media-diary-header-cols" });
-		cols.createSpan({ text: "Released", cls: "media-diary-col-label" });
-		cols.createSpan({ text: "Rating", cls: "media-diary-col-label" });
-		cols.createSpan({ text: "Review", cls: "media-diary-col-label" });
+		const releasedCol = cols.createDiv({ cls: "media-diary-col" });
+		releasedCol.createSpan({ text: "Released", cls: "media-diary-col-label" });
+		const releasedSort = releasedCol.createEl("button", { cls: "media-diary-col-sort", text: "↕" });
+		releasedSort.type = "button";
+		releasedSort.addEventListener("click", () => {
+			this.diarySortKey = "year";
+			this.diarySortDirection = this.diarySortDirection === "asc" ? "desc" : "asc";
+			this.renderDiaryTablePage();
+		});
 
-		// All items with a date, newest first
-		const allItems = this.library
+		const ratingCol = cols.createDiv({ cls: "media-diary-col" });
+		ratingCol.createSpan({ text: "Rating", cls: "media-diary-col-label" });
+		const ratingSort = ratingCol.createEl("button", { cls: "media-diary-col-sort", text: "↕" });
+		ratingSort.type = "button";
+		ratingSort.addEventListener("click", () => {
+			this.diarySortKey = "rating";
+			this.diarySortDirection = this.diarySortDirection === "asc" ? "desc" : "asc";
+			this.renderDiaryTablePage();
+		});
+
+		const reviewCol = cols.createDiv({ cls: "media-diary-col" });
+		reviewCol.createSpan({ text: "Watched / read", cls: "media-diary-col-label" });
+		const dateSort = reviewCol.createEl("button", { cls: "media-diary-col-sort", text: "↕" });
+		dateSort.type = "button";
+		dateSort.addEventListener("click", () => {
+			this.diarySortKey = "date";
+			this.diarySortDirection = this.diarySortDirection === "asc" ? "desc" : "asc";
+			this.renderDiaryTablePage();
+		});
+
+		// All items with a date, sorted using diary controls
+		let allItems = this.library
 			.getAll()
-			.filter((item) => Boolean(item.date))
-			.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+			.filter((item) => Boolean(item.date));
+
+		allItems = allItems.sort((a, b) => {
+			const dir = this.diarySortDirection === "asc" ? 1 : -1;
+			if (this.diarySortKey === "rating") {
+				return ((a.rating ?? 0) - (b.rating ?? 0)) * dir;
+			}
+			if (this.diarySortKey === "year") {
+				return ((a.year ?? 0) - (b.year ?? 0)) * dir;
+			}
+			// default: date
+			return ((a.date ?? "").localeCompare(b.date ?? "")) * dir;
+		});
 
 		if (!allItems.length) {
 			wrap.createDiv({
@@ -567,7 +604,13 @@ export class LibraryView extends ItemView {
 			new Poster(item, this.app).render(posterHost);
 
 			const text = mainCell.createDiv({ cls: "media-diary-text" });
-			text.createDiv({ cls: "media-diary-film-title", text: item.title });
+			const title = item.title ?? "";
+			const maxChars = 32;
+			const shortTitle =
+				title.length > maxChars
+					? `${title.slice(0, maxChars).trimEnd()}…`
+					: title;
+			text.createDiv({ cls: "media-diary-film-title", text: shortTitle });
 			if (item.year) {
 			text.createDiv({
 				cls: "media-diary-film-meta",
@@ -579,16 +622,17 @@ export class LibraryView extends ItemView {
 			const yearCell = row.createDiv({ cls: "media-diary-year" });
 			yearCell.createSpan({ text: item.year ? String(item.year) : "—" });
 
-			// Rating stars
+			// Rating stars (0–10, smaller)
 			const ratingCell = row.createDiv({ cls: "media-diary-rating" });
 			if (item.rating != null) {
-			const starsOutOfFive = Math.round(item.rating / 2);
-			ratingCell.createSpan({
-				cls: "media-diary-rating-stars",
-				text: "★".repeat(starsOutOfFive),
-			});
+				const outOfTen = Math.round(item.rating);
+				const stars = "★".repeat(Math.max(0, Math.min(outOfTen, 10)));
+				ratingCell.createSpan({
+					cls: "media-diary-rating-stars",
+					text: stars,
+				});
 			} else {
-			ratingCell.createSpan({ text: "—" });
+				ratingCell.createSpan({ text: "—" });
 			}
 
 			// Review / actions
@@ -902,7 +946,7 @@ export class LibraryView extends ItemView {
 
 		return this.library
 			.getAll()
-			.filter((item) => item.status === "want to read" || item.status === "want to watch")
+			.filter((item) => item.status === null)
 			.slice(0, 4);
 	}
 
@@ -1140,10 +1184,9 @@ export class LibraryView extends ItemView {
 			onAddTag: (item: MediaItem, tag: string) => {
 				void this.addTagFromSocial(item, tag);
 			},
-			onOpenList: (list) => {
+		onOpenList: (list: MediaLibraryCustomList) => {
 				const all = this.library.getAll();
 				const allMap = new Map(all.map((item) => [item.path, item]));
-
 				new MediaListModal({
 					app: this.app,
 					list,
@@ -1327,14 +1370,27 @@ export class LibraryView extends ItemView {
 		return this.isGalleryViewActive() ? LibraryView.GALLERY_PAGE_SIZE : LibraryView.LIBRARY_PAGE_SIZE;
 	}
 
+	private isCompleted(item: MediaItem): boolean {
+		if (!item.status) return false;
+		const s = item.status.toLowerCase().trim();
+		// Completed statuses: read, watched
+		if (s.includes("read") || s.includes("watched")) return true;
+		return false;
+	}
+
 	private getVisibleItems(): MediaItem[] {
 		let items = this.library.getAll();
 
 		if (this.currentFilter !== "all") {
 			items = items.filter((item) => item.mediaType === this.currentFilter);
 		}
-		if (this.currentStatus !== "all") {             // NEW
-			items = items.filter((item) => item.status === this.currentStatus);
+		if (this.currentStatus !== "all") {
+			// Convert "completed"/"uncompleted" filter to actual status matching
+			if (this.currentStatus === "completed") {
+				items = items.filter((item) => this.isCompleted(item));
+			} else if (this.currentStatus === "uncompleted") {
+				items = items.filter((item) => !this.isCompleted(item));
+			}
 		}
 
 		if (this.searchQuery.trim()) {

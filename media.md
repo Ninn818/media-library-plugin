@@ -735,7 +735,7 @@ function MediaCounter() {
           page.value("plot") ||
           page.value("blurb") ||
           "",
-        status: normalizeStatus(page.value("status") || page.value("watched")),
+        status: normalizeStatus(page.value("status")),
         rating: normalizeRating(page.value("personalRating")),
         date: firstDate(
           page.value("lastWatched"),
@@ -792,7 +792,7 @@ function MediaCounter() {
           page.value("blurb") ||
           "",
         synopsis: extractSynopsis(page),
-        status: normalizeStatus(page.value("status") || page.value("read")),
+        status: normalizeStatus(page.value("status")),
         rating: normalizeRating(page.value("personalRating")),
         date: firstDate(
           page.value("dateRead"),
@@ -848,7 +848,7 @@ function MediaCounter() {
           page.value("dateFinished"),
           page.value("finishDate")
         ),
-        year: yearOf(page.value("publishDate") || page.value("datePublished")),
+        year: yearOf(page.value("year") ?? page.value("releaseYear") ?? page.value("publishDate") ?? page.value("datePublished")),
         releaseDate,
         addedDate,
         createdDate,

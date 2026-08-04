@@ -211,26 +211,13 @@ function renderListsPanel(
       }`,
     });
 
-    // Add-media controls inside the card
-    const manageRow = card.createDiv({ cls: "media-social-list-manage" });
-    const picker = manageRow.createEl("select");
-    for (const item of state.items) {
-      picker.createEl("option", {
-        value: item.path,
-        text: item.title,
-      });
-    }
-    if (state.selectedItem) {
-      picker.value = state.selectedItem.path;
-    }
-    const addButton = manageRow.createEl("button", { text: "Add media" });
-    addButton.type = "button";
-    addButton.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      callbacks.onAddItemToList(list.id, picker.value);
+    // Description preview (2 lines max via CSS)
+    card.createDiv({
+      cls: "media-social-list-description",
+      text: list.description || "No description yet.",
     });
 
-    // Limited preview: up to 5
+    // Preview: up to 5 items
     if (!list.itemPaths.length) {
       card.createDiv({
         cls: "media-social-empty",
@@ -253,7 +240,7 @@ function renderListsPanel(
           () => {
             callbacks.onOpenItem(item);
           },
-          (/* onRemove */) => {
+          () => {
             callbacks.onRemoveItemFromList(list.id, path);
           },
         );
