@@ -34,6 +34,7 @@ export interface EssayFrontmatter {
 
 	year?: string | number;
 	publishDate?: string;
+	publishdate?: string;
 	datePublished?: string;
 
 	created?: string;

@@ -505,6 +505,7 @@ export abstract class BaseParser<TFrontmatter> {
     protected getReleaseDate(frontmatter: {
         releaseDate?: unknown;
         publishDate?: unknown;
+        publishdate?: unknown;
         datePublished?: unknown;
         dateReleased?: unknown;
         year?: unknown;
@@ -513,6 +514,7 @@ export abstract class BaseParser<TFrontmatter> {
         return this.normalizeDate(
             frontmatter.releaseDate ??
                 frontmatter.publishDate ??
+                frontmatter.publishdate ??
                 frontmatter.datePublished ??
                 frontmatter.dateReleased ??
                 frontmatter.releaseYear ??
@@ -656,14 +658,30 @@ export abstract class BaseParser<TFrontmatter> {
 
     /**
      * Returns the media title.
+     *
+     * Falls back to the note's filename when frontmatter has no title/name.
      */
-    protected getTitle(frontmatter: {
-        title?: unknown;
-        name?: unknown;
-    }): string {
-        return this.firstString(
+    protected getTitle(
+        frontmatter: {
+            title?: unknown;
+            name?: unknown;
+        },
+        path?: string
+    ): string {
+        const explicit = this.firstString(
             frontmatter.title,
             frontmatter.name
         );
+
+        if (explicit) {
+            return explicit;
+        }
+
+        return path ? this.getFilenameStem(path) : "";
+    }
+
+    private getFilenameStem(path: string): string {
+        const fileName = path.split("/").pop() ?? path;
+        return fileName.replace(/\.md$/i, "").trim();
     }
 }

@@ -25,7 +25,7 @@ import {
 export class BookParser extends BaseParser<BookFrontmatter> {
     parse(path: string, frontmatter: BookFrontmatter): MediaItem | null {
 
-        const title = this.getTitle(frontmatter);
+        const title = this.getTitle(frontmatter, path);
 
         if (!title) {
             return null;

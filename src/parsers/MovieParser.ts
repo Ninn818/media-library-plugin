@@ -24,7 +24,7 @@ export class MovieParser extends BaseParser<MovieFrontmatter> {
 		// Title
 		// -----------------------------
 
-		const title = this.getTitle(frontmatter);
+		const title = this.getTitle(frontmatter, path);
 
 		if (!title) {
 			return null;

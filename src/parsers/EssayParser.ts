@@ -18,7 +18,7 @@ export class EssayParser extends BaseParser<EssayFrontmatter> {
 		frontmatter: EssayFrontmatter
 	): MediaItem | null {
 
-		const title = this.getTitle(frontmatter);
+		const title = this.getTitle(frontmatter, path);
 
 		if (!title) {
 			return null;
