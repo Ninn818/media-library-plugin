@@ -582,19 +582,25 @@ export class LibraryView extends ItemView {
 		for (const item of items) {
 			const row = list.createDiv({ cls: "media-diary-row" });
 
-			// Date block
+			// Date block: Month/Year + Day
 			const dateCell = row.createDiv({ cls: "media-diary-date" });
 			const dateValue = item.date ? new Date(item.date) : null;
 			const month =
 			dateValue && !Number.isNaN(dateValue.getTime())
 				? dateValue.toLocaleString("en-US", { month: "short" }).toUpperCase()
 				: "---";
+			const year =
+			dateValue && !Number.isNaN(dateValue.getTime())
+				? String(dateValue.getFullYear())
+				: "----";
 			const day =
 			dateValue && !Number.isNaN(dateValue.getTime())
 				? String(dateValue.getDate()).padStart(2, "0")
 				: "--";
 
-			dateCell.createDiv({ cls: "media-diary-date-month", text: month });
+			const monthYearWrap = dateCell.createDiv({ cls: "media-diary-date-month-year" });
+			monthYearWrap.createDiv({ cls: "media-diary-date-month", text: month });
+			monthYearWrap.createDiv({ cls: "media-diary-date-year", text: year });
 			dateCell.createDiv({ cls: "media-diary-date-day", text: day });
 
 			// Poster + title

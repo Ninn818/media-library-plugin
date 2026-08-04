@@ -128,8 +128,8 @@ export function renderLibraryToolbar(
   };
 
   makeStatusChip("All", "all");
-  makeStatusChip("Read / watched", "completed");
-  makeStatusChip("Unread / unwatched", "uncompleted");
+  makeStatusChip("Completed", "completed");
+  makeStatusChip("Uncompleted", "uncompleted");
 }
 
 //go and update modules that use this toolbar to include the new sort direction dropdown and shuffle button such as LibraryView, LibraryToolbar, and any other views that use the toolbar

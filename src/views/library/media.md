@@ -1222,8 +1222,8 @@ function MediaCounter() {
 
   const completionButtons = [
     { key: "all", label: "All" },
-    { key: "completed", label: "Read / watched" },
-    { key: "uncompleted", label: "Unread / unwatched" }
+    { key: "completed", label: "Completed" },
+    { key: "uncompleted", label: "Uncompleted" }
   ];
 
   // ---------- Render (replace existing return JSX with this) ----------
