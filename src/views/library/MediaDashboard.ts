@@ -46,6 +46,33 @@ export interface MediaDashboardCallbacks {
 	onFilterChange(filter: DashboardMediaFilter): void;
 }
 
+function getChartIconSvg(kind: string): string {
+	if (kind === "bar") {
+		return `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+			<rect x="2" y="8" width="2.5" height="6" rx="1" fill="currentColor"></rect>
+			<rect x="6.75" y="5" width="2.5" height="9" rx="1" fill="currentColor"></rect>
+			<rect x="11.5" y="2" width="2.5" height="12" rx="1" fill="currentColor"></rect>
+		</svg>`;
+	}
+	if (kind === "pie") {
+		return `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+			<path d="M8 1a7 7 0 1 0 7 7H8z" fill="currentColor"></path>
+			<path d="M9 1.07A7 7 0 0 1 14.93 7H9z" fill="currentColor" opacity="0.6"></path>
+		</svg>`;
+	}
+	if (kind === "focus") {
+		return `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+			<rect x="2.5" y="2.5" width="11" height="11" rx="3" fill="currentColor"></rect>
+			<circle cx="8" cy="8" r="2.4" fill="white"></circle>
+		</svg>`;
+	}
+	return `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+		<circle cx="8" cy="8" r="6" fill="currentColor" opacity="0.3"></circle>
+		<rect x="7.25" y="6.5" width="1.5" height="4.5" rx=".75" fill="currentColor"></rect>
+		<circle cx="8" cy="4.3" r="1" fill="currentColor"></circle>
+	</svg>`;
+}
+
 export function renderMediaDashboard(
 	hosts: MediaDashboardHosts,
 	state: MediaDashboardState,
@@ -245,19 +272,47 @@ function renderDashboardChart(
 	const buttons = new Map<DashboardChartMode, HTMLButtonElement>();
 
 	for (const option of [
-		{ mode: "bar" as DashboardChartMode, label: "Bar chart", icon: "chart-column" },
-		{ mode: "pie" as DashboardChartMode, label: "Pie chart", icon: "chart-pie" },
+		{ mode: "bar" as DashboardChartMode, label: "Bar chart", icon: "bar" },
+		{ mode: "pie" as DashboardChartMode, label: "Pie chart", icon: "pie" },
 		{ mode: "spotlight" as DashboardChartMode, label: "Focus chart", icon: "focus" },
 	]) {
 		const button = controls.createEl("button", { cls: "media-dashboard-chart-button" });
 		button.type = "button";
 		button.setAttr("aria-label", option.label);
 		button.setAttr("title", option.label);
-		createIcon(button, option.icon, "media-dashboard-chart-button-icon");
+		button.style.border = "1px solid rgba(0, 0, 0, 0.2)";
+		button.style.borderRadius = "12px";
+		button.style.width = "32px";
+		button.style.height = "32px";
+		button.style.padding = "0";
+		button.style.display = "grid";
+		button.style.placeItems = "center";
+		button.style.background = "rgba(255, 255, 255, 0.12)";
+		button.style.backdropFilter = "blur(10px)";
+		button.style.cursor = "pointer";
+		button.style.color = "var(--text-normal)";
+		button.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
+		button.style.transition = "all 0.15s ease";
+		
+		const iconSvg = getChartIconSvg(option.icon);
+		button.innerHTML = iconSvg;
+
 		button.addEventListener("click", () => {
 			mode = option.mode;
 			updateButtons();
 			draw();
+		});
+		button.addEventListener("mouseenter", () => {
+			if (!button.hasClass("is-active")) {
+				button.style.background = "rgba(255, 255, 255, 0.18)";
+				button.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
+			}
+		});
+		button.addEventListener("mouseleave", () => {
+			if (!button.hasClass("is-active")) {
+				button.style.background = "rgba(255, 255, 255, 0.12)";
+				button.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
+			}
 		});
 		buttons.set(option.mode, button);
 	}
@@ -267,18 +322,48 @@ function renderDashboardChart(
 	infoButton.setAttr("aria-label", "Chart information");
 	infoButton.setAttr("title", "Chart information");
 	infoButton.setAttr("aria-pressed", "false");
-	createIcon(infoButton, "info", "media-dashboard-chart-button-icon");
+	infoButton.style.border = "1px solid rgba(0, 0, 0, 0.2)";
+	infoButton.style.borderRadius = "12px";
+	infoButton.style.width = "32px";
+	infoButton.style.height = "32px";
+	infoButton.style.padding = "0";
+	infoButton.style.display = "grid";
+	infoButton.style.placeItems = "center";
+	infoButton.style.background = "rgba(255, 255, 255, 0.12)";
+	infoButton.style.backdropFilter = "blur(10px)";
+	infoButton.style.cursor = "pointer";
+	infoButton.style.color = "var(--text-normal)";
+	infoButton.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
+	infoButton.style.transition = "all 0.15s ease";
+	
+	const infoIconSvg = getChartIconSvg("info");
+	infoButton.innerHTML = infoIconSvg;
+	
 	infoButton.addEventListener("click", () => {
 		isInfoVisible = !isInfoVisible;
 		info.toggleClass("is-visible", isInfoVisible);
 		infoButton.toggleClass("is-active", isInfoVisible);
 		infoButton.setAttr("aria-pressed", isInfoVisible ? "true" : "false");
 	});
+	infoButton.addEventListener("mouseenter", () => {
+		infoButton.style.background = "rgba(255, 255, 255, 0.18)";
+		infoButton.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
+	});
+	infoButton.addEventListener("mouseleave", () => {
+		infoButton.style.background = "rgba(255, 255, 255, 0.12)";
+		infoButton.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
+	});
 
 	const updateButtons = () => {
 		for (const [key, button] of buttons) {
-			button.toggleClass("is-active", key === mode);
-			button.setAttr("aria-pressed", key === mode ? "true" : "false");
+			const active = key === mode;
+			button.toggleClass("is-active", active);
+			button.setAttr("aria-pressed", active ? "true" : "false");
+			button.style.background = active ? "rgba(122, 195, 255, 0.35)" : "rgba(255, 255, 255, 0.12)";
+			button.style.borderColor = active ? "rgba(122, 195, 255, 0.6)" : "rgba(0, 0, 0, 0.2)";
+			button.style.boxShadow = active
+				? "0 2px 8px rgba(0, 0, 0, 0.15), inset 0 0 0 1px rgba(122, 195, 255, 0.4)"
+				: "0 2px 8px rgba(0, 0, 0, 0.1)";
 		}
 	};
 

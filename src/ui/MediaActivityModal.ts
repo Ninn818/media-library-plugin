@@ -70,13 +70,18 @@ export class MediaActivityModal extends Modal {
 		}
 
 		const body = layout.createDiv({ cls: "media-activity-modal-body" });
-		this.renderEntryForm(body, file);
-		this.renderTagManager(body);
+		this.renderEditSection(body, file);
 		this.renderTimeline(body, entries);
 	}
 
-	private renderEntryForm(container: HTMLElement, file: TFile): void {
+	private renderEditSection(container: HTMLElement, file: TFile): void {
 		const section = container.createDiv({ cls: "media-activity-section" });
+		this.renderEntryForm(section, file);
+		this.renderTagManager(section);
+	}
+
+	private renderEntryForm(container: HTMLElement, file: TFile): void {
+		const section = container.createDiv({ cls: "media-activity-subsection" });
 		section.createEl("h3", { text: `Log ${isReadingItem(this.item) ? "reading" : "watching"} activity` });
 
 		const grid = section.createDiv({ cls: "media-activity-form-grid" });
@@ -127,7 +132,7 @@ export class MediaActivityModal extends Modal {
 	}
 
 	private renderTagManager(container: HTMLElement): void {
-		const section = container.createDiv({ cls: "media-activity-section media-activity-tag-manager" });
+		const section = container.createDiv({ cls: "media-activity-subsection" });
 		section.createEl("h3", { text: "Manage tags" });
 
 		const field = section.createDiv({ cls: "media-activity-note-field" });

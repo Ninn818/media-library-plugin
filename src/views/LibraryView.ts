@@ -36,6 +36,7 @@ import { renderLibraryShell } from "./library/LibraryShell";
 import { renderLibrarySidebar } from "./library/LibrarySidebar";
 import { renderLibrarySocialHub } from "./library/LibrarySocialHub";
 import { renderLibraryToolbar } from "./library/LibraryToolbar";
+import { renderLibraryStatBar } from "./library/LibraryHeader";
 import { MediaListModal } from "../ui/MediaListModal";
 
 export class LibraryView extends ItemView {
@@ -225,6 +226,8 @@ export class LibraryView extends ItemView {
 
 		if (this.currentPageTab === "media") {
 			const mediaControlsShell = this.toolbarHost.createDiv({ cls: "media-library-media-controls-shell" });
+			const statsHost = mediaControlsShell.createDiv();
+			renderLibraryStatBar(statsHost, this.library);
 			const controlsHost = mediaControlsShell.createDiv();
 			//render the library toolbar with search, filter, sort mode, and sort direction controls
 			renderLibraryToolbar(controlsHost, this.getToolbarState(), {
@@ -1379,9 +1382,9 @@ export class LibraryView extends ItemView {
 	private isCompleted(item: MediaItem): boolean {
 		if (!item.status) return false;
 		const s = item.status.toLowerCase().trim();
-		// Completed statuses: read, watched
-		if (s.includes("read") || s.includes("watched")) return true;
-		return false;
+		// Exclude "un-" prefixed statuses (unread, unwatched) before matching read/watched
+		if (s.includes("unread") || s.includes("unwatched")) return false;
+		return s.includes("read") || s.includes("watched");
 	}
 
 	private getVisibleItems(): MediaItem[] {

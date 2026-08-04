@@ -121,7 +121,8 @@ export function renderLibraryToolbar(
       cls: "ml-toolbar-chip",
     });
     chip.type = "button";
-    chip.toggleClass("is-active", state.currentStatus === value);
+    // "All" is the default filter, so it never shows the active highlight
+    chip.toggleClass("is-active", value !== "all" && state.currentStatus === value);
     chip.addEventListener("click", () => {
       callbacks.onStatusChange(value as MediaStatus | "all" | "completed" | "uncompleted");
     });

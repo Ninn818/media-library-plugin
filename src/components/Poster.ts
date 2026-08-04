@@ -1,9 +1,16 @@
 // src/components/Poster.ts
 
-import { App } from "obsidian";
+import { App, setIcon } from "obsidian";
 
 import { MediaItem } from "../models";
 import { resolveCoverSource } from "../utils/Covers";
+
+const PLACEHOLDER_ICONS: Record<string, string> = {
+	book: "book",
+	movie: "clapperboard",
+	series: "tv",
+	essay: "scroll-text",
+};
 
 export class Poster {
 	private readonly item: MediaItem;
@@ -53,7 +60,9 @@ export class Poster {
 
 	private renderPlaceholder(container: HTMLElement): void {
 		container.addClass("media-poster-placeholder");
-		container.setText("No cover");
+		const icon = container.createDiv({ cls: "media-poster-placeholder-icon" });
+		setIcon(icon, PLACEHOLDER_ICONS[this.item.mediaType] ?? "image-off");
+		container.createDiv({ cls: "media-poster-placeholder-title", text: this.item.title });
 	}
 
 	private resolveSource(source: string): string {

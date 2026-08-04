@@ -66,12 +66,13 @@ export function renderLibraryCard(
 	}
 
 	const meta = body.createDiv({ cls: "media-card-meta" });
-	meta.createDiv({ text: item.mediaType, cls: "media-card-type" });
+	const metaRow = meta.createDiv({ cls: "media-card-meta-row" });
+	metaRow.createDiv({ text: item.mediaType, cls: "media-card-type" });
+	if (item.rating !== null && item.rating !== undefined) {
+		metaRow.createDiv({ text: `★ ${item.rating}`, cls: "media-card-rating" });
+	}
 	if (item.year !== undefined) {
 		meta.createDiv({ text: String(item.year), cls: "media-card-year" });
-	}
-	if (item.rating !== null && item.rating !== undefined) {
-		meta.createDiv({ text: `★ ${item.rating}`, cls: "media-card-rating" });
 	}
 
 	return card;

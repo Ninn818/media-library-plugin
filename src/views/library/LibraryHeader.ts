@@ -44,6 +44,33 @@ function renderStat(container: HTMLElement, label: string, value: string): void 
 	card.createDiv({ cls: "media-library-header-stat-value", text: value });
 }
 
+// Compact single-row stat bar (average rating pill + type counts) used on the Media tab.
+export function renderLibraryStatBar(container: HTMLElement, library: MediaLibrary): void {
+	const avgRating = getAverageRating(library);
+	const counts = {
+		books: library.getBookCount(),
+		movies: library.getMovieCount(),
+		series: library.getSeriesCount(),
+		essays: library.getEssayCount(),
+	};
+
+	const bar = container.createDiv({ cls: "media-library-stat-bar" });
+
+	const countsRow = bar.createDiv({ cls: "media-library-stat-bar-counts" });
+	renderStatBarCount(countsRow, "Books", counts.books);
+	renderStatBarCount(countsRow, "Films", counts.movies);
+	renderStatBarCount(countsRow, "Series", counts.series);
+	renderStatBarCount(countsRow, "Essays", counts.essays);
+
+	const average = bar.createDiv({ cls: "media-library-stat-bar-average" });
+	average.createSpan({ cls: "media-library-stat-bar-average-icon", text: "★" });
+	average.createSpan({ text: `Average ${avgRating ?? "—"}/10` });
+}
+
+function renderStatBarCount(container: HTMLElement, label: string, value: number): void {
+	container.createDiv({ cls: "media-library-stat-bar-count", text: `${label}: ${value}` });
+}
+
 function getAverageRating(library: MediaLibrary): number | null {
 	const ratings = library
 		.getAll()

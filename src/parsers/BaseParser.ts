@@ -163,6 +163,10 @@ export abstract class BaseParser<TFrontmatter> {
 	protected normalizeDate(
 		value: unknown
 	): string | undefined {
+		if (typeof value === "number") {
+			return Number.isFinite(value) ? String(value) : undefined;
+		}
+
 		if (typeof value !== "string") {
 			return undefined;
 		}
