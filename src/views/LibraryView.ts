@@ -711,13 +711,22 @@ export class LibraryView extends ItemView {
 
 		const row = section.createDiv({ cls: "media-home-poster-row" });
 		for (const item of items) {
-		const card = row.createDiv({ cls: "media-home-poster-card" });
-		card.setAttr("title", `${item.title} • ${item.creator}`);
-		card.addEventListener("click", () => {
-			this.selectItem(item);
-			this.openActivityModal(item);
-		});
-		new Poster(item, this.app).render(card);
+			const card = row.createDiv({ cls: "media-home-poster-card" });
+			card.setAttr("title", `${item.title} • ${item.creator}`);
+			card.addEventListener("click", () => {
+				this.selectItem(item);
+				this.openActivityModal(item);
+			});
+			new Poster(item, this.app).render(card);
+
+			// Add activity type icons below media for "Recent activity" section
+			if (title === "Recent activity" && item.date) {
+				const iconBar = card.createDiv({ cls: "media-activity-type-icons" });
+				const isReading = item.mediaType === "book" || item.mediaType === "essay";
+				const iconSpan = iconBar.createSpan({ cls: "media-activity-type-icon" });
+				iconSpan.textContent = isReading ? "📖" : "🎬";
+				iconSpan.title = isReading ? "Reading activity" : "Watching activity";
+			}
 		}
 	}
 

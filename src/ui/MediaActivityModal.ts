@@ -194,20 +194,121 @@ export class MediaActivityModal extends Modal {
 			return;
 		}
 
-		for (const entry of displayEntries) {
+		for (let idx = 0; idx < displayEntries.length; idx++) {
+			const entry = displayEntries[idx];
+			if (!entry) continue;
+			
+			const originalIndex = entries.length - 1 - idx; // Map back to original position
 			const card = timeline.createDiv({ cls: "media-activity-entry" });
-			card.createDiv({ text: entry.date, cls: "media-activity-entry-date" });
-			card.createDiv({
+			
+			// Create a wrapper for the view mode
+			const viewMode = card.createDiv({ cls: "media-activity-entry-view" });
+			viewMode.createDiv({ text: entry.date, cls: "media-activity-entry-date" });
+			viewMode.createDiv({
 				text: [entry.kind === "read" ? "Read" : "Watched", entry.status ?? null].filter(Boolean).join(" • "),
 				cls: "media-activity-entry-meta",
 			});
 			if (entry.rating != null) {
-				card.createDiv({ text: `Rating ${entry.rating}/10`, cls: "media-activity-entry-rating" });
+				viewMode.createDiv({ text: `Rating ${entry.rating}/10`, cls: "media-activity-entry-rating" });
 			}
 			if (entry.note) {
-				card.createEl("p", { text: entry.note, cls: "media-activity-entry-note" });
+				viewMode.createEl("p", { text: entry.note, cls: "media-activity-entry-note" });
 			}
+
+			// Add edit button
+			const editBtn = viewMode.createEl("button", { text: "Edit", cls: "media-activity-entry-edit-btn" });
+			editBtn.type = "button";
+			editBtn.addEventListener("click", () => {
+				this.openActivityEditMode(card, entry, originalIndex, entries, timeline);
+			});
+
+			card.style.cursor = "pointer";
 		}
+	}
+
+	private openActivityEditMode(
+		cardEl: HTMLElement,
+		entry: MediaActivityEntry,
+		originalIndex: number,
+		allEntries: MediaActivityEntry[],
+		timelineEl: HTMLElement
+	): void {
+		const file = this.app.vault.getAbstractFileByPath(this.item.path);
+		if (!(file instanceof TFile)) {
+			return;
+		}
+
+		const viewMode = cardEl.querySelector(".media-activity-entry-view") as HTMLElement;
+		if (!viewMode) return;
+
+		viewMode.style.display = "none";
+
+		// Create edit mode
+		const editMode = cardEl.createDiv({ cls: "media-activity-entry-edit" });
+		
+		const grid = editMode.createDiv({ cls: "media-activity-form-grid" });
+		const dateInput = createLabeledInput(grid, "Date", "date", entry.date);
+		const statusSelect = createLabeledSelect(grid, "Status", getStatusOptions(this.item), entry.status ?? getCompletedStatus(this.item));
+		const ratingSelect = createLabeledSelect(
+			grid,
+			"Rating",
+			["", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+			entry.rating != null ? String(entry.rating) : ""
+		);
+
+		const noteField = editMode.createDiv({ cls: "media-activity-note-field" });
+		noteField.createEl("label", { text: "Note" });
+		const noteInput = noteField.createEl("textarea", { cls: "media-activity-note-input" });
+		noteInput.value = entry.note ?? "";
+		noteInput.placeholder = "Optional note for this read or watch";
+
+		const actions = editMode.createDiv({ cls: "media-activity-form-actions" });
+		const saveBtn = actions.createEl("button", { text: "Save", cls: "mod-cta" });
+		const cancelBtn = actions.createEl("button", { text: "Cancel" });
+
+		const deleteBtn = actions.createEl("button", { text: "Delete", cls: "mod-warning" });
+
+		saveBtn.addEventListener("click", async () => {
+			saveBtn.disabled = true;
+			try {
+				const rating = ratingSelect.value ? Number(ratingSelect.value) : null;
+				const updatedEntry: MediaActivityEntry = {
+					date: dateInput.value,
+					status: statusSelect.value || getCompletedStatus(this.item),
+					rating: Number.isFinite(rating) ? rating : null,
+					note: noteInput.value,
+					kind: entry.kind,
+				};
+
+				// Update the entry at the correct position
+				allEntries[originalIndex] = updatedEntry;
+				await this.activityLogService.replaceEntries(file, this.item, allEntries);
+
+				await this.onSaved();
+				await this.render();
+			} finally {
+				saveBtn.disabled = false;
+			}
+		});
+
+		cancelBtn.addEventListener("click", () => {
+			editMode.remove();
+			viewMode.style.display = "";
+		});
+
+		deleteBtn.addEventListener("click", async () => {
+			deleteBtn.disabled = true;
+			try {
+				// Remove the entry at the correct position
+				allEntries.splice(originalIndex, 1);
+				await this.activityLogService.replaceEntries(file, this.item, allEntries);
+
+				await this.onSaved();
+				await this.render();
+			} finally {
+				deleteBtn.disabled = false;
+			}
+		});
 	}
 }
 
