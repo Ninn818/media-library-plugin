@@ -140,7 +140,7 @@ export class LibraryView extends ItemView {
 		this.contentEl.toggleClass("is-motion-off", !this.settings.enableUiAnimations);
 
 		this.toolbarHost = this.contentEl.createDiv({ cls: "media-library-toolbar-host" });
-		this.mediaControlsHost = this.contentEl.createDiv({ cls: "media-library-media-controls-host" });
+		this.mediaControlsHost = this.toolbarHost;
 		this.headerHost = this.contentEl.createDiv({ cls: "media-library-header-host" });
 		this.renderToolbarArea();
 		this.renderHeaderArea();
@@ -202,6 +202,7 @@ export class LibraryView extends ItemView {
 		this.toolbarHost.toggleClass("is-media-tab", this.currentPageTab === "media");
 
 		const tabsRow = this.toolbarHost.createDiv({ cls: "media-library-toolbar-row" });
+		tabsRow.addClass("media-library-tabs-row");
 		renderLibraryPageTabs(tabsRow, this.currentPageTab, {
 			onTabChange: (tab) => {
 				this.currentPageTab = this.normalizePageTab(tab);
