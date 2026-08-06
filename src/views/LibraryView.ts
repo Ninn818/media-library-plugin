@@ -51,6 +51,7 @@ export class LibraryView extends ItemView {
 
 	// Root DOM hosts
 	private toolbarHost!: HTMLElement;
+	private mediaControlsHost!: HTMLElement;
 	private headerHost!: HTMLElement;
 	private bodyHost!: HTMLElement;
 	private mainHost!: HTMLElement;
@@ -62,6 +63,7 @@ export class LibraryView extends ItemView {
 	private currentPageTab: LibraryPageTab = "home";
 	private activeLibraryViewId: string;
 	private currentFilter: MediaType | "all" = "all";
+	private currentGenre: string | "all" = "all";
 	private currentStatus: MediaStatus | "all" | "completed" | "uncompleted" = "all";
 	private currentSort: SortType = { mode: "latest", direction: "desc" };
 	private dashboardConsumption: DashboardConsumptionFilter = "consumed";
@@ -138,6 +140,7 @@ export class LibraryView extends ItemView {
 		this.contentEl.toggleClass("is-motion-off", !this.settings.enableUiAnimations);
 
 		this.toolbarHost = this.contentEl.createDiv({ cls: "media-library-toolbar-host" });
+		this.mediaControlsHost = this.contentEl.createDiv({ cls: "media-library-media-controls-host" });
 		this.headerHost = this.contentEl.createDiv({ cls: "media-library-header-host" });
 		this.renderToolbarArea();
 		this.renderHeaderArea();
@@ -182,6 +185,8 @@ export class LibraryView extends ItemView {
 		return {
 			searchQuery: this.searchQuery,
 			currentFilter: this.currentFilter,
+			currentGenre: this.currentGenre,
+			availableGenres: this.getAvailableGenres(),
 			currentStatus: this.currentStatus,     // NEW
 			currentSortMode: mode,
 			currentSort: this.currentSort,
@@ -192,6 +197,7 @@ export class LibraryView extends ItemView {
 
 	private renderToolbarArea(): void {
 		this.toolbarHost.empty();
+		this.mediaControlsHost.empty();
 		this.toolbarHost.toggleClass("is-dashboard-tab", this.currentPageTab === "dashboard");
 		this.toolbarHost.toggleClass("is-media-tab", this.currentPageTab === "media");
 
@@ -225,7 +231,7 @@ export class LibraryView extends ItemView {
 		}
 
 		if (this.currentPageTab === "media") {
-			const mediaControlsShell = this.toolbarHost.createDiv({ cls: "media-library-media-controls-shell" });
+			const mediaControlsShell = this.mediaControlsHost.createDiv({ cls: "media-library-media-controls-shell" });
 			const statsHost = mediaControlsShell.createDiv();
 			renderLibraryStatBar(statsHost, this.library);
 			const controlsHost = mediaControlsShell.createDiv();
@@ -238,6 +244,11 @@ export class LibraryView extends ItemView {
 				},
 				onFilterChange: (value) => {
 					this.currentFilter = value;
+					this.resetVisibleItemCount();
+					this.refresh();
+				},
+				onGenreChange: (value) => {
+					this.currentGenre = value;
 					this.resetVisibleItemCount();
 					this.refresh();
 				},
@@ -273,6 +284,7 @@ export class LibraryView extends ItemView {
 				},
 				onReset: () => {
 					this.currentFilter = "all";
+					this.currentGenre = "all";
 					this.currentStatus = "all";
 					this.currentSort = this.toSortType(this.settings.defaultSortMode);
 					this.searchQuery = "";
@@ -619,13 +631,20 @@ export class LibraryView extends ItemView {
 				title.length > maxChars
 					? `${title.slice(0, maxChars).trimEnd()}…`
 					: title;
-			text.createDiv({ cls: "media-diary-film-title", text: shortTitle });
+			const titleDiv = text.createDiv({ cls: "media-diary-film-title", text: shortTitle });
 			if (item.year) {
 			text.createDiv({
 				cls: "media-diary-film-meta",
 				text: String(item.year),
 			});
 			}
+
+			// Make title clickable to open file
+			titleDiv.addEventListener("click", (event) => {
+				event.stopPropagation();
+				this.selectItem(item);
+				void this.app.workspace.openLinkText(item.path, "", false);
+			});
 
 			// Released year
 			const yearCell = row.createDiv({ cls: "media-diary-year" });
@@ -658,8 +677,9 @@ export class LibraryView extends ItemView {
 
 			row.addEventListener("click", (event) => {
 			if (event.target === openBtn) return;
+			if (text.contains(event.target as Node)) return;
 			this.selectItem(item);
-			void this.app.workspace.openLinkText(item.path, "", false);
+			this.openActivityModal(item);
 			});
 		}
 
@@ -1396,11 +1416,24 @@ export class LibraryView extends ItemView {
 		return s.includes("read") || s.includes("watched");
 	}
 
+	private getAvailableGenres(): string[] {
+		const genreSet = new Set<string>();
+		for (const item of this.library.getAll()) {
+			for (const genre of item.genres) {
+				genreSet.add(genre);
+			}
+		}
+		return Array.from(genreSet).sort();
+	}
+
 	private getVisibleItems(): MediaItem[] {
 		let items = this.library.getAll();
 
 		if (this.currentFilter !== "all") {
 			items = items.filter((item) => item.mediaType === this.currentFilter);
+		}
+		if (this.currentGenre !== "all") {
+			items = items.filter((item) => item.genres.includes(this.currentGenre));
 		}
 		if (this.currentStatus !== "all") {
 			// Convert "completed"/"uncompleted" filter to actual status matching

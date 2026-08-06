@@ -55,6 +55,12 @@
 	border-top: 1px solid var(--background-modifier-border);
 	border-bottom: 1px solid var(--background-modifier-border);
 	padding: 16px 0 12px;
+	margin-bottom: 0;
+}
+
+.media-library-media-controls-host {
+	order: 2.5;
+	padding: 12px 0;
 	margin-bottom: 4px;
 }
 

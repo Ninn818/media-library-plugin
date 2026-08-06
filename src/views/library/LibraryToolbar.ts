@@ -8,6 +8,8 @@ import { MEDIA_STATUSES, MediaStatus } from "../../models/MediaStatus";
 export interface LibraryToolbarState {
 	searchQuery: string;
 	currentFilter: MediaType | "all";
+	currentGenre: string | "all";
+	availableGenres: string[];
 	currentStatus: MediaStatus | "all" | "completed" | "uncompleted"; 
 	currentSortMode: SortMode;
 	currentSort: SortType;
@@ -18,6 +20,7 @@ export interface LibraryToolbarState {
 export interface LibraryToolbarCallbacks {
 	onSearchChange(value: string): void;
 	onFilterChange(value: MediaType | "all"): void;
+	onGenreChange(value: string | "all"): void;
 	onStatusChange(value: MediaStatus | "all" | "completed" | "uncompleted"): void;
 	onSortModeChange(value: SortMode): void;
 	onSortDirectionChange(value: "asc" | "desc"): void;
@@ -58,6 +61,17 @@ export function renderLibraryToolbar(
   filterSelect.value = state.currentFilter;
   filterSelect.addEventListener("change", (event) => {
     callbacks.onFilterChange((event.target as HTMLSelectElement).value as MediaType | "all");
+  });
+
+  const genreWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
+  const genreSelect = genreWrap.createEl("select", { cls: "ml-toolbar-select" });
+  genreSelect.createEl("option", { text: "All genres", value: "all" });
+  for (const genre of state.availableGenres) {
+    genreSelect.createEl("option", { text: genre, value: genre });
+  }
+  genreSelect.value = state.currentGenre;
+  genreSelect.addEventListener("change", (event) => {
+    callbacks.onGenreChange((event.target as HTMLSelectElement).value as string | "all");
   });
 
   const sortWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
@@ -106,6 +120,7 @@ export function renderLibraryToolbar(
     callbacks.onReset();
     search.value = "";
     filterSelect.value = "all";
+    genreSelect.value = "all";
     sortSelect.value = state.currentSortMode;
   });
 
