@@ -27,14 +27,13 @@ export class ActivityLogService {
 			if (isReadingItem(item)) {
 				frontmatter.dateRead = entry.date;
 				frontmatter.dateFinished = entry.date;
-			} else if (item.mediaType === "movie") {
-				delete frontmatter.dateWatched;
-				delete frontmatter.dateFinished;
-				delete frontmatter.lastWatched;
 			} else {
-				frontmatter.dateWatched = entry.date;
-				frontmatter.dateFinished = entry.date;
-				frontmatter.lastWatched = entry.date;
+				// Preserve the first recorded lastWatched date.
+				// If lastWatched is already set, don't overwrite it when
+				// new watch history entries are added from the activity modal.
+				if (!frontmatter.lastWatched) {
+					frontmatter.lastWatched = entry.date;
+				}
 			}
 
 			const history = Array.isArray(frontmatter[historyField])
@@ -45,7 +44,13 @@ export class ActivityLogService {
 		});
 
 		const content = await this.app.vault.cachedRead(file);
-		const entries = parseActivityEntries(content, item);
+		let entries = parseActivityEntries(content, item);
+		
+		// If there's no activity log yet, populate with fallback entries (including lastWatched)
+		if (entries.length === 0) {
+			entries = getFallbackActivityEntries(item);
+		}
+		
 		entries.push(normalizeEntry(entry, item));
 		const updated = upsertActivityCallout(content, entries);
 		await this.app.vault.modify(file, updated);
@@ -83,9 +88,26 @@ export function parseActivityEntries(content: string, item: MediaItem): MediaAct
 export function getFallbackActivityEntries(item: MediaItem): MediaActivityEntry[] {
 	const raw = item.raw ?? {};
 	const historyField = isReadingItem(item) ? "readHistory" : "watchHistory";
+	const lastWatchedField = isReadingItem(item) ? "dateRead" : "lastWatched";
+	
+	// Start with the lastWatched/dateRead as the first activity
+	const entries: MediaActivityEntry[] = [];
+	const lastWatched = typeof raw[lastWatchedField] === "string" ? raw[lastWatchedField] : null;
+	if (lastWatched) {
+		entries.push(normalizeEntry({
+			date: lastWatched,
+			status: item.status,
+			rating: item.rating ?? null,
+			note: undefined,
+			kind: isReadingItem(item) ? "read" : "watch",
+		}, item));
+	}
+
+	// Add remaining entries from history, excluding duplicates
 	const history = Array.isArray(raw[historyField]) ? raw[historyField] : [];
-	const entries = history
+	const historyEntries = history
 		.filter((value): value is string => typeof value === "string" && value.length > 0)
+		.filter((date) => date !== lastWatched) // Don't duplicate lastWatched if it's also in history
 		.map((date) => normalizeEntry({
 			date,
 			status: item.status,
@@ -93,6 +115,8 @@ export function getFallbackActivityEntries(item: MediaItem): MediaActivityEntry[
 			note: undefined,
 			kind: isReadingItem(item) ? "read" : "watch",
 		}, item));
+	
+	entries.push(...historyEntries);
 
 	if (!entries.length && item.date) {
 		entries.push(normalizeEntry({

@@ -576,18 +576,15 @@
   padding: 6px 12px;
   border-radius: var(--ml-toolbar-radius-sm);
   border: 1px solid var(--ml-toolbar-input-border);
-  background: rgba(255, 255, 255, 0.02);
   color: var(--text-muted);
-  font: inherit;
   font-weight: 600;
   cursor: pointer;
   transition: background 150ms ease, color 150ms ease;
 }
 
+/*when toolbarchip is active, change background and text color*/
 .ml-toolbar-chip.is-active {
-  background: var(--background-modifier-hover);
-  border-color: var(--background-modifier-border);
-  color: var(--text-normal);
+	color: var(--text-normal);
 }
 
 .media-social-list-description {
@@ -3144,13 +3141,22 @@ button.media-home-sidebar-all{
 }
 
 .media-diary-col-sort {
-  color: inherit;
   padding: 0;
   cursor: pointer;
   font-size: 0.65em;
   line-height: 0.5;
   opacity: 0.6;
   transition: opacity 120ms ease;
+}
+
+/* remove background and border from sort button */
+button.media-diary-col-sort {
+	background: none;
+	border: none;
+	color: inherit;
+	font: inherit;
+	padding: 0;
+	margin: 0;
 }
 
 .media-diary-col-sort:hover {
@@ -3296,7 +3302,7 @@ button.media-home-sidebar-all{
 .media-diary-rating {
 	font-size: 0.9em;
 	color: var(--text-normal);
-	text-align: center;
+	text-align: left;
 }
 
 .media-diary-rating-stars {
