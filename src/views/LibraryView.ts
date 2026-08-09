@@ -316,11 +316,9 @@ export class LibraryView extends ItemView {
 
 	}
 
-	// Top header area (non-home pages)
+	// Top header area (kept simple now)
 	private renderHeaderArea(): void {
 		this.headerHost.empty();
-		// Keep the hero header persistent while switching top tabs.
-		this.renderHomeHero(this.headerHost);
 	}
 
 	// Main page routing

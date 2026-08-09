@@ -136,7 +136,7 @@ export class MediaActivityModal extends Modal {
 		section.createEl("h3", { text: "Manage tags" });
 
 		const field = section.createDiv({ cls: "media-activity-note-field" });
-		field.createEl("label", { text: "Add tags without logging activity" });
+		field.createEl("label", { text: "Add tags" });
 		const tagInput = field.createEl("input", { cls: "media-activity-tag-input", type: "text" });
 		tagInput.placeholder = "comfort-watch, rewatch, cozy";
 
@@ -146,7 +146,7 @@ export class MediaActivityModal extends Modal {
 		addButton.addEventListener("click", async () => {
 			const tags = tagInput.value
 				.split(/[,\n]+/)
-				.map((entry) => entry.trim())
+				.map((entry) => entry.trim()
 				.filter((entry) => entry.length > 0);
 
 			if (!tags.length) {
