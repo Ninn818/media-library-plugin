@@ -146,7 +146,7 @@ export class MediaActivityModal extends Modal {
 		addButton.addEventListener("click", async () => {
 			const tags = tagInput.value
 				.split(/[,\n]+/)
-				.map((entry) => entry.trim()
+				.map((entry) => entry.trim())
 				.filter((entry) => entry.length > 0);
 
 			if (!tags.length) {

@@ -9,8 +9,10 @@
  */
 export const MEDIA_STATUSES = [
 	"unread",
+	"reading",
 	"read",
 	"unwatched",
+	"watching",
 	"watched",
 ] as const;
 
@@ -32,6 +34,7 @@ export function isMediaStatus(value: string): value is MediaStatus {
  */
 export const BOOK_STATUSES: readonly MediaStatus[] = [
 	"unread",
+	"reading",
 	"read",
 ];
 
@@ -40,6 +43,7 @@ export const BOOK_STATUSES: readonly MediaStatus[] = [
  */
 export const MOVIE_STATUSES: readonly MediaStatus[] = [
 	"unwatched",
+	"watching",
 	"watched",
 ];
 
@@ -48,5 +52,6 @@ export const MOVIE_STATUSES: readonly MediaStatus[] = [
  */
 export const SERIES_STATUSES: readonly MediaStatus[] = [
 	"unwatched",
+	"watching",
 	"watched",
 ];
