@@ -10,7 +10,7 @@ export interface LibraryToolbarState {
 	currentFilter: MediaType | "all";
 	currentGenre: string | "all";
 	availableGenres: string[];
-	currentStatus: MediaStatus | "all" | "completed" | "uncompleted"; 
+	currentStatus: MediaStatus | "all" | "completed" | "uncompleted" | "currently"; 
 	currentSortMode: SortMode;
 	currentSort: SortType;
 	settings: MediaLibrarySettings;
@@ -21,7 +21,7 @@ export interface LibraryToolbarCallbacks {
 	onSearchChange(value: string): void;
 	onFilterChange(value: MediaType | "all"): void;
 	onGenreChange(value: string | "all"): void;
-	onStatusChange(value: MediaStatus | "all" | "completed" | "uncompleted"): void;
+	onStatusChange(value: MediaStatus | "all" | "completed" | "uncompleted" | "currently"): void;
 	onSortModeChange(value: SortMode): void;
 	onSortDirectionChange(value: "asc" | "desc"): void;
 	onSortChange(value: SortType): void;
@@ -132,7 +132,7 @@ export function renderLibraryToolbar(
 
   const statusGroup = bottomRow.createDiv({ cls: "ml-toolbar-status-group" });
 
-  const makeStatusChip = (label: string, value: MediaStatus | "all" | "completed" | "uncompleted") => {
+  const makeStatusChip = (label: string, value: MediaStatus | "all" | "completed" | "uncompleted" | "currently") => {
     const chip = statusGroup.createEl("button", {
       text: label,
       cls: "ml-toolbar-chip",
@@ -141,13 +141,14 @@ export function renderLibraryToolbar(
     // "All" is the default filter, so it never shows the active highlight
     chip.toggleClass("is-active", value !== "all" && state.currentStatus === value);
     chip.addEventListener("click", () => {
-      callbacks.onStatusChange(value as MediaStatus | "all" | "completed" | "uncompleted");
+      callbacks.onStatusChange(value as MediaStatus | "all" | "completed" | "uncompleted" | "currently");
     });
   };
 
   makeStatusChip("All", "all");
   makeStatusChip("Completed", "completed");
   makeStatusChip("Uncompleted", "uncompleted");
+  makeStatusChip("Currently", "currently");
 }
 
 //go and update modules that use this toolbar to include the new sort direction dropdown and shuffle button such as LibraryView, LibraryToolbar, and any other views that use the toolbar

@@ -23,7 +23,7 @@ export interface LibrarySocialHubCallbacks {
 	onRemoveItemFromList(listId: string, itemPath: string): void;
 	onOpenItem(item: MediaItem): void;
 	onAddTag(item: MediaItem, tag: string): void;
-	onOpenList?(list: MediaLibraryCustomList): void;   // NEW (optional)
+	onOpenList?(list: MediaLibraryCustomList): void;
 }
 
 const TAB_DEFINITIONS: Array<{ id: SocialHubTab; label: string }> = [
@@ -159,6 +159,7 @@ function renderListsPanel(
   state: LibrarySocialHubState,
   callbacks: LibrarySocialHubCallbacks,
 ): void {
+  // Simple "Lists" view only. No alternate modes.
   const createRow = container.createDiv({ cls: "media-social-create-row" });
   const nameInput = createRow.createEl("input", {
     type: "text",

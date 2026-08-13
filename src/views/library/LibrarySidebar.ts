@@ -53,7 +53,7 @@ function renderMetricsSection(container: HTMLElement, state: LibrarySidebarState
 		card.createDiv({ text: metric.label, cls: "media-library-sidebar-metric-label" });
 	}
 }
-
+/*
 function renderQueueSection(container: HTMLElement, items: MediaItem[], variant?: "default" | "airy"): void {
 	const section = createSection(container, "Up next", variant);
 	const queuedItems = items
@@ -70,7 +70,7 @@ function renderQueueSection(container: HTMLElement, items: MediaItem[], variant?
 		meta: [item.creator, item.year ? String(item.year) : null].filter(Boolean).join(" • "),
 	})));
 }
-
+*/
 function renderActivitySection(
 	container: HTMLElement,
 	items: MediaItem[],
@@ -182,6 +182,8 @@ function getRecentActivityEvents(items: MediaItem[], mode: "default" | "home"): 
 	return items
 		.flatMap((item) => {
 			const events: ActivityEvent[] = [];
+			const status = (item.status ?? "").toLowerCase();
+
 			if (mode !== "home" && item.addedDate) {
 				events.push({
 					date: item.addedDate,
@@ -189,15 +191,34 @@ function getRecentActivityEvents(items: MediaItem[], mode: "default" | "home"): 
 					meta: formatActivityMeta(item, "added"),
 				});
 			}
+
+			// In-progress: reading / watching
+			if (status === "reading" || status === "watching") {
+				events.push({
+					date: item.date ?? item.addedDate ?? "",
+					title: `You're currently ${status} ${item.title}`,
+					meta:
+						mode === "home"
+							? formatHomeActivityMeta(item)
+							: formatActivityMeta(item, "in-progress"),
+				});
+			}
+
+			// Completed
 			if (item.date) {
 				events.push({
 					date: item.date,
 					title: `${isReadingType(item) ? "You read" : "You watched"} ${item.title}`,
-					meta: mode === "home" ? formatHomeActivityMeta(item) : formatActivityMeta(item, "completed"),
+					meta:
+						mode === "home"
+							? formatHomeActivityMeta(item)
+							: formatActivityMeta(item, "completed"),
 				});
 			}
+
 			return events;
 		})
+		.filter((event) => event.date)
 		.sort((left, right) => right.date.localeCompare(left.date));
 }
 
@@ -216,10 +237,19 @@ function isInCurrentYear(value: string | undefined): boolean {
 	return value.startsWith(String(new Date().getFullYear()));
 }
 
-function formatActivityMeta(item: MediaItem, mode: "added" | "completed"): string {
+function formatActivityMeta(item: MediaItem, mode: "added" | "completed" | "in-progress"): string {
 	const typeLabel = capitalize(item.mediaType);
 	const estimate = getTimeEstimate(item);
-	const status = mode === "completed" ? (isReadingType(item) ? "read" : "watched") : "logged";
+	const status =
+		mode === "completed"
+			? isReadingType(item)
+				? "read"
+				: "watched"
+			: mode === "in-progress"
+				? isReadingType(item)
+					? "reading"
+					: "watching"
+				: "logged";
 	return [typeLabel, estimate, status, item.creator].filter(Boolean).join(" • ");
 }
 

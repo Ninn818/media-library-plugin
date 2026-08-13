@@ -64,7 +64,7 @@ export class LibraryView extends ItemView {
 	private activeLibraryViewId: string;
 	private currentFilter: MediaType | "all" = "all";
 	private currentGenre: string | "all" = "all";
-	private currentStatus: MediaStatus | "all" | "completed" | "uncompleted" = "all";
+	private currentStatus: MediaStatus | "all" | "completed" | "uncompleted" | "currently" = "all";
 	private currentSort: SortType = { mode: "latest", direction: "desc" };
 	private dashboardConsumption: DashboardConsumptionFilter = "consumed";
 	private dashboardScope: DashboardScopeMode = "year";
@@ -75,6 +75,7 @@ export class LibraryView extends ItemView {
 	private selectedItem: MediaItem | null = null;
 	private featuredPath: string | null = null;
 	private activeSocialTab: SocialHubTab;
+	private listViewMode: "lists" | "currently" = "lists"; // NEW: track lists vs currently view
 	private isSidebarVisible = true;
 	private static readonly LIBRARY_PAGE_SIZE = 40;
 	private static readonly GALLERY_PAGE_SIZE = 40;
@@ -793,15 +794,35 @@ export class LibraryView extends ItemView {
 		this.sidebarHost.empty();
 		const rail = this.sidebarHost.createDiv({ cls: "media-home-sidebar" });
 
-		const upNext = this.getUpNextItems(allItemsByPath);
 		const upNextSection = rail.createDiv({ cls: "media-home-sidebar-section" });
 		const watchlistHeader = upNextSection.createDiv({ cls: "media-home-sidebar-header" });
 		watchlistHeader.createDiv({ cls: "media-home-sidebar-title", text: "Up next" });
-		if (!upNext.length) {
-			upNextSection.createDiv({ cls: "media-home-empty", text: "No titles in up next." });
+
+		// Mode dropdown: Up next / Currently
+		const upNextModeSelect = watchlistHeader.createEl("select", {
+			cls: "media-home-sidebar-mode-select",
+		});
+		upNextModeSelect.createEl("option", { value: "up-next", text: "Up next" });
+		upNextModeSelect.createEl("option", { value: "currently", text: "Currently" });
+		upNextModeSelect.value = this.settings.homeUpNextMode ?? "up-next";
+
+		upNextModeSelect.addEventListener("change", () => {
+			this.settings.homeUpNextMode = upNextModeSelect.value as "up-next" | "currently";
+			void this.persistSettings();
+			this.renderHomeSidebar(allItemsByPath);
+		});
+
+		const upNextMode: "up-next" | "currently" = this.settings.homeUpNextMode ?? "up-next";
+		const upNextItems =
+			upNextMode === "currently"
+				? this.getUpNextOrCurrentHomeItems(allItemsByPath)
+				: this.getUpNextItems(allItemsByPath);
+
+		if (!upNextItems.length) {
+			upNextSection.createDiv({ cls: "media-home-empty", text: "No titles in this view." });
 		} else {
 			const strip = upNextSection.createDiv({ cls: "media-home-watchlist-stack" });
-			for (const item of upNext.slice(0, 6)) {
+			for (const item of upNextItems.slice(0, 6)) {
 				const card = strip.createDiv({ cls: "media-home-watchlist-card" });
 				card.setAttr("title", item.title);
 				card.addEventListener("click", () => {
@@ -850,7 +871,8 @@ export class LibraryView extends ItemView {
 				});
 			}
 		}
-
+		//get activity items and render them in the sidebar
+		const activityItems = this.getHomeActivityItems(upNextItems);
 		const activitySection = rail.createDiv({ cls: "media-home-sidebar-section" });
 		const activityHeader = activitySection.createDiv({ cls: "media-home-sidebar-header" });
 		activityHeader.createDiv({ cls: "media-home-sidebar-title", text: "Activity" });
@@ -899,7 +921,10 @@ export class LibraryView extends ItemView {
 			.slice(0, 4);
 	}
 
-	private getHomeActivityItems(upNextItems: MediaItem[], limit = 6): Array<{
+	private getHomeActivityItems(
+		upNextItems: MediaItem[],
+		limit = 6,
+	): Array<{
 		item: MediaItem;
 		prefix: string;
 		suffix: string;
@@ -907,7 +932,9 @@ export class LibraryView extends ItemView {
 		date: string;
 	}> {
 		const upNextPaths = new Set(upNextItems.map((item) => item.path));
-		return this.library.getAll()
+
+		return this.library
+			.getAll()
 			.flatMap((item) => {
 				const events: Array<{
 					item: MediaItem;
@@ -917,10 +944,14 @@ export class LibraryView extends ItemView {
 					date: string;
 				}> = [];
 
+				const status = (item.status ?? "").toLowerCase();
+
+				// Added to Up next / watchlist
 				if (upNextPaths.has(item.path) && item.addedDate) {
-					const listLabel = item.mediaType === "book" || item.mediaType === "essay"
-						? "readlist"
-						: "watchlist";
+					const listLabel =
+						item.mediaType === "book" || item.mediaType === "essay"
+							? "readlist"
+							: "watchlist";
 					events.push({
 						item,
 						prefix: "You added ",
@@ -930,10 +961,31 @@ export class LibraryView extends ItemView {
 					});
 				}
 
-				if (item.date) {
+				// In‑progress: reading / watching
+				if (status === "reading" || status === "watching") {
+					const inProgressDate = item.date ?? item.addedDate ?? "";
+					if (inProgressDate) {
+						events.push({
+							item,
+							prefix:
+								status === "reading"
+									? "You're currently reading "
+									: "You're currently watching ",
+							suffix: "",
+							when: formatCompactRelative(inProgressDate),
+							date: inProgressDate,
+						});
+					}
+				}
+
+				// Completed: read / watched (or no explicit status but has a date)
+				if (item.date && (status === "read" || status === "watched" || !status)) {
 					events.push({
 						item,
-						prefix: item.mediaType === "book" || item.mediaType === "essay" ? "You read " : "You watched ",
+						prefix:
+							item.mediaType === "book" || item.mediaType === "essay"
+								? "You read "
+								: "You watched ",
 						suffix: "",
 						when: formatCompactRelative(item.date),
 						date: item.date,
@@ -961,6 +1013,36 @@ export class LibraryView extends ItemView {
 			.filter((item) => item.rating != null && item.rating >= 8)
 			.slice(0, 4);
 	}
+
+	private getUpNextOrCurrentHomeItems(allItemsByPath: Map<string, MediaItem>): MediaItem[] {
+		const mode: "up-next" | "currently" = this.settings.homeUpNextMode ?? "up-next";
+
+		if (mode === "currently") {
+			// filter items that are currently being read/watched
+			return this.library
+				.getAll()
+				.filter((item) => {
+					const s = (item.status ?? "").toLowerCase().trim();
+					return s === "reading" || s === "watching";
+				})
+				.slice(0, 5);
+		}
+
+		// default: Up next list / queue
+		const upNext = ListService.getUpNextList(this.settings);
+		if (upNext?.itemPaths.length) {
+			return upNext.itemPaths
+				.map((path) => allItemsByPath.get(path))
+				.filter((item): item is MediaItem => Boolean(item))
+				.slice(0, 5);
+		}
+
+		return this.library
+			.getAll()
+			.filter((item) => item.status === null)
+			.slice(0, 5);
+	}
+
     //show 4 recent items on home page
 	private getRecentHomeItems(): MediaItem[] {
 		return [...this.library.getAll()]
@@ -1180,6 +1262,7 @@ export class LibraryView extends ItemView {
 			favorites: ListService.getFavoritesList(this.settings) ?? null,
 			allItemsByPath: new Map(allItems.map((item) => [item.path, item])),
 			selectedItem: this.selectedItem,
+			listViewMode: this.listViewMode, // NEW
 		};
 	}
 
@@ -1241,6 +1324,10 @@ export class LibraryView extends ItemView {
 					},
 				}).open();
 				},
+			onListViewModeChange: (mode: "lists" | "currently") => { // NEW
+				this.listViewMode = mode;
+				this.renderActivePage();
+			},
 		};
 	}
 
@@ -1415,6 +1502,12 @@ export class LibraryView extends ItemView {
 		return s.includes("read") || s.includes("watched");
 	}
 
+	private isCurrentlyReadingOrWatching(item: MediaItem): boolean {
+		if (!item.status) return false;
+		const s = item.status.toLowerCase().trim();
+		return s.includes("reading") || s.includes("watching");
+	}
+
 	private getAvailableGenres(): string[] {
 		const genreSet = new Set<string>();
 		for (const item of this.library.getAll()) {
@@ -1435,11 +1528,13 @@ export class LibraryView extends ItemView {
 			items = items.filter((item) => item.genres.includes(this.currentGenre));
 		}
 		if (this.currentStatus !== "all") {
-			// Convert "completed"/"uncompleted" filter to actual status matching
+			// Convert "completed"/"uncompleted"/"currently" filter to actual status matching
 			if (this.currentStatus === "completed") {
 				items = items.filter((item) => this.isCompleted(item));
 			} else if (this.currentStatus === "uncompleted") {
 				items = items.filter((item) => !this.isCompleted(item));
+			} else if (this.currentStatus === "currently") {
+				items = items.filter((item) => this.isCurrentlyReadingOrWatching(item));
 			}
 		}
 
