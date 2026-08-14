@@ -798,21 +798,22 @@ export class LibraryView extends ItemView {
 		const watchlistHeader = upNextSection.createDiv({ cls: "media-home-sidebar-header" });
 		watchlistHeader.createDiv({ cls: "media-home-sidebar-title", text: "Up next" });
 
-		// Mode dropdown: Up next / Currently
-		const upNextModeSelect = watchlistHeader.createEl("select", {
-			cls: "media-home-sidebar-mode-select",
-		});
-		upNextModeSelect.createEl("option", { value: "up-next", text: "Up next" });
-		upNextModeSelect.createEl("option", { value: "currently", text: "Currently" });
-		upNextModeSelect.value = this.settings.homeUpNextMode ?? "up-next";
+		const upNextMode: "up-next" | "currently" = this.settings.homeUpNextMode ?? "up-next";
 
-		upNextModeSelect.addEventListener("change", () => {
-			this.settings.homeUpNextMode = upNextModeSelect.value as "up-next" | "currently";
+		const upNextModeButton = watchlistHeader.createEl("button", {
+			cls: "media-home-sidebar-mode-toggle",
+			text: upNextMode === "currently" ? "Currently ▾" : "Up next ▾",
+		});
+
+		upNextModeButton.addEventListener("click", (event) => {
+			event.stopPropagation();
+			const newMode: "up-next" | "currently" =
+				this.settings.homeUpNextMode === "currently" ? "up-next" : "currently";
+			this.settings.homeUpNextMode = newMode;
 			void this.persistSettings();
 			this.renderHomeSidebar(allItemsByPath);
 		});
 
-		const upNextMode: "up-next" | "currently" = this.settings.homeUpNextMode ?? "up-next";
 		const upNextItems =
 			upNextMode === "currently"
 				? this.getUpNextOrCurrentHomeItems(allItemsByPath)
@@ -879,11 +880,50 @@ export class LibraryView extends ItemView {
 		const allButton = activityHeader.createEl("button", { cls: "media-home-sidebar-all", text: "All" });
 		allButton.type = "button";
 		allButton.addEventListener("click", () => {
-			this.currentPageTab = "diary";
+			this.currentPageTab = "activity";
 			this.renderToolbarArea();
 			this.renderHeaderArea();
 			this.renderActivePage();
 		});
+
+		const activityList = activitySection.createDiv({ cls: "media-home-activity-list" });
+		if (!activityItems.length) {
+			activityList.createDiv({ cls: "media-home-empty", text: "No recent activity yet." });
+		} else {
+			for (const event of activityItems) {
+				const row = activityList.createDiv({ cls: "media-home-activity-item" });
+
+				// timeline dot + stem
+				const node = row.createDiv({ cls: "media-home-activity-node" });
+				node.createDiv({ cls: "media-home-activity-dot" });
+				node.createDiv({ cls: "media-home-activity-stem" });
+
+				// text column
+				const textCol = row.createDiv({ cls: "media-home-activity-page" });
+				const line = textCol.createDiv({ cls: "media-home-activity-line" });
+				line.createSpan({ text: event.prefix });
+				line.createSpan({
+					cls: "media-home-activity-title-emphasis",
+					text: event.item.title,
+				});
+				if (event.suffix) {
+					line.createSpan({ text: event.suffix });
+				}
+
+				textCol.createDiv({
+					cls: "media-home-activity-meta",
+					text: event.when,
+				});
+
+				row.addEventListener("click", () => {
+					this.selectItem(event.item);
+					this.currentPageTab = "activity";
+					this.renderToolbarArea();
+					this.renderHeaderArea();
+					this.renderActivePage();
+				});
+			}
+		}
 	}
 
 	private getHomeDiaryItems(): MediaItem[] {
@@ -894,7 +934,7 @@ export class LibraryView extends ItemView {
 	}
 
 	private getHomeActivityItems(
-		upNextItems: MediaItem[],
+		_upNextItems: MediaItem[],
 		limit = 6,
 	): Array<{
 		item: MediaItem;
@@ -903,71 +943,54 @@ export class LibraryView extends ItemView {
 		when: string;
 		date: string;
 	}> {
-		const upNextPaths = new Set(upNextItems.map((item) => item.path));
+	return this.library
+		.getAll()
+		.flatMap((item) => {
+		const events: {
+			item: MediaItem;
+			prefix: string;
+			suffix: string;
+			when: string;
+			date: string;
+		}[] = [];
 
-		return this.library
-			.getAll()
-			.flatMap((item) => {
-				const events: Array<{
-					item: MediaItem;
-					prefix: string;
-					suffix: string;
-					when: string;
-					date: string;
-				}> = [];
+		const status = (item.status ?? "").toLowerCase();
 
-				const status = (item.status ?? "").toLowerCase();
+		// In-progress
+		if (status === "reading" || status === "watching") {
+			const inProgressDate = item.date ?? item.addedDate ?? "";
+			if (inProgressDate) {
+			events.push({
+				item,
+				prefix:
+				status === "reading"
+					? "You're currently reading "
+					: "You're currently watching ",
+				suffix: "",
+				when: formatCompactRelative(inProgressDate),
+				date: inProgressDate,
+			});
+			}
+		}
 
-				// Added to Up next / watchlist
-				if (upNextPaths.has(item.path) && item.addedDate) {
-					const listLabel =
-						item.mediaType === "book" || item.mediaType === "essay"
-							? "readlist"
-							: "watchlist";
-					events.push({
-						item,
-						prefix: "You added ",
-						suffix: ` to your ${listLabel}`,
-						when: formatCompactRelative(item.addedDate),
-						date: item.addedDate,
-					});
-				}
+		// Completed / dated
+		if (item.date) {
+			events.push({
+			item,
+			prefix:
+				item.mediaType === "book" || item.mediaType === "essay"
+				? "You read "
+				: "You watched ",
+			suffix: "",
+			when: formatCompactRelative(item.date),
+			date: item.date,
+			});
+		}
 
-				// In‑progress: reading / watching
-				if (status === "reading" || status === "watching") {
-					const inProgressDate = item.date ?? item.addedDate ?? "";
-					if (inProgressDate) {
-						events.push({
-							item,
-							prefix:
-								status === "reading"
-									? "You're currently reading "
-									: "You're currently watching ",
-							suffix: "",
-							when: formatCompactRelative(inProgressDate),
-							date: inProgressDate,
-						});
-					}
-				}
-
-				// Completed: read / watched (or no explicit status but has a date)
-				if (item.date && (status === "read" || status === "watched" || !status)) {
-					events.push({
-						item,
-						prefix:
-							item.mediaType === "book" || item.mediaType === "essay"
-								? "You read "
-								: "You watched ",
-						suffix: "",
-						when: formatCompactRelative(item.date),
-						date: item.date,
-					});
-				}
-
-				return events;
-			})
-			.sort((left, right) => right.date.localeCompare(left.date))
-			.slice(0, limit);
+		return events;
+		})
+		.sort((left, right) => right.date.localeCompare(left.date))
+		.slice(0, limit);
 	}
 
 	// Home data providers

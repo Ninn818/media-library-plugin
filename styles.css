@@ -1016,6 +1016,16 @@ button.media-home-sidebar-all{
 	gap: 10px;
 }
 
+
+.media-home-diary-title {
+	font-size: 0.90em;
+	font-weight: 480;
+	color: var(--text-normal);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .media-home-diary-item {
 	display: grid;
 	grid-template-columns: auto minmax(0, 1fr);
@@ -1058,13 +1068,20 @@ button.media-home-sidebar-all{
 	min-width: 10px;
 }
 
-.media-home-diary-title {
-	font-size: 0.90em;
-	font-weight: 480;
+.media-home-sidebar-mode-toggle {
+	margin-left: auto;
+	padding: 2px 6px;
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	font-size: 0.76em;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	cursor: pointer;
+}
+
+.media-home-sidebar-mode-toggle:hover {
 	color: var(--text-normal);
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
 .media-home-activity-list {
@@ -1074,7 +1091,6 @@ button.media-home-sidebar-all{
 
 .media-home-activity-page {
 	display: grid;
-	gap: 14px;
 	padding: 4px 2px 8px;
 }
 
@@ -1127,6 +1143,7 @@ button.media-home-sidebar-all{
 	color: var(--text-muted);
 	margin-top: 2px;
 }
+
 
 /* Dashboard content */
 .media-dashboard-toggle-group {
