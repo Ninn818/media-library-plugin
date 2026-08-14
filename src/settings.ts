@@ -41,6 +41,7 @@ export interface MediaLibrarySettings {
 	homeHeroImage: string;
 	homeHeroBlur: number;
 	homeHeroHeight: number;
+	homeUpNextMode: "up-next" | "currently";
 	tagStorageFormat: TagStorageFormat;
 	showCounts: boolean;
 	showReviewSection: boolean;
@@ -71,6 +72,7 @@ export const DEFAULT_SETTINGS: MediaLibrarySettings = {
 	homeHeroImage: '',
 	homeHeroBlur: 14,
 	homeHeroHeight: 230,
+	homeUpNextMode: "up-next",
 	tagStorageFormat: 'hashtag',
 	showCounts: true,
 	showReviewSection: false,

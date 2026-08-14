@@ -884,34 +884,6 @@ export class LibraryView extends ItemView {
 			this.renderHeaderArea();
 			this.renderActivePage();
 		});
-
-		const activityItems = this.getHomeActivityItems(upNext);
-		if (!activityItems.length) {
-			activitySection.createDiv({ cls: "media-home-empty", text: "No activity yet." });
-			return;
-		}
-
-		const list = activitySection.createDiv({ cls: "media-home-activity-list" });
-		for (const [index, entry] of activityItems.entries()) {
-			const row = list.createDiv({ cls: "media-home-activity-item" });
-			const node = row.createDiv({ cls: "media-home-activity-node" });
-			node.createDiv({ cls: "media-home-activity-dot" });
-			if (index < activityItems.length - 1) {
-				node.createDiv({ cls: "media-home-activity-stem" });
-			}
-
-			const body = row.createDiv({ cls: "media-home-activity-body" });
-			const line = body.createDiv({ cls: "media-home-activity-line" });
-			line.createSpan({ text: entry.prefix });
-			line.createSpan({ cls: "media-home-activity-title-emphasis", text: entry.item.title });
-			line.createSpan({ text: entry.suffix });
-			body.createDiv({ cls: "media-home-activity-meta", text: entry.when });
-
-			row.addEventListener("click", () => {
-				this.selectItem(entry.item);
-				this.openActivityModal(entry.item);
-			});
-		}
 	}
 
 	private getHomeDiaryItems(): MediaItem[] {

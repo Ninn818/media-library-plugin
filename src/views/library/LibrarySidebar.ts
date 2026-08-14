@@ -35,7 +35,7 @@ export function renderLibrarySidebar(
 	}
 
 	renderMetricsSection(rail, state);
-	renderQueueSection(rail, state.visibleItems, state.variant);
+	// renderQueueSection(rail, state.visibleItems, state.variant);
 	renderActivitySection(rail, state.visibleItems, state.variant, state.mode);
 }
 
