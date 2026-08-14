@@ -750,44 +750,6 @@ export class LibraryView extends ItemView {
 		}
 	}
 
-	// Home hero block
-	private renderHomeHero(container: HTMLElement): void {
-		if (!this.settings.homeHeroEnabled) {
-			return;
-		}
-
-		const hero = container.createDiv({ cls: "media-home-hero" });
-		hero.style.setProperty("--ml-home-hero-height", `${this.settings.homeHeroHeight}px`);
-		hero.style.setProperty("--ml-home-hero-blur", `${this.settings.homeHeroBlur}px`);
-
-		const imageValue = this.settings.homeHeroImage.trim();
-		if (imageValue.length > 0) {
-			const resolvedImage = resolveCoverSource(this.app, "", imageValue);
-			const background = hero.createDiv({ cls: "media-home-hero-bg" });
-			background.style.backgroundImage = `url("${resolvedImage.replace(/"/g, "\\\"")}")`;
-			const blurBand = hero.createDiv({ cls: "media-home-hero-bg-blur" });
-			blurBand.style.backgroundImage = `url("${resolvedImage.replace(/"/g, "\\\"")}")`;
-			hero.createDiv({ cls: "media-home-hero-fade" });
-		} else {
-			hero.addClass("is-no-image");
-		}
-
-		const content = hero.createDiv({ cls: "media-home-hero-content" });
-		content.style.color = this.settings.homeHeroTextColor;
-		content.style.fontFamily = getHomeHeroFontFamily(
-			this.settings.homeHeroFont,
-			this.settings.homeHeroCustomFontFamily
-		);
-
-		const title = this.settings.homeHeroTitle.trim() || "My media world";
-		content.createEl("h2", { cls: "media-home-hero-title", text: title });
-
-		const subtitle = this.settings.homeHeroSubtitle.trim();
-		if (subtitle.length > 0) {
-			content.createEl("p", { cls: "media-home-hero-subtitle", text: subtitle });
-		}
-	}
-
 
 	// Home right rail
 	private renderHomeSidebar(allItemsByPath: Map<string, MediaItem>): void {
