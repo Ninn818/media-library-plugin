@@ -566,7 +566,7 @@ export class LibraryView extends ItemView {
 		// All items with a date, sorted using diary controls
 		let allItems = this.library
 			.getAll()
-			.filter((item) => Boolean(item.date));
+			.filter((item) => Boolean(item.date) && this.isCompleted(item));
 
 		allItems = allItems.sort((a, b) => {
 			const dir = this.diarySortDirection === "asc" ? 1 : -1;
@@ -889,8 +889,9 @@ export class LibraryView extends ItemView {
 	}
 
 	private getHomeDiaryItems(): MediaItem[] {
-		return this.library.getAll()
-			.filter((item) => Boolean(item.date))
+		return this.library
+			.getAll()
+			.filter((item) => Boolean(item.date) && this.isCompleted(item))
 			.sort((left, right) => (right.date ?? "").localeCompare(left.date ?? ""))
 			.slice(0, 4);
 	}
