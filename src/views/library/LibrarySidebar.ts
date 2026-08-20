@@ -1,4 +1,5 @@
 import { MediaItem } from "../../models/MediaItem";
+import { getCompletionLabel } from "../../utils/ActivityLabels";
 import { timeAgoFromDate } from "../../utils/TimeAgo";
 
 interface SidebarMetric {
@@ -206,9 +207,10 @@ function getRecentActivityEvents(items: MediaItem[], mode: "default" | "home"): 
 
 			// Completed
 			if (item.date) {
+				const isRepeat = getCompletionHistory(item).length > 1;
 				events.push({
 					date: item.date,
-					title: `${isReadingType(item) ? "You read" : "You watched"} ${item.title}`,
+					title: `You ${getCompletionLabel(item, isRepeat)} ${item.title}`,
 					meta:
 						mode === "home"
 							? formatHomeActivityMeta(item)
@@ -220,6 +222,14 @@ function getRecentActivityEvents(items: MediaItem[], mode: "default" | "home"): 
 		})
 		.filter((event) => event.date)
 		.sort((left, right) => right.date.localeCompare(left.date));
+}
+
+function getCompletionHistory(item: MediaItem): string[] {
+	const historyField = isReadingType(item) ? "readHistory" : "watchHistory";
+	const history = item.raw?.[historyField];
+	return Array.isArray(history)
+		? history.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+		: [];
 }
 
 function formatHomeActivityMeta(item: MediaItem): string {

@@ -3,6 +3,7 @@ import { App } from "obsidian";
 import { Poster } from "../../components/Poster";
 import { MediaItem } from "../../models/MediaItem";
 import { MediaLibraryCustomList, SocialHubTab } from "../../settings";
+import { getCompletionEvents, getCompletionLabel } from "../../utils/ActivityLabels";
 import { timeAgoFromDate } from "../../utils/TimeAgo";
 
 export interface LibrarySocialHubState {
@@ -84,9 +85,13 @@ function renderActivityPanel(container: HTMLElement, state: LibrarySocialHubStat
 	const events = state.items
 		.flatMap((item) => {
 			const rows: Array<{ date: string; title: string; item: MediaItem; elapsed: string }> = [];
-			const completionDates = getCompletionDates(item);
-			for (const date of completionDates) {
-				rows.push({ date, title: `${item.title} • completed`, item, elapsed: timeAgoFromDate(date) });
+			for (const event of getCompletionEvents(item)) {
+				rows.push({
+					date: event.date,
+					title: `${item.title} • ${getCompletionLabel(item, event.isRepeat)}`,
+					item,
+					 elapsed: timeAgoFromDate(event.date),
+				});
 			}
 			if (item.addedDate) {
 				rows.push({ date: item.addedDate, title: `${item.title} • added`, item, elapsed: timeAgoFromDate(item.addedDate) });
@@ -108,50 +113,6 @@ function renderActivityPanel(container: HTMLElement, state: LibrarySocialHubStat
 		row.createDiv({ cls: "media-social-row-meta", text: `${event.date} • ${event.elapsed}` });
 		row.addEventListener("click", () => callbacks.onOpenItem(event.item));
 	}
-}
-
-function getCompletionDates(item: MediaItem): string[] {
-	const dates = new Set<string>();
-	if (item.date) {
-		dates.add(item.date);
-	}
-
-	const raw = item.raw as {
-		dateRead?: unknown;
-		dateWatched?: unknown;
-		lastWatched?: unknown;
-		dateFinished?: unknown;
-		finishDate?: unknown;
-		watchHistory?: unknown;
-		readHistory?: unknown;
-	} | undefined;
-
-	const directCandidates = [
-		raw?.dateRead,
-		raw?.dateWatched,
-		raw?.lastWatched,
-		raw?.dateFinished,
-		raw?.finishDate,
-	];
-
-	for (const candidate of directCandidates) {
-		if (typeof candidate === "string" && candidate.trim().length > 0) {
-			dates.add(candidate.trim());
-		}
-	}
-
-	for (const historyField of [raw?.watchHistory, raw?.readHistory]) {
-		if (!Array.isArray(historyField)) {
-			continue;
-		}
-		for (const value of historyField) {
-			if (typeof value === "string" && value.trim().length > 0) {
-				dates.add(value.trim());
-			}
-		}
-	}
-
-	return [...dates];
 }
 
 function renderListsPanel(

@@ -23,6 +23,7 @@ import {
 import * as ListService from "../services/ListService";
 import { addTagToMediaNote } from "../services/TagService";
 import { ActivityLogService } from "../services/ActivityLogService";
+import { getCompletionLabel } from "../utils/ActivityLabels";
 import { MediaActivityModal } from "../ui/MediaActivityModal";
 import { Poster } from "../components/Poster";
 import { resolveCoverSource } from "../utils/Covers";
@@ -758,14 +759,26 @@ export class LibraryView extends ItemView {
 
 		const upNextSection = rail.createDiv({ cls: "media-home-sidebar-section" });
 		const watchlistHeader = upNextSection.createDiv({ cls: "media-home-sidebar-header" });
-		watchlistHeader.createDiv({ cls: "media-home-sidebar-title", text: "Up next" });
 
 		const upNextMode: "up-next" | "currently" = this.settings.homeUpNextMode ?? "up-next";
-
-		const upNextModeButton = watchlistHeader.createEl("button", {
-			cls: "media-home-sidebar-mode-toggle",
-			text: upNextMode === "currently" ? "Currently ▾" : "Up next ▾",
+		const watchlistTitle = watchlistHeader.createDiv({ cls: "media-home-sidebar-title-group" });
+		watchlistTitle.createDiv({
+			cls: "media-home-sidebar-title",
+			text: upNextMode === "currently" ? "Currently" : "Up next",
 		});
+
+		const upNextModeButton = watchlistTitle.createEl("button", {
+			cls: "media-home-sidebar-mode-toggle",
+			text: "▾",
+		});
+		upNextModeButton.setAttr(
+			"aria-label",
+			upNextMode === "currently" ? "Show up next" : "Show currently reading or watching",
+		);
+		upNextModeButton.setAttr(
+			"title",
+			upNextMode === "currently" ? "Show up next" : "Show currently reading or watching",
+		);
 
 		upNextModeButton.addEventListener("click", (event) => {
 			event.stopPropagation();
@@ -938,12 +951,12 @@ export class LibraryView extends ItemView {
 
 		// Completed / dated
 		if (item.date) {
+			const historyField = item.mediaType === "book" || item.mediaType === "essay" ? "readHistory" : "watchHistory";
+			const history = item.raw?.[historyField];
+			const isRepeat = Array.isArray(history) && history.filter((value) => typeof value === "string" && value.trim().length > 0).length > 1;
 			events.push({
 			item,
-			prefix:
-				item.mediaType === "book" || item.mediaType === "essay"
-				? "You read "
-				: "You watched ",
+			prefix: `You ${getCompletionLabel(item, isRepeat)} `,
 			suffix: "",
 			when: formatCompactRelative(item.date),
 			date: item.date,
