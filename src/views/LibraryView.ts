@@ -245,6 +245,7 @@ export class LibraryView extends ItemView {
 			const mediaControlsShell = this.mediaControlsHost.createDiv({ cls: "media-library-media-controls-shell" });
 			const statsHost = mediaControlsShell.createDiv();
 			renderLibraryStatBar(statsHost, this.library);
+			this.renderMediaAddActions(mediaControlsShell);
 			const controlsHost = mediaControlsShell.createDiv();
 			//render the library toolbar with search, filter, sort mode, and sort direction controls
 			renderLibraryToolbar(controlsHost, this.getToolbarState(), {
@@ -324,6 +325,40 @@ export class LibraryView extends ItemView {
 			return;
 		}
 
+	}
+
+	private renderMediaAddActions(container: HTMLElement): void {
+		const actions = container.createDiv({ cls: "media-library-add-actions" });
+		const links = [
+			{
+				label: "Add media by ID",
+				icon: "scan-search",
+				uri: "obsidian://adv-uri?vault=Ninis&commandid=obsidian-media-db-plugin%3Aopen-media-db-id-search-modal",
+			},
+			{
+				label: "Add media by title",
+				icon: "text-search",
+				uri: "obsidian://adv-uri?vault=Ninis&commandid=obsidian-media-db-plugin%3Aadd-media-db-link",
+			},
+			{
+				label: "Add book",
+				icon: "book-open",
+				uri: "obsidian://adv-uri?vault=Ninis&commandid=obsidian-book-search-plugin%3Aopen-book-search-modal",
+			},
+		];
+
+		for (const link of links) {
+			const button = actions.createEl("button", {
+				cls: "media-library-add-action",
+				attr: { title: link.label, "aria-label": link.label },
+			});
+			button.type = "button";
+			setIcon(button, link.icon);
+			button.createSpan({ text: link.label });
+			button.addEventListener("click", () => {
+				window.open(link.uri, "_self");
+			});
+		}
 	}
 
 	// Top header area (kept simple now)
@@ -922,7 +957,7 @@ export class LibraryView extends ItemView {
 
 	private getHomeActivityItems(
 		_upNextItems: MediaItem[],
-		limit = 6,
+		limit = 4,
 	): Array<{
 		item: MediaItem;
 		prefix: string;
@@ -1111,6 +1146,7 @@ export class LibraryView extends ItemView {
 			this.renderGalleryLibraryView();
 			return;
 		}
+		this.renderVisibleMediaCount(renderedItems.length, this.currentLibraryItems.length);
 		this.renderShowMoreControl(this.currentLibraryItems.length, renderedItems.length, () => {
 			this.renderGalleryLibraryView();
 		});
@@ -1149,9 +1185,18 @@ export class LibraryView extends ItemView {
 			this.renderCurrentView();
 			return;
 		}
+		this.renderVisibleMediaCount(renderedItems.length, this.currentLibraryItems.length);
 		this.renderShowMoreControl(this.currentLibraryItems.length, renderedItems.length, () => {
 			this.renderCurrentView();
 		});
+	}
+
+	private renderVisibleMediaCount(showing: number, total: number): void {
+		const count = this.contentHost.createDiv({
+			cls: "media-library-visible-count",
+			text: `Showing ${showing} of ${total} media`,
+		});
+		this.contentHost.prepend(count);
 	}
 
 	private renderDashboardPage(): void {

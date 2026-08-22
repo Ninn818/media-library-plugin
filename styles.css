@@ -329,6 +329,39 @@
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
+.media-library-add-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.media-library-add-action {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	padding: 7px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: transparent;
+	color: var(--text-muted);
+	font: inherit;
+	font-size: 0.84em;
+	cursor: pointer;
+	transition: color 140ms ease, border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.media-library-add-action svg {
+	width: 15px;
+	height: 15px;
+}
+
+.media-library-add-action:hover {
+	color: var(--text-normal);
+	border-color: var(--text-muted);
+	background: var(--background-modifier-hover);
+	transform: translateY(-1px);
+}
+
 .media-library-media-switcher-host {
 	display: flex;
 	align-items: center;
@@ -1555,6 +1588,13 @@ button.media-home-sidebar-all{
 	border-radius: 6px;
 	background: rgba(255, 255, 255, 0.04);
 	border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.media-library-visible-count {
+	padding: 2px 0;
+	font-size: 0.78em;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
 }
 
 /* Social hub */
