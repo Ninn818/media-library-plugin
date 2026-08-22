@@ -40,7 +40,7 @@ import { renderLibraryToolbar } from "./library/LibraryToolbar";
 import { renderLibraryStatBar } from "./library/LibraryHeader";
 import { MediaListModal } from "../ui/MediaListModal";
 
-type HomeActivityKind = "added" | "favorited" | "rated" | "read" | "watched" | "reading" | "watching";
+type HomeActivityKind = "added" | "favorited" | "rated" | "note" | "read" | "watched" | "reading" | "watching";
 
 interface HomeRecentItem {
 	item: MediaItem;
@@ -84,7 +84,7 @@ export class LibraryView extends ItemView {
 	private selectedItem: MediaItem | null = null;
 	private featuredPath: string | null = null;
 	private activeSocialTab: SocialHubTab;
-	private listViewMode: "lists" | "currently" = "lists"; // NEW: track lists vs currently view
+	private listViewMode: "lists" | "currently" = "lists";
 	private isSidebarVisible = true;
 	private static readonly LIBRARY_PAGE_SIZE = 40;
 	private static readonly GALLERY_PAGE_SIZE = 40;
@@ -930,84 +930,30 @@ export class LibraryView extends ItemView {
 		when: string;
 		date: string;
 	}> {
-	return this.library
-		.getAll()
-		.flatMap((item) => {
-		const events: {
-			item: MediaItem;
-			prefix: string;
-			suffix: string;
-			when: string;
-			date: string;
-		}[] = [];
-
-		const status = (item.status ?? "").toLowerCase();
-		const isReading = item.mediaType === "book" || item.mediaType === "essay";
-		const favoriteDate = this.settings.favoriteDates?.[item.path];
-
-		if (item.addedDate) {
-			events.push({
-				item,
-				prefix: "You added ",
-				suffix: "",
-				when: formatCompactRelative(item.addedDate),
-				date: item.addedDate,
-			});
-		}
-
-		if (favoriteDate) {
-			events.push({
-				item,
-				prefix: "You favorited ",
-				suffix: "",
-				when: formatCompactRelative(favoriteDate),
-				date: favoriteDate,
-			});
-		}
-
-		if (item.rating != null && item.date) {
-			events.push({
-				item,
-				prefix: "You rated ",
-				suffix: ` ${item.rating}/10`,
-				when: formatCompactRelative(item.date),
-				date: item.date,
-			});
-		}
-
-		// In-progress
-		if (status === "reading" || status === "watching") {
-			const inProgressDate = item.date ?? item.addedDate ?? "";
-			if (inProgressDate) {
-			events.push({
-				item,
-				prefix:
-				status === "reading"
-					? "You're currently reading "
-					: "You're currently watching ",
-					suffix: "",
-				when: formatCompactRelative(inProgressDate),
-				date: inProgressDate,
-			});
+	return this.library.getAll().flatMap((item) => {
+		const events: Array<{ item: MediaItem; prefix: string; suffix: string; when: string; date: string }> = [];
+		for (const entry of item.activityEntries ?? []) {
+			const status = (entry.status ?? "").toLowerCase().trim();
+			const action = status === "reading"
+				? "You're currently reading "
+				: status === "watching"
+					? "You're currently watching "
+					: `You ${getCompletionLabel(item, false)} `;
+			const date = entry.recordedAt ?? entry.date;
+			events.push({ item, prefix: action, suffix: entry.note ? " (note added)" : "", when: formatCompactRelative(date), date });
+			if (entry.rating != null) {
+				events.push({ item, prefix: "You rated ", suffix: ` ${entry.rating}/10`, when: formatCompactRelative(date), date });
 			}
 		}
-
-		// Completed / dated
-		if (item.date) {
-			const historyField = isReading ? "readHistory" : "watchHistory";
-			const history = item.raw?.[historyField];
-			const isRepeat = Array.isArray(history) && history.filter((value) => typeof value === "string" && value.trim().length > 0).length > 1;
-			events.push({
-			item,
-			prefix: `You ${getCompletionLabel(item, isRepeat)} `,
-			suffix: "",
-			when: formatCompactRelative(item.date),
-			date: item.date,
-			});
+		const favoriteDate = this.settings.favoriteDates?.[item.path];
+		if (favoriteDate) {
+			events.push({ item, prefix: "You favorited ", suffix: "", when: formatCompactRelative(favoriteDate), date: favoriteDate });
 		}
-
+		if (!events.length && item.addedDate) {
+			events.push({ item, prefix: "You added ", suffix: "", when: formatCompactRelative(item.addedDate), date: item.addedDate });
+		}
 		return events;
-		})
+	})
 		.sort((left, right) => right.date.localeCompare(left.date))
 		.slice(0, limit);
 	}
@@ -1073,25 +1019,40 @@ export class LibraryView extends ItemView {
 	}
 
 	private getHomeActivityKinds(item: MediaItem): HomeActivityKind[] {
-		const status = (item.status ?? "").toLowerCase().trim();
 		const isReading = item.mediaType === "book" || item.mediaType === "essay";
 		const favorites = ListService.getFavoritesList(this.settings);
 		const favoriteDate = this.settings.favoriteDates?.[item.path] ?? "";
+		const latestEntry = [...(item.activityEntries ?? [])].sort((left, right) =>
+			(right.recordedAt ?? right.date).localeCompare(left.recordedAt ?? left.date),
+		)[0];
 
-		if (status === "reading") return ["reading"];
-		if (status === "watching") return ["watching"];
-		if (item.date) return [isReading ? "read" : "watched", ...(item.rating != null ? ["rated" as const] : [])];
+		if (latestEntry) {
+			const status = (latestEntry.status ?? "").toLowerCase().trim();
+			const kinds: HomeActivityKind[] = status === "reading"
+				? ["reading"]
+				: status === "watching"
+					? ["watching"]
+					: [isReading ? "read" : "watched"];
+			if (latestEntry.rating != null) kinds.push("rated");
+			if (latestEntry.note) kinds.push("note");
+			return kinds;
+		}
 		if (favoriteDate && favorites?.itemPaths.includes(item.path)) return ["favorited"];
 		return item.addedDate ? ["added"] : [];
 	}
 
 	private getHomeActivityDate(item: MediaItem): string {
 		const favoriteDate = this.settings.favoriteDates?.[item.path] ?? "";
-		return [item.date, favoriteDate, item.addedDate].filter(Boolean).sort().pop() ?? "";
+		const latestEntry = [...(item.activityEntries ?? [])]
+			.sort((left, right) => (right.recordedAt ?? right.date).localeCompare(left.recordedAt ?? left.date))[0];
+		return [latestEntry?.recordedAt ?? latestEntry?.date ?? "", favoriteDate, item.addedDate]
+			.filter(Boolean)
+			.sort()
+			.pop() ?? "";
 	}
 
 	private getHomeActivityIcon(activity: HomeActivityKind): string {
-		return { added: "+", favorited: "♥", rated: "★", read: "📖", watched: "🎬", reading: "◔", watching: "◔" }[activity];
+		return { added: "+", favorited: "♥", rated: "★", note: "✎", read: "📖", watched: "🎬", reading: "◔", watching: "◔" }[activity];
 	}
 
 	private getHomeRatingStars(rating: number | null | undefined): string {
@@ -1100,7 +1061,7 @@ export class LibraryView extends ItemView {
 	}
 
 	private getHomeActivityLabel(activity: HomeActivityKind): string {
-		return { added: "Added", favorited: "Favorited", rated: "Rated", read: "Read", watched: "Watched", reading: "Currently reading", watching: "Currently watching" }[activity];
+		return { added: "Added", favorited: "Favorited", rated: "Rated", note: "Added a note", read: "Read", watched: "Watched", reading: "Currently reading", watching: "Currently watching" }[activity];
 	}
 
 	private getUpNextItems(allItemsByPath: Map<string, MediaItem>): MediaItem[] {

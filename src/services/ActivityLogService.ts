@@ -19,6 +19,7 @@ export class ActivityLogService {
 	}
 
 	async appendEntry(file: TFile, item: MediaItem, entry: MediaActivityEntry): Promise<void> {
+		const recordedAt = entry.recordedAt ?? new Date().toISOString();
 		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 			frontmatter.status = entry.status ?? getCompletedStatus(item);
 			frontmatter.personalRating = entry.rating ?? undefined;
@@ -51,13 +52,15 @@ export class ActivityLogService {
 			entries = getFallbackActivityEntries(item);
 		}
 		
-		entries.push(normalizeEntry(entry, item));
+		entries.push(normalizeEntry({ ...entry, recordedAt }, item));
 		const updated = upsertActivityCallout(content, entries);
 		await this.app.vault.modify(file, updated);
 	}
 
 	async replaceEntries(file: TFile, item: MediaItem, entries: MediaActivityEntry[]): Promise<void> {
-		const latestEntry = entries[entries.length - 1];
+		const latestEntry = [...entries].sort((left, right) =>
+			(left.recordedAt ?? left.date).localeCompare(right.recordedAt ?? right.date),
+		)[entries.length - 1];
 		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 			frontmatter.status = latestEntry?.status ?? undefined;
 			frontmatter.personalRating = latestEntry?.rating ?? undefined;
@@ -169,8 +172,10 @@ function parseActivityLine(line: string, item: MediaItem): MediaActivityEntry | 
 
 	const ratingValue = values.get("rating");
 	const rating = ratingValue ? Number(ratingValue) : null;
+	const recordedAt = values.get("recorded") ?? date;
 	return normalizeEntry({
 		date,
+		recordedAt,
 		status: values.get("status") ?? null,
 		rating: Number.isFinite(rating) ? rating : null,
 		note: values.get("note") ?? undefined,
@@ -204,7 +209,7 @@ function upsertActivityCallout(content: string, entries: MediaActivityEntry[]): 
 function serializeActivityCallout(entries: MediaActivityEntry[]): string {
 	const normalizedEntries = [...entries].sort((left, right) => left.date.localeCompare(right.date));
 	const lines = normalizedEntries.map((entry) => {
-		const parts = [`date: ${entry.date}`, `kind: ${entry.kind}`];
+		const parts = [`date: ${entry.date}`, `recorded: ${entry.recordedAt ?? entry.date}`, `kind: ${entry.kind}`];
 		if (entry.status) {
 			parts.push(`status: ${entry.status}`);
 		}
@@ -223,6 +228,7 @@ function serializeActivityCallout(entries: MediaActivityEntry[]): string {
 function normalizeEntry(entry: MediaActivityEntry, item: MediaItem): MediaActivityEntry {
 	return {
 		date: entry.date,
+		recordedAt: entry.recordedAt ?? entry.date,
 		status: entry.status ?? getCompletedStatus(item),
 		rating: entry.rating ?? null,
 		note: entry.note?.trim() ? entry.note.trim() : undefined,

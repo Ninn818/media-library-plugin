@@ -275,6 +275,7 @@ export class MediaActivityModal extends Modal {
 				const rating = ratingSelect.value ? Number(ratingSelect.value) : null;
 				const updatedEntry: MediaActivityEntry = {
 					date: dateInput.value,
+					recordedAt: new Date().toISOString(),
 					status: statusSelect.value || getCompletedStatus(this.item),
 					rating: Number.isFinite(rating) ? rating : null,
 					note: noteInput.value,

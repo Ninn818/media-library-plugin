@@ -6,4 +6,5 @@ export interface MediaActivityEntry {
 	rating: number | null;
 	note?: string;
 	kind: MediaActivityKind;
+	recordedAt?: string;
 }
