@@ -972,16 +972,19 @@ export class LibraryView extends ItemView {
 	// Home data providers
 	private getFavoritesHomeItems(allItemsByPath: Map<string, MediaItem>): MediaItem[] {
 		const favorites = ListService.getFavoritesList(this.settings);
-		if (favorites?.itemPaths.length) {
-			return favorites.itemPaths
-				.map((path) => allItemsByPath.get(path))
-				.filter((item): item is MediaItem => Boolean(item))
+		const favoriteItems = favorites?.itemPaths
+			.map((path) => allItemsByPath.get(path))
+			.filter((item): item is MediaItem => Boolean(item)) ?? [];
+		if (favoriteItems.length) {
+			return favoriteItems
 				.slice(0, 4);
 		}
 
-		return this.library
+		return [...this.library
 			.getAll()
-			.filter((item) => item.rating != null && item.rating >= 8)
+			.filter((item) => item.rating != null)
+			.sort((left, right) => (right.rating ?? -Infinity) - (left.rating ?? -Infinity))
+			]
 			.slice(0, 4);
 	}
 

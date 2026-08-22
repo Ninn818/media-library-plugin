@@ -151,6 +151,9 @@ function renderListsPanel(
   const listGrid = container.createDiv({ cls: "media-social-list-grid" });
   for (const list of state.lists) {
     const card = listGrid.createDiv({ cls: "media-social-list-card" });
+		const listItems = list.itemPaths
+			.map((path) => state.allItemsByPath.get(path))
+			.filter((item): item is MediaItem => Boolean(item));
 
     // Header (name + delete)
     const head = card.createDiv({ cls: "media-social-list-head" });
@@ -168,8 +171,8 @@ function renderListsPanel(
     // Meta line
     card.createDiv({
       cls: "media-social-list-meta",
-      text: `${list.itemPaths.length} ${
-        list.itemPaths.length === 1 ? "item" : "items"
+			text: `${listItems.length} ${
+				listItems.length === 1 ? "item" : "items"
       }`,
     });
 
@@ -180,7 +183,7 @@ function renderListsPanel(
     });
 
     // Preview: up to 5 items
-    if (!list.itemPaths.length) {
+	if (!listItems.length) {
       card.createDiv({
         cls: "media-social-empty",
         text: "No media in this list yet.",
@@ -188,7 +191,9 @@ function renderListsPanel(
     } else {
       const previewGrid = card.createDiv({ cls: "media-social-mini-grid" });
       const PREVIEW_LIMIT = 5;
-      const paths = list.itemPaths.slice(0, PREVIEW_LIMIT);
+			const paths = list.itemPaths
+				.filter((path) => state.allItemsByPath.has(path))
+				.slice(0, PREVIEW_LIMIT);
 
       for (const path of paths) {
         const item = state.allItemsByPath.get(path);
@@ -208,7 +213,7 @@ function renderListsPanel(
         );
       }
 
-      const remaining = list.itemPaths.length - PREVIEW_LIMIT;
+	const remaining = Math.max(0, listItems.length - PREVIEW_LIMIT);
       if (remaining > 0) {
         card.createDiv({
           cls: "media-social-list-footer",
