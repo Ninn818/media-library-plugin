@@ -57,6 +57,21 @@ export class ActivityLogService {
 	}
 
 	async replaceEntries(file: TFile, item: MediaItem, entries: MediaActivityEntry[]): Promise<void> {
+		const latestEntry = entries[entries.length - 1];
+		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+			frontmatter.status = latestEntry?.status ?? undefined;
+			frontmatter.personalRating = latestEntry?.rating ?? undefined;
+
+			const historyField = isReadingItem(item) ? "readHistory" : "watchHistory";
+			frontmatter[historyField] = entries.map((entry) => entry.date);
+			if (isReadingItem(item)) {
+				frontmatter.dateRead = latestEntry?.date ?? undefined;
+				frontmatter.dateFinished = latestEntry?.date ?? undefined;
+			} else {
+				frontmatter.lastWatched = latestEntry?.date ?? undefined;
+			}
+		});
+
 		const content = await this.app.vault.cachedRead(file);
 		const updated = upsertActivityCallout(content, entries.map((entry) => normalizeEntry(entry, item)));
 		await this.app.vault.modify(file, updated);

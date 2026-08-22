@@ -160,6 +160,10 @@ export function addItemToFavorites(settings: MediaLibrarySettings, itemPath: str
 
 	favorites.itemPaths = [...favorites.itemPaths, itemPath];
 	favorites.updatedAt = nowIso();
+	settings.favoriteDates = {
+		...(settings.favoriteDates ?? {}),
+		[itemPath]: nowIso(),
+	};
 	return true;
 }
 
@@ -171,6 +175,11 @@ export function removeItemFromFavorites(settings: MediaLibrarySettings, itemPath
 
 	favorites.itemPaths = favorites.itemPaths.filter((path) => path !== itemPath);
 	favorites.updatedAt = nowIso();
+	if (settings.favoriteDates?.[itemPath]) {
+		const favoriteDates = { ...settings.favoriteDates };
+		delete favoriteDates[itemPath];
+		settings.favoriteDates = favoriteDates;
+	}
 	return true;
 }
 

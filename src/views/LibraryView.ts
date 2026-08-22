@@ -40,6 +40,14 @@ import { renderLibraryToolbar } from "./library/LibraryToolbar";
 import { renderLibraryStatBar } from "./library/LibraryHeader";
 import { MediaListModal } from "../ui/MediaListModal";
 
+type HomeActivityKind = "added" | "favorited" | "rated" | "read" | "watched" | "reading" | "watching";
+
+interface HomeRecentItem {
+	item: MediaItem;
+	activities: HomeActivityKind[];
+	latestDate: string;
+}
+
 export class LibraryView extends ItemView {
 	// Core dependencies
 	private readonly library: MediaLibrary;
@@ -706,7 +714,7 @@ export class LibraryView extends ItemView {
 		const recent = this.getRecentHomeItems();
 
 		this.renderHomeShelf(shell, "Favorites", favorites);
-		this.renderHomeShelf(shell, "Recent activity", recent, true);
+		this.renderHomeShelf(shell, "Recent activity", recent.map((entry) => entry.item), true, recent);
 
 		this.renderHomeSidebar(byPath);
 	}
@@ -717,6 +725,7 @@ export class LibraryView extends ItemView {
 		title: string,
 		items: MediaItem[],
 		_compact: boolean = false,
+		recentItems: HomeRecentItem[] = [],
 	): void {
 		const section = container.createDiv({ cls: "media-home-section" });
 		const header = section.createDiv({ cls: "media-home-section-header" });
@@ -731,7 +740,7 @@ export class LibraryView extends ItemView {
 		}
 
 		const row = section.createDiv({ cls: "media-home-poster-row" });
-		for (const item of items) {
+		for (const [index, item] of items.entries()) {
 			const card = row.createDiv({ cls: "media-home-poster-card" });
 			card.setAttr("title", `${item.title} • ${item.creator}`);
 			card.addEventListener("click", () => {
@@ -740,13 +749,15 @@ export class LibraryView extends ItemView {
 			});
 			new Poster(item, this.app).render(card);
 
-			// Add activity type icons below media for "Recent activity" section
-			if (title === "Recent activity" && item.date) {
+			if (title === "Recent activity") {
 				const iconBar = card.createDiv({ cls: "media-activity-type-icons" });
-				const isReading = item.mediaType === "book" || item.mediaType === "essay";
-				const iconSpan = iconBar.createSpan({ cls: "media-activity-type-icon" });
-				iconSpan.textContent = isReading ? "📖" : "🎬";
-				iconSpan.title = isReading ? "Reading activity" : "Watching activity";
+				for (const activity of recentItems[index]?.activities ?? []) {
+					const iconSpan = iconBar.createSpan({ cls: `media-activity-type-icon is-${activity}` });
+					iconSpan.textContent = activity === "rated"
+						? this.getHomeRatingStars(item.rating)
+						: this.getHomeActivityIcon(activity);
+					iconSpan.title = this.getHomeActivityLabel(activity);
+				}
 			}
 		}
 	}
@@ -931,6 +942,38 @@ export class LibraryView extends ItemView {
 		}[] = [];
 
 		const status = (item.status ?? "").toLowerCase();
+		const isReading = item.mediaType === "book" || item.mediaType === "essay";
+		const favoriteDate = this.settings.favoriteDates?.[item.path];
+
+		if (item.addedDate) {
+			events.push({
+				item,
+				prefix: "You added ",
+				suffix: "",
+				when: formatCompactRelative(item.addedDate),
+				date: item.addedDate,
+			});
+		}
+
+		if (favoriteDate) {
+			events.push({
+				item,
+				prefix: "You favorited ",
+				suffix: "",
+				when: formatCompactRelative(favoriteDate),
+				date: favoriteDate,
+			});
+		}
+
+		if (item.rating != null && item.date) {
+			events.push({
+				item,
+				prefix: "You rated ",
+				suffix: ` ${item.rating}/10`,
+				when: formatCompactRelative(item.date),
+				date: item.date,
+			});
+		}
 
 		// In-progress
 		if (status === "reading" || status === "watching") {
@@ -942,7 +985,7 @@ export class LibraryView extends ItemView {
 				status === "reading"
 					? "You're currently reading "
 					: "You're currently watching ",
-				suffix: "",
+					suffix: "",
 				when: formatCompactRelative(inProgressDate),
 				date: inProgressDate,
 			});
@@ -951,7 +994,7 @@ export class LibraryView extends ItemView {
 
 		// Completed / dated
 		if (item.date) {
-			const historyField = item.mediaType === "book" || item.mediaType === "essay" ? "readHistory" : "watchHistory";
+			const historyField = isReading ? "readHistory" : "watchHistory";
 			const history = item.raw?.[historyField];
 			const isRepeat = Array.isArray(history) && history.filter((value) => typeof value === "string" && value.trim().length > 0).length > 1;
 			events.push({
@@ -1018,14 +1061,46 @@ export class LibraryView extends ItemView {
 	}
 
     //show 4 recent items on home page
-	private getRecentHomeItems(): MediaItem[] {
-		return [...this.library.getAll()]
-			.sort((left, right) => {
-				const rightDate = right.date ?? right.addedDate ?? "";
-				const leftDate = left.date ?? left.addedDate ?? "";
-				return rightDate.localeCompare(leftDate);
+	private getRecentHomeItems(): HomeRecentItem[] {
+		return this.library
+			.getAll()
+			.map((item) => {
+				const activities = this.getHomeActivityKinds(item);
+				return { item, activities, latestDate: this.getHomeActivityDate(item) };
 			})
+			.sort((left, right) => right.latestDate.localeCompare(left.latestDate))
 			.slice(0, 4);
+	}
+
+	private getHomeActivityKinds(item: MediaItem): HomeActivityKind[] {
+		const status = (item.status ?? "").toLowerCase().trim();
+		const isReading = item.mediaType === "book" || item.mediaType === "essay";
+		const favorites = ListService.getFavoritesList(this.settings);
+		const favoriteDate = this.settings.favoriteDates?.[item.path] ?? "";
+
+		if (status === "reading") return ["reading"];
+		if (status === "watching") return ["watching"];
+		if (item.date) return [isReading ? "read" : "watched", ...(item.rating != null ? ["rated" as const] : [])];
+		if (favoriteDate && favorites?.itemPaths.includes(item.path)) return ["favorited"];
+		return item.addedDate ? ["added"] : [];
+	}
+
+	private getHomeActivityDate(item: MediaItem): string {
+		const favoriteDate = this.settings.favoriteDates?.[item.path] ?? "";
+		return [item.date, favoriteDate, item.addedDate].filter(Boolean).sort().pop() ?? "";
+	}
+
+	private getHomeActivityIcon(activity: HomeActivityKind): string {
+		return { added: "+", favorited: "♥", rated: "★", read: "📖", watched: "🎬", reading: "◔", watching: "◔" }[activity];
+	}
+
+	private getHomeRatingStars(rating: number | null | undefined): string {
+		const stars = Math.max(1, Math.min(10, Math.round(rating ?? 0)));
+		return "★".repeat(stars);
+	}
+
+	private getHomeActivityLabel(activity: HomeActivityKind): string {
+		return { added: "Added", favorited: "Favorited", rated: "Rated", read: "Read", watched: "Watched", reading: "Currently reading", watching: "Currently watching" }[activity];
 	}
 
 	private getUpNextItems(allItemsByPath: Map<string, MediaItem>): MediaItem[] {

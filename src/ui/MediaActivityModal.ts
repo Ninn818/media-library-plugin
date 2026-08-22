@@ -123,6 +123,7 @@ export class MediaActivityModal extends Modal {
 					kind: isReadingItem(this.item) ? "read" : "watch",
 				});
 
+				this.updateItemFromActivity(date, statusSelect.value, Number.isFinite(rating) ? rating : null);
 				await this.onSaved();
 				await this.render();
 			} finally {
@@ -284,6 +285,7 @@ export class MediaActivityModal extends Modal {
 				allEntries[originalIndex] = updatedEntry;
 				await this.activityLogService.replaceEntries(file, this.item, allEntries);
 
+				this.updateItemFromActivity(updatedEntry.date, updatedEntry.status, updatedEntry.rating);
 				await this.onSaved();
 				await this.render();
 			} finally {
@@ -309,6 +311,12 @@ export class MediaActivityModal extends Modal {
 				deleteBtn.disabled = false;
 			}
 		});
+	}
+
+	private updateItemFromActivity(date: string, status: string | null, rating: number | null): void {
+		this.item.date = date;
+		this.item.status = status && isMediaStatus(status) ? status : this.item.status;
+		this.item.rating = rating;
 	}
 }
 

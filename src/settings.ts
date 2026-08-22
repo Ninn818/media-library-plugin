@@ -55,6 +55,7 @@ export interface MediaLibrarySettings {
 	dashboardShowRatingsChart: boolean;
 	dashboardGoals: MediaDashboardGoals;
 	customLists: MediaLibraryCustomList[];
+	favoriteDates?: Record<string, string>;
 }
 
 export const DEFAULT_SETTINGS: MediaLibrarySettings = {
@@ -85,6 +86,7 @@ export const DEFAULT_SETTINGS: MediaLibrarySettings = {
 	dashboardShowQuickPicks: true,
 	dashboardShowRatingsChart: true,
 	customLists: [],
+	favoriteDates: {},
 	dashboardGoals: {
 		book: 20,
 		movie: 24,
