@@ -415,6 +415,8 @@
 	text-transform: uppercase;
 	letter-spacing: 0.1em;
 	border-bottom: 2px solid transparent;
+	opacity: 0.48;
+	transition: opacity 140ms ease, color 140ms ease, border-color 140ms ease;
 }
 
 .media-library button.media-library-page-tab {
@@ -436,6 +438,12 @@
 	border-bottom: 2px solid var(--text-normal);
 	box-shadow: none;
 	color: var(--text-normal);
+	opacity: 1;
+}
+
+.media-library-page-tab:hover,
+.media-social-tab:hover {
+	opacity: 0.82;
 }
 
 .media-view-switcher {
@@ -1432,11 +1440,14 @@ button.media-home-sidebar-all{
 	font-size: 0.92em;
 	letter-spacing: 0.02em;
 	border-bottom: 2px solid transparent;
+	opacity: 0.48;
+	transition: opacity 140ms ease, color 140ms ease, border-color 140ms ease;
 }
 
 .media-social-tab.is-active {
 	color: var(--text-normal);
 	border-bottom-color: var(--text-normal);
+	opacity: 1;
 }
 
 .media-social-panel {
