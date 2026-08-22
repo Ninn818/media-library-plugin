@@ -1633,6 +1633,7 @@ button.media-home-sidebar-all{
 
 .media-social-panel {
 	padding: 4px 2px 2px;
+	animation: media-home-rise-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .media-social-list {
@@ -1646,6 +1647,13 @@ button.media-home-sidebar-all{
 	border: 1px solid rgba(255, 196, 226, 0.2);
 	background: rgba(255, 235, 245, 0.03);
 	cursor: pointer;
+	transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.media-social-row:hover {
+	transform: translateX(4px);
+	border-color: var(--ml-accent-line);
+	background: rgba(255, 255, 255, 0.07);
 }
 
 .media-social-row-title {
@@ -1694,6 +1702,13 @@ button.media-home-sidebar-all{
 	background: linear-gradient(145deg, rgba(255, 222, 241, 0.08), rgba(255,255,255,0.02));
 	display: grid;
 	gap: 6px;
+	transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.media-social-list-card:hover {
+	transform: translateY(-3px);
+	border-color: var(--ml-accent-line);
+	box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
 }
 
 .media-social-list-head {
@@ -1753,6 +1768,13 @@ button.media-home-sidebar-all{
 	border-radius: 8px;
 	background: rgba(255, 255, 255, 0.03);
 	border: 1px solid rgba(255, 196, 226, 0.2);
+	transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.media-social-mini-card:hover {
+	transform: translateY(-3px);
+	border-color: var(--ml-accent-line);
+	background: rgba(255, 255, 255, 0.07);
 }
 
 .media-social-mini-poster {
@@ -1823,6 +1845,13 @@ button.media-home-sidebar-all{
 	background: rgba(255, 220, 240, 0.08);
 	color: var(--text-normal);
 	font-size: 0.82em;
+	transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.media-social-tag-chip:hover {
+	transform: translateY(-2px);
+	border-color: var(--ml-accent-line);
+	background: rgba(255, 220, 240, 0.14);
 }
 
 .media-social-tags-custom {
@@ -1961,12 +1990,19 @@ button.media-home-sidebar-all{
 	transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 	cursor: pointer;
 	aspect-ratio: 2 / 3;
+	transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .media-gallery-card:hover {
 	transform: translateY(-2px);
 	border-color: var(--background-modifier-border);
 	box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+}
+
+.media-gallery-card:focus-within {
+	transform: translateY(-2px);
+	border-color: var(--text-normal);
+	box-shadow: 0 0 0 1px var(--text-normal), 0 14px 28px rgba(0, 0, 0, 0.22);
 }
 
 .media-gallery-card.is-active {
@@ -2122,6 +2158,7 @@ button.media-home-sidebar-all{
 	box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
 	transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 	min-width: 0;
+	transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .media-dashboard-metric-card.is-clickable {
@@ -2132,6 +2169,12 @@ button.media-home-sidebar-all{
 	transform: translateY(-2px);
 	border-color: rgba(122, 195, 255, 0.35);
 	box-shadow: 0 12px 20px rgba(0,0,0,0.12);
+}
+
+.media-dashboard-metric-card:hover {
+	transform: translateY(-3px);
+	border-color: rgba(122, 195, 255, 0.3);
+	box-shadow: 0 12px 22px rgba(0, 0, 0, 0.14);
 }
 
 .media-dashboard-metric-label {
@@ -2181,6 +2224,13 @@ button.media-home-sidebar-all{
 	box-shadow: var(--ml-panel-shadow);
 	display: grid;
 	gap: 10px;
+	transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.media-dashboard-panel:hover {
+	transform: translateY(-2px);
+	border-color: rgba(122, 195, 255, 0.28);
+	box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
 }
 
 .media-dashboard-panel-header {
@@ -2353,6 +2403,11 @@ button.media-home-sidebar-all{
 
 .media-dashboard-pie-row:hover {
 	background: rgba(255,255,255,0.04);
+	transform: translateX(3px);
+}
+
+.media-dashboard-pie-row {
+	transition: background 140ms ease, transform 140ms ease;
 }
 
 .media-dashboard-pie-dot {
@@ -3412,6 +3467,12 @@ button.media-home-sidebar-all{
 	padding: 10px 0;
 	display: grid;
 	gap: 4px;
+	transition: transform 160ms ease, padding-left 160ms ease, background 160ms ease;
+}
+
+.media-activity-entry:hover {
+	padding-left: 6px;
+	background: rgba(255, 255, 255, 0.035);
 }
 
 .media-activity-entry + .media-activity-entry {
@@ -3544,10 +3605,13 @@ button.media-diary-col-sort {
   cursor: pointer;
   transition: background 120ms ease;
   border-bottom: 1px solid var(--background-modifier-border);
+	transition: background 160ms ease, transform 160ms ease, border-color 160ms ease;
 }
 
 .media-diary-row:hover {
   background: var(--background-modifier-hover);
+	transform: translateX(4px);
+	border-color: var(--ml-accent-line);
 }
 
 /* Date cell - month/year on top, day below */
