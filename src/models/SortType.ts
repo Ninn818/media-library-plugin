@@ -9,7 +9,7 @@
 // SortType.ts
 
 // Which field we sort by (recency = "latest" is handled by the sorter using your data, e.g. year)
-export type SortMode = "latest" | "title" | "creator" | "year" | "rating" | "random";
+export type SortMode = "latest" | "read" | "title" | "creator" | "year" | "rating" | "random";
 
 // Sort direction
 export type SortDirection = "asc" | "desc";

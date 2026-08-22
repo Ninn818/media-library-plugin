@@ -127,6 +127,8 @@ export class MediaLibrary {
 			return numCmp(a.year, b.year);
 			case "rating":
 			return numCmp(a.rating, b.rating);
+			case "read":
+			return dateCmp(a.date, b.date);
 			case "latest":
 			return dateCmp(a.addedDate, b.addedDate);
 			default:

@@ -181,6 +181,9 @@ export class LibraryView extends ItemView {
 			case "rating":
 				return { mode: "rating", direction: "desc" };
 			case "latest":
+				return { mode: "latest", direction: "desc" };
+			case "read":
+				return { mode: "read", direction: "desc" };
 			default:
 				return { mode: "latest", direction: "desc" };
 		}

@@ -74,8 +74,25 @@ export function renderLibraryCard(
 	if (item.year !== undefined) {
 		meta.createDiv({ text: String(item.year), cls: "media-card-year" });
 	}
+	if (item.date) {
+		meta.createDiv({ text: formatMediaDate(item.date), cls: "media-card-date" });
+	}
 
 	return card;
+}
+
+function formatMediaDate(value: string): string {
+	const date = new Date(`${value.slice(0, 10)}T00:00:00Z`);
+	if (Number.isNaN(date.getTime())) {
+		return value;
+	}
+
+	const day = date.getUTCDate();
+	const suffix = day % 100 >= 11 && day % 100 <= 13
+		? "th"
+		: ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[day % 10] ?? "th";
+	const month = date.toLocaleString("en-US", { month: "long", timeZone: "UTC" });
+	return `${month} ${day}${suffix}, ${date.getUTCFullYear()}`;
 }
 
 function createIconButton(container: HTMLElement, label: string, icon: string, onClick: () => void): void {

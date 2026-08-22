@@ -176,6 +176,7 @@ export class MediaLibrarySettingTab extends PluginSettingTab {
 			.addDropdown((dropdown: DropdownComponent) =>
 				dropdown
 					.addOption('latest', 'Newest added')
+					.addOption('read', 'Most recently read/watched')
 					.addOption('title', 'Title a–z')
 					.addOption('rating', 'Highest rating')
 					.addOption('year', 'Newest year')

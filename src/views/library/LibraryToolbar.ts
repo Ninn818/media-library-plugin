@@ -77,7 +77,7 @@ export function renderLibraryToolbar(
 
   const sortWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
   const sortSelect = sortWrap.createEl("select", { cls: "ml-toolbar-select" });
-  const SORT_MODES: SortMode[] = ["latest", "title", "creator", "year", "rating", "random"];
+  const SORT_MODES: SortMode[] = ["latest", "read", "title", "creator", "year", "rating", "random"];
   for (const mode of SORT_MODES) {
     const label = mode.charAt(0).toUpperCase() + mode.slice(1);
     sortSelect.createEl("option", { text: label, value: mode });
