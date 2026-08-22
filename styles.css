@@ -2818,23 +2818,19 @@ button.media-home-sidebar-all{
 .media-card-chip-row {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 6px;
+	gap: 4px 12px;
 }
 
 .media-card-chip {
 	display: inline-flex;
 	align-items: center;
-	justify-content: center;
-	white-space: nowrap;
-	min-width: 46px;
-	box-sizing: border-box;
-	line-height: 1;
-	padding: 4px 9px;
-	border-radius: 999px;
-	border: 1px solid rgba(255,255,255,0.12);
-	background: rgba(255,255,255,0.03);
-	font-size: 0.60em;
+	line-height: 1.25;
+	padding: 0;
+	border: none;
+	background: transparent;
+	font-size: 0.68em;
 	color: var(--text-muted);
+	white-space: normal;
 }
 
 .media-card-meta {
