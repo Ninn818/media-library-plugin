@@ -359,7 +359,7 @@ export class LibraryView extends ItemView {
 			setIcon(button, link.icon);
 			button.createSpan({ text: link.label });
 			button.addEventListener("click", () => {
-				window.open(link.uri, "_self");
+				window.open(link.uri, "_blank");
 			});
 		}
 	}
@@ -1555,9 +1555,7 @@ export class LibraryView extends ItemView {
 	private isCompleted(item: MediaItem): boolean {
 		if (!item.status) return false;
 		const s = item.status.toLowerCase().trim();
-		// Exclude "un-" prefixed statuses (unread, unwatched) before matching read/watched
-		if (s.includes("unread") || s.includes("unwatched")) return false;
-		return s.includes("read") || s.includes("watched");
+		return s === "read" || s === "watched";
 	}
 
 	private isCurrentlyReadingOrWatching(item: MediaItem): boolean {

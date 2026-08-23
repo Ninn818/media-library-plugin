@@ -102,9 +102,7 @@ export class VaultScanner {
 
 		// Add file dates
 		//
-		item.addedDate = this.toISODate(
-			new Date(file.stat.ctime)
-		);
+		item.addedDate = new Date(file.stat.mtime).toISOString();
 
 		if (!item.createdDate) {
 			item.createdDate = item.addedDate;
