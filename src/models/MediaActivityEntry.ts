@@ -4,6 +4,7 @@ export interface MediaActivityEntry {
 	date: string;
 	status: string | null;
 	rating: number | null;
+	progress?: number | null;
 	note?: string;
 	kind: MediaActivityKind;
 	recordedAt?: string;

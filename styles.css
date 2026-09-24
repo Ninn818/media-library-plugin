@@ -798,28 +798,6 @@
 	}
 }
 
-.media-library.is-home-page .media-home-hero {
-	animation: media-home-rise-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.media-library.is-home-page .media-home-hero-bg {
-	animation: media-home-fade-in 900ms ease both;
-	transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1), filter 900ms ease;
-}
-
-.media-library.is-home-page .media-home-hero:hover .media-home-hero-bg {
-	transform: scale(1.035);
-	filter: saturate(1.08);
-}
-
-.media-library.is-home-page .media-home-hero-content > * {
-	animation: media-home-rise-in 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.media-library.is-home-page .media-home-hero-content > :nth-child(2) {
-	animation-delay: 90ms;
-}
-
 .media-library.is-home-page .media-home-section {
 	animation: media-home-rise-in 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -835,81 +813,6 @@
 .media-library.is-home-page .media-home-section:hover .media-home-section-header {
 	padding-left: 4px;
 	border-color: var(--text-muted);
-}
-
-.media-home-hero {
-	position: relative;
-	min-height: var(--ml-home-hero-height, 230px);
-	border: 1px solid var(--background-modifier-border);
-	overflow: hidden;
-	background: var(--background-secondary);
-	isolation: isolate;
-	width: 100%;
-}
-
-.media-home-hero-bg {
-	position: absolute;
-	inset: 0;
-	background-size: cover;
-	background-position: center;
-	filter: none;
-	transform: none;
-	z-index: 1;
-}
-
-.media-home-hero-bg-blur {
-	position: absolute;
-	left: -18px;
-	right: -18px;
-	bottom: -24px;
-	height: 42%;
-	background-size: cover;
-	background-position: center;
-	filter: blur(var(--ml-home-hero-blur, 14px));
-	transform: scale(1.06);
-	opacity: 0.95;
-	mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.98), rgba(0, 0, 0, 0));
-	-webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.98), rgba(0, 0, 0, 0));
-	z-index: 2;
-}
-
-.media-home-hero-fade {
-	position: absolute;
-	inset: 0;
-	background: linear-gradient(180deg, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.52));
-	z-index: 3;
-}
-
-.media-home-hero.is-no-image {
-	background: var(--background-secondary-alt);
-}
-
-.media-home-hero-content {
-	position: relative;
-	z-index: 4;
-	display: grid;
-	gap: 8px;
-	padding: 18px;
-	min-height: var(--ml-home-hero-height, 230px);
-	align-content: end;
-}
-
-/* Home simplification: remove pill-like chrome */
-
-
-.media-home-hero-title {
-	margin: 0;
-	font-size: clamp(1.35rem, 2.8vw, 2rem);
-	line-height: 1.1;
-	letter-spacing: -0.02em;
-}
-
-.media-home-hero-subtitle {
-	margin: 0;
-	font-size: 0.95em;
-	line-height: 1.5;
-	max-width: 58ch;
-	opacity: 0.95;
 }
 
 .media-home-section {
@@ -1029,6 +932,15 @@
 	font-size: inherit;
 	line-height: 1;
 	white-space: nowrap;
+}
+
+.media-activity-type-icon.is-media-icon {
+	color: inherit;
+}
+
+.media-activity-type-icon.is-media-icon svg {
+	width: 1em;
+	height: 1em;
 }
 
 .media-library.is-home-page .media-activity-type-icon {
@@ -1976,9 +1888,13 @@ button.media-home-sidebar-all{
 /* Gallery cards */
 .media-gallery-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(127px, 1fr));
+	grid-template-columns: repeat(8, minmax(0, 1fr));
 	gap: 10px;
 	align-items: start;
+	justify-content: start;
+	/* constrain the gallery area to match card view width and center it */
+	max-width: 1200px;
+	margin: 0 auto;
 }
 
 .media-gallery-card {
@@ -1989,7 +1905,10 @@ button.media-home-sidebar-all{
 	background: rgba(255,255,255,0.02);
 	transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 	cursor: pointer;
+	/* keep a consistent poster aspect and prevent it growing too large */
 	aspect-ratio: 2 / 3;
+	max-width: 220px;
+	width: 100%;
 	transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms ease, box-shadow 180ms ease;
 }
 
@@ -2340,6 +2259,15 @@ button.media-home-sidebar-all{
 	grid-template-columns: minmax(84px, 110px) minmax(0, 1fr) 28px;
 	gap: 10px;
 	align-items: center;
+}
+
+.media-dashboard-bar-row.is-clickable,
+.media-dashboard-spotlight.is-clickable {
+	cursor: pointer;
+}
+
+.media-dashboard-bar-row.is-clickable:hover {
+	background: rgba(255,255,255,0.04);
 }
 
 .media-dashboard-bar-label,

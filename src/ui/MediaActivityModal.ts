@@ -93,6 +93,14 @@ export class MediaActivityModal extends Modal {
 			["", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
 			this.item.rating != null ? String(this.item.rating) : ""
 		);
+		const latestEntry = [...(this.item.activityEntries ?? [])].sort((left, right) =>
+			(right.recordedAt ?? right.date).localeCompare(left.recordedAt ?? left.date),
+		)[0];
+		const progressInput = createLabeledInput(grid, "Progress (%)", "number", latestEntry?.progress != null ? String(latestEntry.progress) : "");
+		progressInput.min = "0";
+		progressInput.max = "100";
+		progressInput.step = "1";
+		progressInput.placeholder = "0-100";
 
 		const noteField = section.createDiv({ cls: "media-activity-note-field" });
 		noteField.createEl("label", { text: "Note" });
@@ -101,6 +109,21 @@ export class MediaActivityModal extends Modal {
 
 		const actions = section.createDiv({ cls: "media-activity-form-actions" });
 		const saveButton = actions.createEl("button", { text: "Save activity", cls: "mod-cta" });
+		const makeFileButton = actions.createEl("button", { text: "Make file" });
+		makeFileButton.addEventListener("click", () => {
+			const note = noteInput.value.trim();
+			const date = dateInput.value;
+			if (!note) {
+				new Notice("Write a note before making a file.");
+				return;
+			}
+			if (!date) {
+				new Notice("Choose a date before making a file.");
+				return;
+			}
+
+			void this.createReviewFile(note, date, makeFileButton);
+		});
 		actions.createEl("button", { text: "Open note" }).addEventListener("click", () => {
 			void this.app.workspace.openLinkText(this.item.path, "", false);
 		});
@@ -115,10 +138,12 @@ export class MediaActivityModal extends Modal {
 			saveButton.disabled = true;
 			try {
 				const rating = ratingSelect.value ? Number(ratingSelect.value) : null;
+				const progress = parseProgress(progressInput.value);
 				await this.activityLogService.appendEntry(file, this.item, {
 					date,
 					status: statusSelect.value || getCompletedStatus(this.item),
 					rating: Number.isFinite(rating) ? rating : null,
+					progress,
 					note: noteInput.value,
 					kind: isReadingItem(this.item) ? "read" : "watch",
 				});
@@ -130,6 +155,26 @@ export class MediaActivityModal extends Modal {
 				saveButton.disabled = false;
 			}
 		});
+	}
+
+	private async createReviewFile(note: string, date: string, button: HTMLButtonElement): Promise<void> {
+		button.disabled = true;
+		try {
+			const baseName = `Review for ${this.item.title} - ${date}`
+				.replace(/[\\/:*?"<>|]/g, "-")
+				.trim();
+			let path = `${baseName}.md`;
+			let suffix = 2;
+			while (this.app.vault.getAbstractFileByPath(path)) {
+				path = `${baseName} (${suffix}).md`;
+				suffix += 1;
+			}
+
+			await this.app.vault.create(path, `# Review for ${this.item.title}\n\n${note}\n`);
+			new Notice(`Created ${path}.`);
+		} finally {
+			button.disabled = false;
+		}
 	}
 
 	private renderTagManager(container: HTMLElement): void {
@@ -209,6 +254,9 @@ export class MediaActivityModal extends Modal {
 				text: [entry.kind === "read" ? "Read" : "Watched", entry.status ?? null].filter(Boolean).join(" • "),
 				cls: "media-activity-entry-meta",
 			});
+			if (entry.progress != null) {
+				viewMode.createDiv({ text: `${entry.progress}% into`, cls: "media-activity-entry-progress" });
+			}
 			if (entry.rating != null) {
 				viewMode.createDiv({ text: `Rating ${entry.rating}/10`, cls: "media-activity-entry-rating" });
 			}
@@ -256,6 +304,11 @@ export class MediaActivityModal extends Modal {
 			["", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
 			entry.rating != null ? String(entry.rating) : ""
 		);
+		const progressInput = createLabeledInput(grid, "Progress (%)", "number", entry.progress != null ? String(entry.progress) : "");
+		progressInput.min = "0";
+		progressInput.max = "100";
+		progressInput.step = "1";
+		progressInput.placeholder = "0-100";
 
 		const noteField = editMode.createDiv({ cls: "media-activity-note-field" });
 		noteField.createEl("label", { text: "Note" });
@@ -273,11 +326,13 @@ export class MediaActivityModal extends Modal {
 			saveBtn.disabled = true;
 			try {
 				const rating = ratingSelect.value ? Number(ratingSelect.value) : null;
+				const progress = parseProgress(progressInput.value);
 				const updatedEntry: MediaActivityEntry = {
 					date: dateInput.value,
 					recordedAt: new Date().toISOString(),
 					status: statusSelect.value || getCompletedStatus(this.item),
 					rating: Number.isFinite(rating) ? rating : null,
+					progress,
 					note: noteInput.value,
 					kind: entry.kind,
 				};
@@ -318,8 +373,16 @@ export class MediaActivityModal extends Modal {
 		this.item.date = date;
 		this.item.status = status && isMediaStatus(status) ? status : this.item.status;
 		this.item.rating = rating;
+		const latestEntry = [...(this.item.activityEntries ?? [])].sort((left, right) =>
+			(right.recordedAt ?? right.date).localeCompare(left.recordedAt ?? left.date),
+		)[0];
+		if (this.item.raw && latestEntry?.progress != null) {
+			this.item.raw.progress = latestEntry.progress;
+		}
 	}
 }
+
+//give me a button that will generate a mla 9 format citation of the file currently being viewed
 
 function createLabeledInput(container: HTMLElement, label: string, type: string, value: string): HTMLInputElement {
 	const field = container.createDiv({ cls: "media-activity-field" });
@@ -352,6 +415,15 @@ function isReadingItem(item: MediaItem): boolean {
 
 function getCompletedStatus(item: MediaItem): string {
 	return isReadingItem(item) ? "read" : "watched";
+}
+
+function parseProgress(value: string): number | null {
+	if (!value.trim()) {
+		return null;
+	}
+
+	const progress = Number(value);
+	return Number.isFinite(progress) ? Math.max(0, Math.min(100, Math.round(progress))) : null;
 }
 
 function capitalize(value: string): string {

@@ -9,6 +9,7 @@ export type DashboardMediaFilter = 'all' | 'text' | 'screen';
 export type DashboardConsumptionFilter = 'all' | 'consumed' | 'unconsumed';
 export type SocialHubTab = 'media' | 'activity' | 'lists' | 'favorites' | 'tags';
 export type TagStorageFormat = 'wikilink' | 'hashtag';
+export type RatingDisplayScale = 5 | 10;
 
 export interface MediaLibraryCustomList {
 	id: string;
@@ -32,17 +33,9 @@ export interface MediaLibrarySettings {
 	defaultSort: SortType;        
 	defaultPageTab: LibraryPageTab;
 	defaultSocialTab: SocialHubTab;
-	homeHeroEnabled: boolean;
-	homeHeroTitle: string;
-	homeHeroSubtitle: string;
-	homeHeroFont: "default" | "serif" | "sans" | "mono" | "custom";
-	homeHeroCustomFontFamily: string;
-	homeHeroTextColor: string;
-	homeHeroImage: string;
-	homeHeroBlur: number;
-	homeHeroHeight: number;
 	homeUpNextMode: "up-next" | "currently";
 	tagStorageFormat: TagStorageFormat;
+	ratingDisplayScale: RatingDisplayScale;
 	showCounts: boolean;
 	showReviewSection: boolean;
 	enableUiAnimations: boolean;
@@ -64,17 +57,9 @@ export const DEFAULT_SETTINGS: MediaLibrarySettings = {
 	defaultSort: { mode: 'latest', direction: 'asc' },
 	defaultPageTab: 'home',
 	defaultSocialTab: 'media',
-	homeHeroEnabled: true,
-	homeHeroTitle: 'My media world',
-	homeHeroSubtitle: 'Track what you love and what is up next.',
-	homeHeroFont: 'default',
-	homeHeroCustomFontFamily: '',
-	homeHeroTextColor: '#ffffff',
-	homeHeroImage: '',
-	homeHeroBlur: 14,
-	homeHeroHeight: 230,
 	homeUpNextMode: "up-next",
 	tagStorageFormat: 'hashtag',
+	ratingDisplayScale: 10,
 	showCounts: true,
 	showReviewSection: false,
 	enableUiAnimations: true,
@@ -209,130 +194,6 @@ export class MediaLibrarySettingTab extends PluginSettingTab {
 					}),
 			);
 
-			new Setting(containerEl).setName('Home hero').setHeading();
-
-			new Setting(containerEl)
-				.setName('Enable home hero')
-				.setDesc('Show a custom hero banner at the top of Home.')
-				.addToggle((toggle: ToggleComponent) =>
-					toggle
-						.setValue(this.plugin.settings.homeHeroEnabled)
-						.onChange(async (value: boolean) => {
-							this.plugin.settings.homeHeroEnabled = value;
-							await this.plugin.saveSettings();
-						}),
-				);
-
-			new Setting(containerEl)
-				.setName('Hero title')
-				.setDesc('Main text shown over the hero image.')
-				.addText((text) =>
-					text
-						.setPlaceholder('My media world')
-						.setValue(this.plugin.settings.homeHeroTitle)
-						.onChange(async (value: string) => {
-							this.plugin.settings.homeHeroTitle = value;
-							await this.plugin.saveSettings();
-						}),
-				);
-
-			new Setting(containerEl)
-				.setName('Hero subtitle')
-				.setDesc('Secondary text shown under the title.')
-				.addText((text) =>
-					text
-						.setPlaceholder('Track what you love and what is up next.')
-						.setValue(this.plugin.settings.homeHeroSubtitle)
-						.onChange(async (value: string) => {
-							this.plugin.settings.homeHeroSubtitle = value;
-							await this.plugin.saveSettings();
-						}),
-				);
-
-			new Setting(containerEl)
-				.setName('Hero font')
-				.setDesc('Choose a font style for hero text.')
-				.addDropdown((dropdown: DropdownComponent) =>
-					dropdown
-						.addOption('default', 'Theme default')
-						.addOption('serif', 'Serif')
-						.addOption('sans', 'Sans serif')
-						.addOption('mono', 'Monospace')
-						.addOption('custom', 'Custom font family')
-						.setValue(this.plugin.settings.homeHeroFont)
-						.onChange(async (value: string) => {
-							this.plugin.settings.homeHeroFont = value as MediaLibrarySettings['homeHeroFont'];
-							await this.plugin.saveSettings();
-						}),
-				);
-
-			new Setting(containerEl)
-				.setName('Hero custom font family')
-				.setDesc('Used when Hero font is set to Custom font family.')
-				.addText((text) =>
-					text
-						.setPlaceholder('Playfair Display, Georgia, serif')
-						.setValue(this.plugin.settings.homeHeroCustomFontFamily)
-						.onChange(async (value: string) => {
-							this.plugin.settings.homeHeroCustomFontFamily = value.trim();
-							await this.plugin.saveSettings();
-						}),
-				);
-
-			new Setting(containerEl)
-				.setName('Hero text color')
-				.setDesc('Use a hex color like #ffffff for hero text.')
-				.addText((text) =>
-					text
-						.setPlaceholder('#ffffff')
-						.setValue(this.plugin.settings.homeHeroTextColor)
-						.onChange(async (value: string) => {
-							this.plugin.settings.homeHeroTextColor = value.trim() || '#ffffff';
-							await this.plugin.saveSettings();
-						}),
-				);
-
-			new Setting(containerEl)
-				.setName('Hero image')
-				.setDesc('Paste a URL or vault image path.')
-				.addText((text) =>
-					text
-						.setPlaceholder('https://example.com/image.jpg or Folder/image.png')
-						.setValue(this.plugin.settings.homeHeroImage)
-						.onChange(async (value: string) => {
-							this.plugin.settings.homeHeroImage = value;
-							await this.plugin.saveSettings();
-						}),
-				);
-
-			new Setting(containerEl)
-				.setName('Hero blur')
-				.setDesc('Blur amount in pixels. Suggested 8 to 24.')
-				.addText((text) =>
-					text
-						.setPlaceholder('14')
-						.setValue(String(this.plugin.settings.homeHeroBlur))
-						.onChange(async (value: string) => {
-							const parsed = Number.parseInt(value, 10);
-							this.plugin.settings.homeHeroBlur = Number.isFinite(parsed) ? Math.max(0, parsed) : 14;
-							await this.plugin.saveSettings();
-						}),
-				);
-
-			new Setting(containerEl)
-				.setName('Hero height')
-				.setDesc('Height in pixels. Suggested 180 to 320.')
-				.addText((text) =>
-					text
-						.setPlaceholder('230')
-						.setValue(String(this.plugin.settings.homeHeroHeight))
-						.onChange(async (value: string) => {
-							const parsed = Number.parseInt(value, 10);
-							this.plugin.settings.homeHeroHeight = Number.isFinite(parsed) ? Math.max(120, parsed) : 230;
-							await this.plugin.saveSettings();
-						}),
-				);
-
 		new Setting(containerEl)
 			.setName('Show review section')
 			.setDesc('Add a “my review” section to the spotlight view so you can write and save reviews into the note.')
@@ -356,6 +217,22 @@ export class MediaLibrarySettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
+
+				new Setting(containerEl).setName('Ratings').setHeading();
+
+				new Setting(containerEl)
+					.setName('Rating display scale')
+					.setDesc('Choose whether visible stars use a 5-star or 10-star scale. Stored ratings remain out of 10.')
+					.addDropdown((dropdown: DropdownComponent) =>
+						dropdown
+							.addOption('10', '10 stars')
+							.addOption('5', '5 stars')
+							.setValue(String(this.plugin.settings.ratingDisplayScale))
+							.onChange(async (value: string) => {
+								this.plugin.settings.ratingDisplayScale = value === '5' ? 5 : 10;
+								await this.plugin.saveSettings();
+							}),
+					);
 
 		new Setting(containerEl).setName('Dashboard').setHeading();
 

@@ -74,7 +74,7 @@ export function renderLibraryCard(
 	if (item.year !== undefined) {
 		meta.createDiv({ text: String(item.year), cls: "media-card-year" });
 	}
-	if (item.date) {
+	if (item.date && (item.status === "read" || item.status === "watched")) {
 		meta.createDiv({ text: formatMediaDate(item.date), cls: "media-card-date" });
 	}
 

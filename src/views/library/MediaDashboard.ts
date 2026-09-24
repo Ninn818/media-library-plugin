@@ -9,7 +9,7 @@ import {
 	MediaDashboardGoals,
 	MediaLibrarySettings,
 } from "../../settings";
-type DashboardDatum = [string, number];
+type DashboardDatum = [string, number, (() => void)?];
 type DashboardChartMode = "bar" | "pie" | "spotlight";
 
 interface DashboardMetric {
@@ -41,6 +41,7 @@ export interface MediaDashboardState {
 
 export interface MediaDashboardCallbacks {
 	onOpenItem(item: MediaItem): void;
+	onCreatorClick(creator: string, mediaType?: MediaType): void;
 	onConsumptionChange(filter: DashboardConsumptionFilter): void;
 	onScopeChange(scope: DashboardScopeMode): void;
 	onFilterChange(filter: DashboardMediaFilter): void;
@@ -85,7 +86,7 @@ export function renderMediaDashboard(
 	hosts.sidebarHost.empty();
 
 	renderHero(hosts.heroHost, activeItems, state, callbacks);
-	renderContent(hosts.contentHost, activeItems, state);
+	renderContent(hosts.contentHost, activeItems, state, callbacks);
 	renderSidebar(hosts.sidebarHost, state, activeItems, callbacks);
 	// renderStatus(hosts.statusHost, state.items, activeItems, state.scope, state.consumption);
 }
@@ -119,7 +120,8 @@ function renderHero(
 function renderContent(
 	container: HTMLElement,
 	activeItems: MediaItem[],
-	state: MediaDashboardState
+	state: MediaDashboardState,
+	callbacks: MediaDashboardCallbacks
 ): void {
 	if (!activeItems.length) {
 		const empty = container.createDiv({ cls: "media-library-empty media-dashboard-empty" });
@@ -131,7 +133,7 @@ function renderContent(
 	}
 
 	const grid = container.createDiv({ cls: "media-dashboard-chart-grid" });
-	for (const config of getChartConfigs(activeItems, state.settings)) {
+	for (const config of getChartConfigs(activeItems, state.settings, callbacks)) {
 		renderDashboardChart(grid, config.title, config.description, config.data);
 	}
 }
@@ -393,6 +395,11 @@ function renderBarChart(container: HTMLElement, data: DashboardDatum[]): void {
 	for (const [index, [label, value]] of data.entries()) {
 		const row = list.createDiv({ cls: "media-dashboard-bar-row" });
 		row.createDiv({ text: label, cls: "media-dashboard-bar-label" });
+		const onClick = data[index]?.[2];
+		if (onClick) {
+			row.addClass("is-clickable");
+			row.addEventListener("click", onClick);
+		}
 
 		const track = row.createDiv({ cls: "media-dashboard-bar-track" });
 		const fill = track.createDiv({ cls: "media-dashboard-bar-fill" });
@@ -454,6 +461,11 @@ function renderPieChart(container: HTMLElement, data: DashboardDatum[]): void {
 		dot.style.background = part.color;
 		row.createDiv({ text: part.label, cls: "media-dashboard-pie-label" });
 		row.createDiv({ text: String(part.value), cls: "media-dashboard-pie-value" });
+		const onClick = data.find(([label]) => label === part.label)?.[2];
+		if (onClick) {
+			row.addClass("is-clickable");
+			row.addEventListener("click", onClick);
+		}
 		row.addEventListener("mouseenter", () => renderPie(part.label));
 		row.addEventListener("mouseleave", () => renderPie());
 	}
@@ -466,10 +478,14 @@ function renderSpotlightChart(container: HTMLElement, data: DashboardDatum[]): v
 		return;
 	}
 
-	const [label, value] = primary;
+	const [label, value, onClick] = primary;
 	const total = data.reduce((sum, [, amount]) => sum + amount, 0);
 
 	const wrap = container.createDiv({ cls: "media-dashboard-spotlight" });
+	if (onClick) {
+		wrap.addClass("is-clickable");
+		wrap.addEventListener("click", onClick);
+	}
 	const valueEl = wrap.createDiv({ text: String(value), cls: "media-dashboard-spotlight-value" });
 	valueEl.setAttr("aria-hidden", "true");
 	wrap.createDiv({ text: label, cls: "media-dashboard-spotlight-label" });
@@ -616,7 +632,17 @@ function getHeroMetrics(
 	];
 }
 
-function getChartConfigs(items: MediaItem[], settings: MediaLibrarySettings): Array<{ title: string; description: string; data: DashboardDatum[] }> {
+function getChartConfigs(
+	items: MediaItem[],
+	settings: MediaLibrarySettings,
+	callbacks: MediaDashboardCallbacks
+): Array<{ title: string; description: string; data: DashboardDatum[] }> {
+	const creatorData = (mediaItems: MediaItem[], mediaType?: MediaType): DashboardDatum[] =>
+		countBy(
+			mediaItems.flatMap((item) => getCreatorNames(item)),
+			(creator) => creator
+		).map(([creator, count]) => [creator, count, () => callbacks.onCreatorClick(creator, mediaType)]);
+
 	const configs = [
 		{
 			title: "Media breakdown",
@@ -636,17 +662,17 @@ function getChartConfigs(items: MediaItem[], settings: MediaLibrarySettings): Ar
 		{
 			title: "Top Authors",
 			description: "Authors of books.",
-			data: countBy(items.map((item) => item.creator), (creator) => creator),
+			data: creatorData(items.filter((item) => item.mediaType === "book"), "book"),
 		},
 		{
 			title: "Top Essayists",
 			description: "Essayists that repeat most often.",
-			data: countBy(items.filter((item) => item.mediaType === "essay").map((item) => item.creator), (creator) => creator),
+			data: creatorData(items.filter((item) => item.mediaType === "essay"), "essay"),
 		},
 		{
 			title: "Top Directors",
-			description: "Directors of movies.",
-			data: countBy(items.filter((item) => item.mediaType === "movie").map((item) => item.creator), (creator) => creator),
+			description: "Directors of movies and series.",
+			data: creatorData(items.filter((item) => item.mediaType === "movie" || item.mediaType === "series")),
 		},
 	];
 
@@ -760,12 +786,23 @@ function getAverageRating(items: MediaItem[]): number | null {
 }
 
 function isConsumed(item: MediaItem): boolean {
+	if (isInProgress(item.status)) {
+		return false;
+	}
+
 	if (item.date) {
 		return true;
 	}
 
 	const status = item.status?.toLowerCase() ?? "";
 	return status === "read" || status === "watched" || status === "finished" || status === "completed";
+}
+
+function getCreatorNames(item: MediaItem): string[] {
+	return item.creator
+		.split(",")
+		.map((creator) => creator.trim())
+		.filter(Boolean);
 }
 
 function isQueued(status: string | null | undefined): boolean {

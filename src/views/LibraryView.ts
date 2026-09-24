@@ -697,11 +697,10 @@ export class LibraryView extends ItemView {
 			const yearCell = row.createDiv({ cls: "media-diary-year" });
 			yearCell.createSpan({ text: item.year ? String(item.year) : "—" });
 
-			// Rating stars (0–10, smaller)
+			// Rating stars use the configured display scale while ratings remain out of 10.
 			const ratingCell = row.createDiv({ cls: "media-diary-rating" });
 			if (item.rating != null) {
-				const outOfTen = Math.round(item.rating);
-				const stars = "★".repeat(Math.max(0, Math.min(outOfTen, 10)));
+				const stars = this.getRatingStars(item.rating);
 				ratingCell.createSpan({
 					cls: "media-diary-rating-stars",
 					text: stars,
@@ -791,9 +790,15 @@ export class LibraryView extends ItemView {
 				const iconBar = card.createDiv({ cls: "media-activity-type-icons" });
 				for (const activity of recentItems[index]?.activities ?? []) {
 					const iconSpan = iconBar.createSpan({ cls: `media-activity-type-icon is-${activity}` });
-					iconSpan.textContent = activity === "rated"
-						? this.getHomeRatingStars(item.rating)
-						: this.getHomeActivityIcon(activity);
+					const mediaIcon = this.getHomeActivityIcon(activity, item);
+					if (mediaIcon) {
+						iconSpan.addClass("is-media-icon");
+						setIcon(iconSpan, mediaIcon);
+					} else {
+						iconSpan.textContent = activity === "rated"
+							? this.getHomeRatingStars(item.rating)
+							: this.getHomeActivitySymbol(activity);
+					}
 					iconSpan.title = this.getHomeActivityLabel(activity);
 				}
 			}
@@ -973,9 +978,9 @@ export class LibraryView extends ItemView {
 		for (const entry of item.activityEntries ?? []) {
 			const status = (entry.status ?? "").toLowerCase().trim();
 			const action = status === "reading"
-				? "You're currently reading "
+				? entry.progress != null ? `You're ${entry.progress}% into ` : "You're currently reading "
 				: status === "watching"
-					? "You're currently watching "
+					? entry.progress != null ? `You're ${entry.progress}% into ` : "You're currently watching "
 					: `You ${getCompletionLabel(item, false)} `;
 			const date = entry.recordedAt ?? entry.date;
 			events.push({ item, prefix: action, suffix: entry.note ? " (note added)" : "", when: formatCompactRelative(date), date });
@@ -1089,13 +1094,38 @@ export class LibraryView extends ItemView {
 			.pop() ?? "";
 	}
 
-	private getHomeActivityIcon(activity: HomeActivityKind): string {
-		return { added: "+", favorited: "♥", rated: "★", note: "✎", read: "📖", watched: "🎬", reading: "◔", watching: "◔" }[activity];
+	private getHomeActivityIcon(activity: HomeActivityKind, item: MediaItem): string | null {
+		if (activity !== "read" && activity !== "watched" && activity !== "reading" && activity !== "watching") {
+			return null;
+		}
+
+		if (item.mediaType === "movie") {
+			return "film";
+		}
+
+		if (item.mediaType === "series") {
+			return "tv";
+		}
+
+		return "book-open";
+	}
+
+	private getHomeActivitySymbol(activity: HomeActivityKind): string {
+		return { added: "+", favorited: "♥", rated: "★", note: "✎", read: "", watched: "", reading: "", watching: "" }[activity];
 	}
 
 	private getHomeRatingStars(rating: number | null | undefined): string {
-		const stars = Math.max(1, Math.min(10, Math.round(rating ?? 0)));
-		return "★".repeat(stars);
+		return this.getRatingStars(rating);
+	}
+
+	private getRatingStars(rating: number | null | undefined): string {
+		if (rating == null || !Number.isFinite(rating)) {
+			return "";
+		}
+
+		const scale = this.settings.ratingDisplayScale ?? 10;
+		const stars = scale === 5 ? Math.round(rating / 2) : Math.round(rating);
+		return "★".repeat(Math.max(0, Math.min(scale, stars)));
 	}
 
 	private getHomeActivityLabel(activity: HomeActivityKind): string {
@@ -1108,13 +1138,14 @@ export class LibraryView extends ItemView {
 			return upNext.itemPaths
 				.map((path) => allItemsByPath.get(path))
 				.filter((item): item is MediaItem => Boolean(item))
-				.slice(0, 4);
+				.slice(0, 5);
 		}
 
 		return this.library
 			.getAll()
 			.filter((item) => item.status === null)
-			.slice(0, 4);
+			.sort(() => Math.random() - 0.5)
+			.slice(0, 5);
 	}
 
 	// Media gallery/cards/dashboard renderers
@@ -1218,6 +1249,18 @@ export class LibraryView extends ItemView {
 				this.selectedItem = item;
 				this.featuredPath = item.path;
 				void this.app.workspace.openLinkText(item.path, "", false);
+			},
+			onCreatorClick: (creator, mediaType) => {
+				this.currentPageTab = "media";
+				this.searchQuery = creator;
+				this.currentFilter = mediaType ?? "all";
+				this.currentStatus = this.dashboardConsumption === "consumed"
+					? "completed"
+					: this.dashboardConsumption === "unconsumed" ? "uncompleted" : "all";
+				this.resetVisibleItemCount();
+				this.renderToolbarArea();
+				this.renderHeaderArea();
+				this.renderActivePage();
 			},
 			onConsumptionChange: (filter) => {
 				this.dashboardConsumption = filter;
@@ -1678,27 +1721,4 @@ function getDayOfMonth(dateValue: string | undefined): string {
 	}
 
 	return String(parsed.getDate()).padStart(2, "0");
-}
-
-function getHomeHeroFontFamily(
-	font: MediaLibrarySettings["homeHeroFont"],
-	customFontFamily: string
-): string {
-	if (font === "custom") {
-		return customFontFamily.trim() || "var(--font-interface), var(--font-text), sans-serif";
-	}
-
-	if (font === "serif") {
-		return "var(--font-text), Georgia, serif";
-	}
-
-	if (font === "sans") {
-		return "Inter, var(--font-interface), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-	}
-
-	if (font === "mono") {
-		return "var(--font-monospace), 'SFMono-Regular', Consolas, monospace";
-	}
-
-	return "var(--font-interface), var(--font-text), sans-serif";
 }

@@ -60,7 +60,6 @@ Accessible in Settings → Plugin settings. Some notable settings:
 Default page tab (home, media, diary, activity, etc.)
 Default sort mode and direction
 Dashboard preferences (consumption, scope, filter)
-Home hero appearance (image, title, subtitle, size)
 Tag storage format
 UI animation toggle and modal sizing preferences
 Contributing

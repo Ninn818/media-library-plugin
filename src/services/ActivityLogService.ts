@@ -23,6 +23,7 @@ export class ActivityLogService {
 		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 			frontmatter.status = entry.status ?? getCompletedStatus(item);
 			frontmatter.personalRating = entry.rating ?? undefined;
+			frontmatter.progress = entry.progress ?? undefined;
 			const historyField = isReadingItem(item) ? "readHistory" : "watchHistory";
 
 			if (isReadingItem(item)) {
@@ -64,6 +65,7 @@ export class ActivityLogService {
 		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 			frontmatter.status = latestEntry?.status ?? undefined;
 			frontmatter.personalRating = latestEntry?.rating ?? undefined;
+			frontmatter.progress = latestEntry?.progress ?? undefined;
 
 			const historyField = isReadingItem(item) ? "readHistory" : "watchHistory";
 			frontmatter[historyField] = entries.map((entry) => entry.date);
@@ -116,6 +118,7 @@ export function getFallbackActivityEntries(item: MediaItem): MediaActivityEntry[
 			date: lastWatched,
 			status: item.status,
 			rating: item.rating ?? null,
+			progress: getRawProgress(raw),
 			note: undefined,
 			kind: isReadingItem(item) ? "read" : "watch",
 		}, item));
@@ -130,6 +133,7 @@ export function getFallbackActivityEntries(item: MediaItem): MediaActivityEntry[
 			date,
 			status: item.status,
 			rating: item.rating ?? null,
+			progress: getRawProgress(raw),
 			note: undefined,
 			kind: isReadingItem(item) ? "read" : "watch",
 		}, item));
@@ -141,6 +145,7 @@ export function getFallbackActivityEntries(item: MediaItem): MediaActivityEntry[
 			date: item.date,
 			status: item.status,
 			rating: item.rating ?? null,
+			progress: getRawProgress(raw),
 			note: item.review,
 			kind: isReadingItem(item) ? "read" : "watch",
 		}, item));
@@ -172,12 +177,15 @@ function parseActivityLine(line: string, item: MediaItem): MediaActivityEntry | 
 
 	const ratingValue = values.get("rating");
 	const rating = ratingValue ? Number(ratingValue) : null;
+	const progressValue = values.get("progress");
+	const progress = progressValue ? Number(progressValue) : null;
 	const recordedAt = values.get("recorded") ?? date;
 	return normalizeEntry({
 		date,
 		recordedAt,
 		status: values.get("status") ?? null,
 		rating: Number.isFinite(rating) ? rating : null,
+		progress: typeof progress === "number" && Number.isFinite(progress) ? clampProgress(progress) : null,
 		note: values.get("note") ?? undefined,
 		kind: values.get("kind") === "watch" ? "watch" : isReadingItem(item) ? "read" : "watch",
 	}, item);
@@ -216,6 +224,9 @@ function serializeActivityCallout(entries: MediaActivityEntry[]): string {
 		if (entry.rating != null) {
 			parts.push(`rating: ${entry.rating}`);
 		}
+		if (entry.progress != null) {
+			parts.push(`progress: ${entry.progress}`);
+		}
 		if (entry.note?.trim()) {
 			parts.push(`note: ${sanitizeInlineValue(entry.note)}`);
 		}
@@ -231,6 +242,7 @@ function normalizeEntry(entry: MediaActivityEntry, item: MediaItem): MediaActivi
 		recordedAt: entry.recordedAt ?? entry.date,
 		status: entry.status ?? getCompletedStatus(item),
 		rating: entry.rating ?? null,
+		progress: entry.progress == null ? null : clampProgress(entry.progress),
 		note: entry.note?.trim() ? entry.note.trim() : undefined,
 		kind: entry.kind ?? (isReadingItem(item) ? "read" : "watch"),
 	};
@@ -246,4 +258,13 @@ function isReadingItem(item: MediaItem): boolean {
 
 function getCompletedStatus(item: MediaItem): string {
 	return isReadingItem(item) ? "read" : "watched";
+}
+
+function getRawProgress(raw: Record<string, unknown>): number | null {
+	const progress = typeof raw.progress === "number" ? raw.progress : Number(raw.progress);
+	return Number.isFinite(progress) ? clampProgress(progress) : null;
+}
+
+function clampProgress(progress: number): number {
+	return Math.max(0, Math.min(100, Math.round(progress)));
 }
