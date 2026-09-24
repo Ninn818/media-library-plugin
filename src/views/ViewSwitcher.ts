@@ -64,6 +64,10 @@ export class ViewSwitcher {
 
 			const button = wrapper.createEl("button", {
 				cls: "media-view-switcher-button",
+				attr: {
+					title: view.name,
+					"aria-label": view.name,
+				},
 			});
 
 

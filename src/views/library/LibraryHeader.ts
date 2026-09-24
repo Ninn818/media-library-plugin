@@ -63,12 +63,14 @@ export function renderLibraryStatBar(container: HTMLElement, library: MediaLibra
 	renderStatBarCount(countsRow, "Essays", counts.essays);
 
 	const average = bar.createDiv({ cls: "media-library-stat-bar-average" });
-	average.createSpan({ cls: "media-library-stat-bar-average-icon", text: "★" });
-	average.createSpan({ text: `Average ${avgRating ?? "—"}/10` });
+	average.createSpan({ cls: "media-library-stat-bar-average-value", text: String(avgRating ?? "—") });
+	average.createSpan({ cls: "media-library-stat-bar-average-label", text: "average" });
 }
 
 function renderStatBarCount(container: HTMLElement, label: string, value: number): void {
-	container.createDiv({ cls: "media-library-stat-bar-count", text: `${label}: ${value}` });
+	const count = container.createDiv({ cls: "media-library-stat-bar-count" });
+	count.createSpan({ cls: "media-library-stat-bar-count-label", text: label });
+	count.createSpan({ cls: "media-library-stat-bar-count-value", text: String(value) });
 }
 
 function getAverageRating(library: MediaLibrary): number | null {

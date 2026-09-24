@@ -4,7 +4,7 @@ import type { SortMode, SortType } from "./models/SortType"; // add near top wit
 
 export type LibrarySortMode = SortMode; // "latest" | "title" | "creator" | "year" | "rating" | "random"
 export type LibraryPageTab = 'home' | 'dashboard' | 'media' | 'diary' | 'activity' | 'lists' | 'tags' | 'library';
-export type DashboardScopeMode = 'year' | 'all';
+export type DashboardScopeMode = 'year' | 'all' | `${number}`;
 export type DashboardMediaFilter = 'all' | 'text' | 'screen';
 export type DashboardConsumptionFilter = 'all' | 'consumed' | 'unconsumed';
 export type SocialHubTab = 'media' | 'activity' | 'lists' | 'favorites' | 'tags';

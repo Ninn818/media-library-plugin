@@ -174,8 +174,8 @@ function renderFilterRail(
 		"target",
 		[
 			{ value: "consumed", label: "Completed" },
-			{ value: "unconsumed", label: "Backlog" },
-			{ value: "all", label: "Everything" },
+			{ value: "unconsumed", label: "Uncompleted" },
+			{ value: "all", label: "All" },
 		],
 		state.consumption,
 		(value) => callbacks.onConsumptionChange(value as DashboardConsumptionFilter)
@@ -187,6 +187,7 @@ function renderFilterRail(
 		"calendar-range",
 		[
 			{ value: "year", label: "This year" },
+			...getConsumptionYears(state.items).map((year) => ({ value: year, label: year })),
 			{ value: "all", label: "All time" },
 		],
 		state.scope,
@@ -205,6 +206,7 @@ function renderFilterRail(
 		state.filter,
 		(value) => callbacks.onFilterChange(value as DashboardMediaFilter)
 	);
+
 }
 
 function renderFilterGroup(
@@ -221,16 +223,12 @@ function renderFilterGroup(
 	titleRow.createDiv({ text: title, cls: "media-dashboard-filter-title" });
 
 	const row = group.createDiv({ cls: "media-dashboard-filter-buttons" });
+	const select = row.createEl("select", { cls: "media-dashboard-filter-select" });
 	for (const option of options) {
-		const button = row.createEl("button", {
-			text: option.label,
-			cls: "media-dashboard-filter-button",
-		});
-		button.type = "button";
-		button.toggleClass("is-active", option.value === activeValue);
-		button.setAttr("aria-pressed", option.value === activeValue ? "true" : "false");
-		button.addEventListener("click", () => onChange(option.value));
+		select.createEl("option", { text: option.label, value: option.value });
 	}
+	select.value = activeValue;
+	select.addEventListener("change", () => onChange(select.value));
 }
 
 function renderStatus(
@@ -705,7 +703,7 @@ function getDashboardItems(
 			return false;
 		}
 
-		if (scope === "year" && consumption !== "unconsumed" && !isInCurrentYear(item.date)) {
+		if (scope !== "all" && consumption !== "unconsumed" && !isInScopeYear(item.date, scope)) {
 			return false;
 		}
 
@@ -714,11 +712,27 @@ function getDashboardItems(
 		}
 
 		if (filter === "screen") {
-			return item.mediaType === "movie" || item.mediaType === "series";
+			if (item.mediaType !== "movie" && item.mediaType !== "series") return false;
 		}
 
 		return true;
 	});
+}
+
+function getConsumptionYears(items: MediaItem[]): string[] {
+	const currentYear = new Date().getFullYear();
+	return Array.from(new Set(items
+		.map((item) => item.date ? new Date(item.date).getFullYear() : null)
+		.filter((year): year is number => year != null && Number.isFinite(year) && year < currentYear)
+		.map(String)))
+		.sort((left, right) => Number(right) - Number(left));
+}
+
+function isInScopeYear(date: string | undefined, scope: DashboardScopeMode): boolean {
+	if (!date) return false;
+	const year = new Date(date).getFullYear();
+	const targetYear = scope === "year" ? new Date().getFullYear() : Number(scope);
+	return Number.isFinite(year) && year === targetYear;
 }
 
 function getBookPageBuckets(items: MediaItem[]): DashboardDatum[] {

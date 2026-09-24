@@ -43,7 +43,7 @@ export class ViewRegistry {
 		{
 			id: "gallery",
 			name: "Gallery",
-			icon: "image",
+			icon: "images",
 		},
 
 		// {

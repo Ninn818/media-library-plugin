@@ -3,13 +3,16 @@
 import { MEDIA_TYPES, MediaType } from "../../models/MediaType";
 import { SortMode, SortType } from "../../models/SortType";
 import { MediaLibrarySettings } from "../../settings";
-import { MEDIA_STATUSES, MediaStatus } from "../../models/MediaStatus";
+import { MediaStatus } from "../../models/MediaStatus";
 
 export interface LibraryToolbarState {
 	searchQuery: string;
 	currentFilter: MediaType | "all";
-	currentGenre: string | "all";
-	availableGenres: string[];
+  currentGenre: string | "all";
+  availableGenres: string[];
+  currentDecade: string | "all";
+  availableDecades: string[];
+  currentRating: "all" | "rated" | "unrated" | "high";
 	currentStatus: MediaStatus | "all" | "completed" | "uncompleted" | "currently"; 
 	currentSortMode: SortMode;
 	currentSort: SortType;
@@ -21,11 +24,14 @@ export interface LibraryToolbarCallbacks {
 	onSearchChange(value: string): void;
 	onFilterChange(value: MediaType | "all"): void;
 	onGenreChange(value: string | "all"): void;
+  onDecadeChange(value: string | "all"): void;
+  onRatingChange(value: "all" | "rated" | "unrated" | "high"): void;
 	onStatusChange(value: MediaStatus | "all" | "completed" | "uncompleted" | "currently"): void;
 	onSortModeChange(value: SortMode): void;
 	onSortDirectionChange(value: "asc" | "desc"): void;
 	onSortChange(value: SortType): void;
 	onReset(): void;
+  onViewSwitcher?(container: HTMLElement): void;
 }
 
 export function renderLibraryToolbar(
@@ -35,7 +41,6 @@ export function renderLibraryToolbar(
 ): void {
   const shell = container.createDiv({ cls: "ml-toolbar-shell" });
   const topRow = shell.createDiv({ cls: "ml-toolbar-row ml-toolbar-row--top" });
-  const bottomRow = shell.createDiv({ cls: "ml-toolbar-row ml-toolbar-row--bottom" });
 
   // Search (full-width left)
   const searchWrap = topRow.createDiv({ cls: "ml-toolbar-search" });
@@ -73,6 +78,42 @@ export function renderLibraryToolbar(
   genreSelect.value = state.currentGenre;
   genreSelect.addEventListener("change", (event) => {
     callbacks.onGenreChange((event.target as HTMLSelectElement).value as string | "all");
+  });
+
+  const statusWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
+  const statusSelect = statusWrap.createEl("select", { cls: "ml-toolbar-select" });
+  for (const option of [
+    ["Any status", "all"],
+    ["Completed", "completed"],
+    ["Uncompleted", "uncompleted"],
+    ["Currently", "currently"],
+  ] as const) {
+    statusSelect.createEl("option", { text: option[0], value: option[1] });
+  }
+  statusSelect.value = state.currentStatus;
+  statusSelect.addEventListener("change", (event) => {
+    callbacks.onStatusChange((event.target as HTMLSelectElement).value as LibraryToolbarState["currentStatus"]);
+  });
+
+  const decadeWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
+  const decadeSelect = decadeWrap.createEl("select", { cls: "ml-toolbar-select" });
+  decadeSelect.createEl("option", { text: "Any decade", value: "all" });
+  for (const decade of state.availableDecades) {
+    decadeSelect.createEl("option", { text: decade, value: decade });
+  }
+  decadeSelect.value = state.currentDecade;
+  decadeSelect.addEventListener("change", (event) => {
+    callbacks.onDecadeChange((event.target as HTMLSelectElement).value as string | "all");
+  });
+
+  const ratingWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
+  const ratingSelect = ratingWrap.createEl("select", { cls: "ml-toolbar-select" });
+  for (const option of [["Any rating", "all"], ["Rated", "rated"], ["Unrated", "unrated"], ["8+ rating", "high"]] as const) {
+    ratingSelect.createEl("option", { text: option[0], value: option[1] });
+  }
+  ratingSelect.value = state.currentRating;
+  ratingSelect.addEventListener("change", (event) => {
+    callbacks.onRatingChange((event.target as HTMLSelectElement).value as LibraryToolbarState["currentRating"]);
   });
 
   const sortWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
@@ -123,32 +164,16 @@ export function renderLibraryToolbar(
     search.value = "";
     filterSelect.value = "all";
     genreSelect.value = "all";
+    statusSelect.value = "all";
+    decadeSelect.value = "all";
+    ratingSelect.value = "all";
     sortSelect.value = state.currentSortMode;
   });
 
-  // Bottom row: status pills (but less rounded)
-  const statusLabel = bottomRow.createDiv({ cls: "ml-toolbar-status-label" });
-  statusLabel.textContent = "Status";
-
-  const statusGroup = bottomRow.createDiv({ cls: "ml-toolbar-status-group" });
-
-  const makeStatusChip = (label: string, value: MediaStatus | "all" | "completed" | "uncompleted" | "currently") => {
-    const chip = statusGroup.createEl("button", {
-      text: label,
-      cls: "ml-toolbar-chip",
-    });
-    chip.type = "button";
-    // "All" is the default filter, so it never shows the active highlight
-    chip.toggleClass("is-active", value !== "all" && state.currentStatus === value);
-    chip.addEventListener("click", () => {
-      callbacks.onStatusChange(value as MediaStatus | "all" | "completed" | "uncompleted" | "currently");
-    });
-  };
-
-  makeStatusChip("All", "all");
-  makeStatusChip("Completed", "completed");
-  makeStatusChip("Uncompleted", "uncompleted");
-  makeStatusChip("Currently", "currently");
+  if (callbacks.onViewSwitcher) {
+    const switcherHost = controlsRight.createDiv({ cls: "ml-toolbar-view-switcher-host" });
+    callbacks.onViewSwitcher(switcherHost);
+  }
 }
 
 //go and update modules that use this toolbar to include the new sort direction dropdown and shuffle button such as LibraryView, LibraryToolbar, and any other views that use the toolbar

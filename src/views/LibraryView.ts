@@ -73,6 +73,8 @@ export class LibraryView extends ItemView {
 	private activeLibraryViewId: string;
 	private currentFilter: MediaType | "all" = "all";
 	private currentGenre: string | "all" = "all";
+	private currentDecade: string | "all" = "all";
+	private currentRating: "all" | "rated" | "unrated" | "high" = "all";
 	private currentStatus: MediaStatus | "all" | "completed" | "uncompleted" | "currently" = "all";
 	private currentSort: SortType = { mode: "latest", direction: "desc" };
 	private dashboardConsumption: DashboardConsumptionFilter = "consumed";
@@ -200,6 +202,9 @@ export class LibraryView extends ItemView {
 			currentFilter: this.currentFilter,
 			currentGenre: this.currentGenre,
 			availableGenres: this.getAvailableGenres(),
+			currentDecade: this.currentDecade,
+			availableDecades: this.getAvailableDecades(),
+			currentRating: this.currentRating,
 			currentStatus: this.currentStatus,     // NEW
 			currentSortMode: mode,
 			currentSort: this.currentSort,
@@ -248,7 +253,6 @@ export class LibraryView extends ItemView {
 			const mediaControlsShell = this.mediaControlsHost.createDiv({ cls: "media-library-media-controls-shell" });
 			const statsHost = mediaControlsShell.createDiv();
 			renderLibraryStatBar(statsHost, this.library);
-			this.renderMediaAddActions(mediaControlsShell);
 			const controlsHost = mediaControlsShell.createDiv();
 			//render the library toolbar with search, filter, sort mode, and sort direction controls
 			renderLibraryToolbar(controlsHost, this.getToolbarState(), {
@@ -264,6 +268,16 @@ export class LibraryView extends ItemView {
 				},
 				onGenreChange: (value) => {
 					this.currentGenre = value;
+					this.resetVisibleItemCount();
+					this.refresh();
+				},
+				onDecadeChange: (value) => {
+					this.currentDecade = value;
+					this.resetVisibleItemCount();
+					this.refresh();
+				},
+				onRatingChange: (value) => {
+					this.currentRating = value;
 					this.resetVisibleItemCount();
 					this.refresh();
 				},
@@ -300,6 +314,8 @@ export class LibraryView extends ItemView {
 				onReset: () => {
 					this.currentFilter = "all";
 					this.currentGenre = "all";
+					this.currentDecade = "all";
+					this.currentRating = "all";
 					this.currentStatus = "all";
 					this.currentSort = this.toSortType(this.settings.defaultSortMode);
 					this.searchQuery = "";
@@ -308,17 +324,17 @@ export class LibraryView extends ItemView {
 					this.resetVisibleItemCount();
 					this.refresh();
 				},
-			});
-
-			const switcherHost = mediaControlsShell.createDiv({ cls: "media-library-media-switcher-host" });
-			new ViewSwitcher({
-				container: switcherHost,
-				viewRegistry: this.viewRegistry,
-				initialView: this.activeLibraryViewId,
-				onChange: (viewId) => {
-					this.activeLibraryViewId = viewId;
-					this.resetVisibleItemCount();
-					this.renderActivePage();
+				onViewSwitcher: (container) => {
+					new ViewSwitcher({
+						container,
+						viewRegistry: this.viewRegistry,
+						initialView: this.activeLibraryViewId,
+						onChange: (viewId) => {
+							this.activeLibraryViewId = viewId;
+							this.resetVisibleItemCount();
+							this.renderActivePage();
+						},
+					});
 				},
 			});
 			return;
@@ -328,40 +344,6 @@ export class LibraryView extends ItemView {
 			return;
 		}
 
-	}
-
-	private renderMediaAddActions(container: HTMLElement): void {
-		const actions = container.createDiv({ cls: "media-library-add-actions" });
-		const links = [
-			{
-				label: "Add media by ID",
-				icon: "scan-search",
-				uri: "obsidian://adv-uri?vault=Ninis&commandid=obsidian-media-db-plugin%3Aopen-media-db-id-search-modal",
-			},
-			{
-				label: "Add media by title",
-				icon: "text-search",
-				uri: "obsidian://adv-uri?vault=Ninis&commandid=obsidian-media-db-plugin%3Aadd-media-db-link",
-			},
-			{
-				label: "Add book",
-				icon: "book-open",
-				uri: "obsidian://adv-uri?vault=Ninis&commandid=obsidian-book-search-plugin%3Aopen-book-search-modal",
-			},
-		];
-
-		for (const link of links) {
-			const button = actions.createEl("button", {
-				cls: "media-library-add-action",
-				attr: { title: link.label, "aria-label": link.label },
-			});
-			button.type = "button";
-			setIcon(button, link.icon);
-			button.createSpan({ text: link.label });
-			button.addEventListener("click", () => {
-				window.open(link.uri, "_blank");
-			});
-		}
 	}
 
 	// Top header area (kept simple now)
@@ -1617,6 +1599,14 @@ export class LibraryView extends ItemView {
 		return Array.from(genreSet).sort();
 	}
 
+	private getAvailableDecades(): string[] {
+		return Array.from(new Set(this.library.getAll()
+			.map((item) => item.year)
+			.filter((year): year is number => typeof year === "number")
+			.map((year) => `${Math.floor(year / 10) * 10}s`)))
+			.sort((left, right) => Number(right.slice(0, 4)) - Number(left.slice(0, 4)));
+	}
+
 	private getVisibleItems(): MediaItem[] {
 		let items = this.library.getAll();
 
@@ -1625,6 +1615,16 @@ export class LibraryView extends ItemView {
 		}
 		if (this.currentGenre !== "all") {
 			items = items.filter((item) => item.genres.includes(this.currentGenre));
+		}
+		if (this.currentDecade !== "all") {
+			items = items.filter((item) => String(item.year ?? "").slice(0, 3) === this.currentDecade.slice(0, 3));
+		}
+		if (this.currentRating === "rated") {
+			items = items.filter((item) => this.isCompleted(item) || (typeof item.rating === "number" && item.rating > 0));
+		} else if (this.currentRating === "unrated") {
+			items = items.filter((item) => !this.isCompleted(item) && !(typeof item.rating === "number" && item.rating > 0));
+		} else if (this.currentRating === "high") {
+			items = items.filter((item) => typeof item.rating === "number" && item.rating >= 8);
 		}
 		if (this.currentStatus !== "all") {
 			// Convert "completed"/"uncompleted"/"currently" filter to actual status matching
