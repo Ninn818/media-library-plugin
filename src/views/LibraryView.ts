@@ -46,6 +46,7 @@ interface HomeRecentItem {
 	item: MediaItem;
 	activities: HomeActivityKind[];
 	latestDate: string;
+	progress: number | null;
 }
 
 export class LibraryView extends ItemView {
@@ -776,12 +777,21 @@ export class LibraryView extends ItemView {
 					if (mediaIcon) {
 						iconSpan.addClass("is-media-icon");
 						setIcon(iconSpan, mediaIcon);
+						iconSpan.setAttr("role", "img");
+						iconSpan.setAttr("aria-label", this.getHomeActivityLabel(activity));
 					} else {
 						iconSpan.textContent = activity === "rated"
 							? this.getHomeRatingStars(item.rating)
 							: this.getHomeActivitySymbol(activity);
 					}
 					iconSpan.title = this.getHomeActivityLabel(activity);
+					const progress = recentItems[index]?.progress;
+					if ((activity === "reading" || activity === "watching") && progress != null) {
+						iconBar.createSpan({
+							cls: "media-activity-progress",
+							text: `${progress}%`,
+						}).setAttr("aria-label", `${this.getHomeActivityLabel(activity)}: ${progress}%`);
+					}
 				}
 			}
 		}
@@ -906,7 +916,12 @@ export class LibraryView extends ItemView {
 
 				// timeline dot + stem
 				const node = row.createDiv({ cls: "media-home-activity-node" });
-				node.createDiv({ cls: "media-home-activity-dot" });
+				if (event.icon) {
+					const icon = node.createSpan({ cls: "media-home-activity-marker-icon" });
+					setIcon(icon, event.icon);
+				} else {
+					node.createDiv({ cls: "media-home-activity-dot" });
+				}
 				node.createDiv({ cls: "media-home-activity-stem" });
 
 				// text column
@@ -954,28 +969,51 @@ export class LibraryView extends ItemView {
 		suffix: string;
 		when: string;
 		date: string;
+		icon: string | null;
 	}> {
 	return this.library.getAll().flatMap((item) => {
-		const events: Array<{ item: MediaItem; prefix: string; suffix: string; when: string; date: string }> = [];
-		for (const entry of item.activityEntries ?? []) {
+		const events: Array<{ item: MediaItem; prefix: string; suffix: string; when: string; date: string; icon: string | null }> = [];
+		const entries = item.activityEntries ?? [];
+		const latestEntry = [...entries].sort((left, right) =>
+			(right.recordedAt ?? right.date).localeCompare(left.recordedAt ?? left.date),
+		)[0];
+		const latestStatus = (latestEntry?.status ?? "").toLowerCase().trim();
+		const isInProgress = latestStatus === "reading" || latestStatus === "watching";
+		for (const entry of entries) {
 			const status = (entry.status ?? "").toLowerCase().trim();
 			const action = status === "reading"
-				? entry.progress != null ? `You're ${entry.progress}% into ` : "You're currently reading "
+				? "You're currently reading "
 				: status === "watching"
-					? entry.progress != null ? `You're ${entry.progress}% into ` : "You're currently watching "
+					? "You're currently watching "
 					: `You ${getCompletionLabel(item, false)} `;
+			const activity: HomeActivityKind | null = status === "reading"
+				? "reading"
+				: status === "watching"
+					? "watching"
+					: null;
 			const date = entry.recordedAt ?? entry.date;
-			events.push({ item, prefix: action, suffix: entry.note ? " (note added)" : "", when: formatCompactRelative(date), date });
-			if (entry.rating != null) {
-				events.push({ item, prefix: "You rated ", suffix: ` ${entry.rating}/10`, when: formatCompactRelative(date), date });
+			const suffix = [
+				entry.progress != null && activity ? ` (${entry.progress}%)` : "",
+				entry.note ? " (note added)" : "",
+			].join("");
+			events.push({
+				item,
+				prefix: action,
+				suffix,
+				when: formatCompactRelative(date),
+				date,
+				icon: activity ? this.getHomeActivityIcon(activity, item) : null,
+			});
+			if (entry.rating != null && !isInProgress) {
+				events.push({ item, prefix: "You rated ", suffix: ` ${entry.rating}/10`, when: formatCompactRelative(date), date, icon: null });
 			}
 		}
 		const favoriteDate = this.settings.favoriteDates?.[item.path];
 		if (favoriteDate) {
-			events.push({ item, prefix: "You favorited ", suffix: "", when: formatCompactRelative(favoriteDate), date: favoriteDate });
+			events.push({ item, prefix: "You favorited ", suffix: "", when: formatCompactRelative(favoriteDate), date: favoriteDate, icon: null });
 		}
 		if (!events.length && item.addedDate) {
-			events.push({ item, prefix: "You added ", suffix: "", when: formatCompactRelative(item.addedDate), date: item.addedDate });
+			events.push({ item, prefix: "You added ", suffix: "", when: formatCompactRelative(item.addedDate), date: item.addedDate, icon: null });
 		}
 		return events;
 	})
@@ -1037,7 +1075,10 @@ export class LibraryView extends ItemView {
 			.getAll()
 			.map((item) => {
 				const activities = this.getHomeActivityKinds(item);
-				return { item, activities, latestDate: this.getHomeActivityDate(item) };
+				const latestEntry = [...(item.activityEntries ?? [])].sort((left, right) =>
+					(right.recordedAt ?? right.date).localeCompare(left.recordedAt ?? left.date),
+				)[0];
+				return { item, activities, latestDate: this.getHomeActivityDate(item), progress: latestEntry?.progress ?? null };
 			})
 			.sort((left, right) => right.latestDate.localeCompare(left.latestDate))
 			.slice(0, 4);
@@ -1058,7 +1099,7 @@ export class LibraryView extends ItemView {
 				: status === "watching"
 					? ["watching"]
 					: [isReading ? "read" : "watched"];
-			if (latestEntry.rating != null) kinds.push("rated");
+			if (latestEntry.rating != null && status !== "reading" && status !== "watching") kinds.push("rated");
 			if (latestEntry.note) kinds.push("note");
 			return kinds;
 		}
