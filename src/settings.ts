@@ -31,6 +31,7 @@ export interface MediaLibrarySettings {
 	openInSidebar: boolean;
 	defaultSortMode: LibrarySortMode;
 	defaultSort: SortType;        
+	mediaCardSize: number;
 	defaultPageTab: LibraryPageTab;
 	defaultSocialTab: SocialHubTab;
 	homeUpNextMode: "up-next" | "currently";
@@ -55,6 +56,7 @@ export const DEFAULT_SETTINGS: MediaLibrarySettings = {
 	openInSidebar: false,
 	defaultSortMode: 'latest',
 	defaultSort: { mode: 'latest', direction: 'asc' },
+	mediaCardSize: 180,
 	defaultPageTab: 'home',
 	defaultSocialTab: 'media',
 	homeUpNextMode: "up-next",

@@ -111,6 +111,7 @@ export class LibraryView extends ItemView {
 		this.viewRegistry = viewRegistry;
 		this.settings = settings;
 		this.persistSettings = persistSettings;
+		this.settings.mediaCardSize = normalizeMediaCardSize(this.settings.mediaCardSize);
 		this.cardView = new CardView(this.app);
 		this.galleryView = new GalleryView(this.app);
 		this.activityLogService = new ActivityLogService(this.app);
@@ -151,6 +152,7 @@ export class LibraryView extends ItemView {
 		this.contentEl.empty();
 		this.contentEl.addClass("media-library");
 		this.contentEl.toggleClass("is-motion-off", !this.settings.enableUiAnimations);
+		this.contentEl.style.setProperty("--media-library-card-size", `${this.settings.mediaCardSize}px`);
 
 		this.toolbarHost = this.contentEl.createDiv({ cls: "media-library-toolbar-host" });
 		this.mediaControlsHost = this.toolbarHost;
@@ -210,6 +212,7 @@ export class LibraryView extends ItemView {
 			currentSortMode: mode,
 			currentSort: this.currentSort,
 			currentSortDirection: direction,
+			mediaCardSize: this.settings.mediaCardSize,
 			settings: this.settings,
 		};
 	}
@@ -336,6 +339,13 @@ export class LibraryView extends ItemView {
 							this.renderActivePage();
 						},
 					});
+				},
+				onMediaCardSizeChange: (value) => {
+					this.settings.mediaCardSize = normalizeMediaCardSize(value);
+					this.contentEl.style.setProperty("--media-library-card-size", `${this.settings.mediaCardSize}px`);
+				},
+				onMediaCardSizeCommit: () => {
+					void this.persistSettings();
 				},
 			});
 			return;
@@ -1716,6 +1726,14 @@ export class LibraryView extends ItemView {
 		return true;
 	}
 
+}
+
+function normalizeMediaCardSize(value: number): number {
+	if (!Number.isFinite(value)) {
+		return 180;
+	}
+
+	return Math.min(320, Math.max(120, Math.round(value / 10) * 10));
 }
 
 function formatCompactRelative(dateValue: string): string {

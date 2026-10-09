@@ -18,6 +18,7 @@ export interface LibraryToolbarState {
 	currentSort: SortType;
 	settings: MediaLibrarySettings;
 	currentSortDirection: "asc" | "desc";
+	mediaCardSize: number;
 }
 
 export interface LibraryToolbarCallbacks {
@@ -32,6 +33,8 @@ export interface LibraryToolbarCallbacks {
 	onSortChange(value: SortType): void;
 	onReset(): void;
   onViewSwitcher?(container: HTMLElement): void;
+	onMediaCardSizeChange(value: number): void;
+	onMediaCardSizeCommit(): void;
 }
 
 export function renderLibraryToolbar(
@@ -174,6 +177,29 @@ export function renderLibraryToolbar(
     const switcherHost = controlsRight.createDiv({ cls: "ml-toolbar-view-switcher-host" });
     callbacks.onViewSwitcher(switcherHost);
   }
+
+  const sizeWrap = controlsRight.createDiv({ cls: "ml-toolbar-card-size" });
+  const sizeLabel = sizeWrap.createEl("label", { cls: "ml-toolbar-card-size-label" });
+  sizeLabel.createSpan({ text: "Card size" });
+  const sizeValue = sizeLabel.createSpan({ text: `${state.mediaCardSize}px` });
+  const sizeInput = sizeLabel.createEl("input", {
+    type: "range",
+    attr: {
+      min: "120",
+      max: "320",
+      step: "10",
+      value: String(state.mediaCardSize),
+      "aria-label": "Card size",
+    },
+  });
+  sizeInput.addEventListener("input", () => {
+    const value = Number(sizeInput.value);
+    sizeValue.setText(`${value}px`);
+    callbacks.onMediaCardSizeChange(value);
+  });
+  sizeInput.addEventListener("change", () => {
+    callbacks.onMediaCardSizeCommit();
+  });
 }
 
 //go and update modules that use this toolbar to include the new sort direction dropdown and shuffle button such as LibraryView, LibraryToolbar, and any other views that use the toolbar

@@ -170,7 +170,11 @@ export class MediaActivityModal extends Modal {
 				suffix += 1;
 			}
 
-			await this.app.vault.create(path, `# Review for ${this.item.title}\n\n${note}\n`);
+			const mediaLink = this.item.path.replace(/\.md$/i, "");
+			await this.app.vault.create(
+				path,
+				`# Review for ${this.item.title}\n\nMedia: [[${mediaLink}]]\n\n${note}\n`,
+			);
 			new Notice(`Created ${path}.`);
 		} finally {
 			button.disabled = false;
