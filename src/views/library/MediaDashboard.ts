@@ -443,12 +443,13 @@ function renderPieChart(container: HTMLElement, data: DashboardDatum[]): void {
 	const legend = wrap.createDiv({ cls: "media-dashboard-pie-legend" });
 
 	const renderPie = (highlight?: string) => {
-		pie.style.background = `conic-gradient(${parts.map((part) => {
+		const gradient = `conic-gradient(${parts.map((part) => {
 			const color = highlight && highlight !== part.label
 				? fadeColor(part.color, 0.3)
 				: part.color;
 			return `${color} ${part.start}deg ${part.end}deg`;
 		}).join(", ")})`;
+		pie.style.setProperty("--media-dashboard-pie-background", gradient);
 	};
 
 	renderPie();
@@ -456,7 +457,7 @@ function renderPieChart(container: HTMLElement, data: DashboardDatum[]): void {
 	for (const part of parts) {
 		const row = legend.createDiv({ cls: "media-dashboard-pie-row" });
 		const dot = row.createDiv({ cls: "media-dashboard-pie-dot" });
-		dot.style.background = part.color;
+		dot.style.setProperty("--media-dashboard-pie-dot-color", part.color);
 		row.createDiv({ text: part.label, cls: "media-dashboard-pie-label" });
 		row.createDiv({ text: String(part.value), cls: "media-dashboard-pie-value" });
 		const onClick = data.find(([label]) => label === part.label)?.[2];
