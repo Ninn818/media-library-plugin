@@ -1,6 +1,6 @@
 {
 	"name": "media-library-plugin",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "A media library plugin for browsing and organizing media in your vault.",
 	"author": "nini",
 	"main": "main.js",
