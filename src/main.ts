@@ -116,10 +116,24 @@ export default class MediaLibraryPlugin extends Plugin {
 
 			},
 		});
+
+		this.addCommand({
+			id: "open-media-library",
+			name: "Open media library",
+			callback: () => {
+				void this.openLibrary();
+			},
+		});
 	}
 
 	async openLibrary(): Promise<void> {
-		const leaf = this.app.workspace.getLeaf(this.settings.openInSidebar);
+		const existingLeaves = this.app.workspace.getLeavesOfType("media-library-view");
+		const leaf = existingLeaves.length > 0
+			? existingLeaves[0]
+			: this.app.workspace.getLeaf(this.settings.openInSidebar);
+		if (!leaf) {
+			return;
+		}
 		await leaf.setViewState({
 			type: "media-library-view",
 			active: true,

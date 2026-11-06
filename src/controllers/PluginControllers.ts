@@ -1,6 +1,6 @@
 // src/controllers/PluginController.ts
 
-import { App, Notice, Plugin } from "obsidian";
+import { App, Plugin } from "obsidian";
 
 import { MediaLibrary } from "../core/MediaLibrary";
 import { MediaRegistry } from "../core/MediaRegistry";
@@ -53,8 +53,6 @@ export class PluginController {
 
 		await this.mediaLibrary.refresh();
 
-		this.registerCommands();
-
 		this.registerVaultEvents();
 
 		this.registerWorkspaceEvents();
@@ -93,31 +91,6 @@ export class PluginController {
 	 */
 	getViewRegistry(): ViewRegistry {
 		return this.viewRegistry;
-	}
-
-	/**
-	 * Registers plugin commands.
-	 */
-	private registerCommands(): void {
-		this.plugin.addCommand({
-			id: "refresh-media-library",
-			name: "Refresh Media Library",
-			callback: async () => {
-				await this.mediaLibrary.refresh();
-
-				new Notice(
-					`Media Library refreshed (${this.mediaLibrary.getCount()} items)`
-				);
-			},
-		});
-
-		this.plugin.addCommand({
-			id: "open-media-library",
-			name: "Open Media Library",
-			callback: () => {
-				new Notice("Media Library view coming soon.");
-			},
-		});
 	}
 
 	/**
