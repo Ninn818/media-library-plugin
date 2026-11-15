@@ -24,6 +24,7 @@ const UNLOCK_DAY = 10;
 const OUTPUT_FOLDER = "Year in Media";
 
 const COVER_WALL_LIMIT = 150;
+const REVIEW_PREVIEW_LIMIT = 6;
 
 /** Time estimates: used when an item has no duration. Tweak to taste. */
 const PAGES_PER_HOUR: Record<"book" | "essay", number> = { book: 45, essay: 20 };
@@ -125,6 +126,7 @@ export function renderYearInMedia(
 
 	renderByType(root, wrapped);
 	renderTopRated(root, wrapped, ctx);
+	renderReviews(root, wrapped, ctx);
 	renderHabits(root, wrapped, ctx);
 	renderTimeCapsule(root, wrapped, ctx);
 	renderBigAndSmall(root, wrapped, ctx);
@@ -163,6 +165,13 @@ interface Ranked {
 	count: number;
 }
 
+interface ReviewHighlight {
+	item: MediaItem;
+	day: string;
+	rating: number | null;
+	text: string;
+}
+
 interface Span {
 	length: number;
 	start: string;
@@ -191,6 +200,7 @@ interface Wrapped {
 	minutesByType: Record<MediaType, number>;
 	pages: number;
 	notes: number;
+	reviews: ReviewHighlight[];
 	favorites: number;
 	activeDays: number;
 	goals: Record<MediaType, number>;
@@ -442,6 +452,52 @@ function noteForDay(item: MediaItem, day: string): string | null {
 	return match?.note?.trim() ?? null;
 }
 
+function collectReviews(completions: Completion[]): ReviewHighlight[] {
+	const reviews: ReviewHighlight[] = [];
+	const seenText = new Set<string>();
+	const latestCompletionByPath = new Map<string, Completion>();
+
+	for (const completion of completions) {
+		latestCompletionByPath.set(completion.item.path, completion);
+		const text = completion.note?.trim();
+		if (!text) {
+			continue;
+		}
+
+		const normalized = text.toLowerCase().replace(/\s+/g, " ");
+		const textKey = `${completion.item.path}\u0000${normalized}`;
+		seenText.add(textKey);
+		reviews.push({
+			item: completion.item,
+			day: completion.day,
+			rating: completion.rating,
+			text,
+		});
+	}
+
+	for (const completion of latestCompletionByPath.values()) {
+		const text = completion.item.review?.trim();
+		if (!text) {
+			continue;
+		}
+
+		const normalized = text.toLowerCase().replace(/\s+/g, " ");
+		const textKey = `${completion.item.path}\u0000${normalized}`;
+		if (seenText.has(textKey)) {
+			continue;
+		}
+		seenText.add(textKey);
+		reviews.push({
+			item: completion.item,
+			day: completion.day,
+			rating: completion.rating,
+			text,
+		});
+	}
+
+	return reviews.sort((left, right) => right.day.localeCompare(left.day) || left.item.title.localeCompare(right.item.title));
+}
+
 function collectAllCompletions(items: MediaItem[]): Completion[] {
 	const out: Completion[] = [];
 
@@ -537,6 +593,7 @@ function splitCreators(item: MediaItem): string[] {
 function buildWrapped(all: Completion[], year: number, settings: MediaLibrarySettings): Wrapped {
 	const completions = all.filter((entry) => entry.date.getFullYear() === year);
 	const previousCompletions = all.filter((entry) => entry.date.getFullYear() === year - 1);
+	const reviews = collectReviews(completions);
 	const total = completions.length;
 
 	// Totals ---------------------------------------------------------------
@@ -752,6 +809,7 @@ function buildWrapped(all: Completion[], year: number, settings: MediaLibrarySet
 		minutesByType,
 		pages,
 		notes,
+		reviews,
 		favorites,
 		activeDays: uniqueDays.length,
 		goals,
@@ -1077,6 +1135,7 @@ function renderNumbers(parent: HTMLElement, w: Wrapped): void {
 		{ value: String(w.activeDays), label: "Days with a finish", sub: `${Math.round((w.activeDays / daysInYear) * 100)}% of the year` },
 		streakTile,
 		{ value: String(w.notes), label: "Notes written" },
+		{ value: String(w.reviews.length), label: "Written reviews" },
 		{ value: String(w.favorites), label: "Favorited" },
 	);
 
@@ -1278,6 +1337,62 @@ function renderTopRated(root: HTMLElement, w: Wrapped, ctx: WrappedContext): voi
 		for (const entry of w.lowest) {
 			kvRow(list, entry.item.title, `${entry.rating}/10`, () => ctx.callbacks.onOpenItem(entry.item));
 		}
+	}
+}
+
+function renderReviews(root: HTMLElement, w: Wrapped, ctx: WrappedContext): void {
+	const reviews = w.reviews;
+	const ratedReviews = reviews.filter((review) => review.rating !== null);
+	const average = mean(ratedReviews.map((review) => review.rating ?? 0));
+	const types = TYPES
+		.filter((type) => reviews.some((review) => review.item.mediaType === type))
+		.map((type) => TYPE_META[type].label.toLowerCase());
+	const punch = reviews.length
+		? `${plural(reviews.length, "written review")} across ${types.join(", ")}${average !== null ? `, averaging ${average.toFixed(1)}/10` : ""}.`
+		: undefined;
+	const body = panel(root, "wine", "Your reviews", punch);
+
+	if (!reviews.length) {
+		body.createDiv({
+			cls: "ml-wrap-empty",
+			text: "No written reviews for this year yet. Add a review to a media note or an activity entry to include it here.",
+		});
+		return;
+	}
+
+	const renderCards = (parent: HTMLElement, entries: ReviewHighlight[]): void => {
+		const list = parent.createDiv({ cls: "ml-wrap-review-list" });
+		for (const review of entries) {
+			const card = list.createDiv({ cls: "ml-wrap-review-card" });
+			card.style.setProperty("--wrap-type", TYPE_META[review.item.mediaType].color);
+			card.setAttr("role", "button");
+			card.setAttr("tabindex", "0");
+			card.setAttr("aria-label", `Open ${review.item.title}`);
+			const meta = card.createDiv({ cls: "ml-wrap-review-meta" });
+			meta.createSpan({ text: TYPE_META[review.item.mediaType].singular });
+			meta.createSpan({ text: formatDay(review.day, true) });
+			if (review.rating !== null) {
+				meta.createSpan({ text: `${review.rating}/10` });
+			}
+			card.createDiv({ cls: "ml-wrap-review-title", text: review.item.title });
+			card.createDiv({ cls: "ml-wrap-review-text", text: review.text });
+
+			const open = (): void => ctx.callbacks.onOpenItem(review.item);
+			card.addEventListener("click", open);
+			card.addEventListener("keydown", (event) => {
+				if (event.key === "Enter" || event.key === " ") {
+					event.preventDefault();
+					open();
+				}
+			});
+		}
+	};
+
+	renderCards(body, reviews.slice(0, REVIEW_PREVIEW_LIMIT));
+	if (reviews.length > REVIEW_PREVIEW_LIMIT) {
+		const more = body.createEl("details", { cls: "ml-wrap-review-more" });
+		more.createEl("summary", { text: `Show all ${plural(reviews.length, "review")}` });
+		renderCards(more, reviews.slice(REVIEW_PREVIEW_LIMIT));
 	}
 }
 
@@ -1622,6 +1737,18 @@ function buildMarkdown(w: Wrapped): string {
 		w.histogram.forEach((count, index) => add(`| ${index + 1} | ${count} |`));
 	}
 
+	if (w.reviews.length) {
+		add("", "## Your reviews", "");
+		for (const review of w.reviews) {
+			add(
+				`### ${wikilink(review.item)} (${typeLabel(review.item)}, ${formatDay(review.day, true)}${review.rating !== null ? `, ${review.rating}/10` : ""})`,
+				"",
+				...review.text.split(/\r?\n/).map((line) => `> ${line}`),
+				"",
+			);
+		}
+	}
+
 	add("", "## Habits", "");
 	const peakCount = Math.max(...w.weekdays);
 	if (peakCount > 0) add(`- Favorite weekday: ${WEEKDAYS_LONG[w.weekdays.indexOf(peakCount)] ?? ""} (${peakCount})`);
@@ -1872,6 +1999,7 @@ async function renderShareImage(w: Wrapped): Promise<Blob> {
 	const boxes: Array<{ label: string; value: string; sub: string }> = [
 		{ label: "Top genre", value: w.genres[0]?.label ?? "-", sub: w.genres[0] ? plural(w.genres[0].count, "title") : "" },
 		{ label: "Average rating", value: w.average !== null ? `${w.average.toFixed(1)}/10` : "-", sub: `${w.ratedCount} rated` },
+		{ label: "Written reviews", value: String(w.reviews.length), sub: "across all media" },
 		{
 			label: "Longest streak",
 			value: w.streak ? plural(w.streak.length, "day") : "-",
@@ -1880,7 +2008,7 @@ async function renderShareImage(w: Wrapped): Promise<Blob> {
 	];
 
 	const gap = 20;
-	const boxWidth = (W - PAD * 2 - gap * 2) / 3;
+	const boxWidth = (W - PAD * 2 - gap * (boxes.length - 1)) / boxes.length;
 	for (const [index, box] of boxes.entries()) {
 		const x = PAD + index * (boxWidth + gap);
 		const y = 1530;
