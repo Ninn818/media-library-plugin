@@ -28,6 +28,7 @@ import { renderLibraryPageTabs, renderLibraryShell } from "./library/LibraryChro
 import { renderLibrarySidebar } from "./library/LibraryOverviewSidebar";
 import { renderLibrarySocialHub } from "./library/LibrarySocialPanel";
 import { renderLibraryStatBar, renderLibraryToolbar } from "./library/LibraryControls";
+import { renderYearInMedia } from "./library/YearInMedia";
 import { MediaListModal } from "../ui/MediaListModal";
 
 type HomeActivityKind = "added" | "favorited" | "rated" | "note" | "read" | "watched" | "reading" | "watching";
@@ -71,6 +72,7 @@ export class LibraryView extends ItemView {
 	private dashboardConsumption: DashboardConsumptionFilter = "consumed";
 	private dashboardScope: DashboardScopeMode = "year";
 	private dashboardFilter: DashboardMediaFilter = "all";
+	private yearInMediaYear: number | null = null;
 	private currentLibraryItems: MediaItem[] = [];
 	private visibleItemCount = LibraryView.LIBRARY_PAGE_SIZE;
 	private searchQuery = "";
@@ -374,6 +376,11 @@ export class LibraryView extends ItemView {
 			this.sidebarHost.removeClass("is-hidden");
 			this.renderDashboardPage();
 			this.applySidebarVisibility();
+			return;
+		}
+
+		if (this.currentPageTab === "year-in-media") {
+			this.renderYearInMediaPage();
 			return;
 		}
 
@@ -1335,6 +1342,30 @@ export class LibraryView extends ItemView {
 			onFilterChange: (filter) => {
 				this.dashboardFilter = filter;
 				this.renderActivePage();
+			},
+		});
+	}
+
+	private renderYearInMediaPage(): void {
+		this.spotlightHost.empty();
+		this.spotlightHost.addClass("is-hidden");
+		this.sidebarHost.addClass("is-hidden");
+		this.bodyHost?.addClass("is-sidebar-hidden");
+
+		renderYearInMedia(this.contentHost, {
+			app: this.app,
+			items: this.library.getAll(),
+			settings: this.settings,
+			year: this.yearInMediaYear,
+		}, {
+			onYearChange: (year) => {
+				this.yearInMediaYear = year;
+				this.renderYearInMediaPage();
+			},
+			onOpenItem: (item) => {
+				this.selectedItem = item;
+				this.featuredPath = item.path;
+				void this.app.workspace.openLinkText(item.path, "", false);
 			},
 		});
 	}

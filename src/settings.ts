@@ -3,7 +3,7 @@ import MediaLibraryPlugin from './main';
 import type { SortMode, SortType } from "./models";
 
 export type LibrarySortMode = SortMode; // "latest" | "title" | "creator" | "year" | "rating" | "random"
-export type LibraryPageTab = 'home' | 'dashboard' | 'media' | 'diary' | 'activity' | 'lists' | 'tags' | 'library';
+export type LibraryPageTab = 'home' | 'dashboard' | 'media'  | 'diary' | 'activity' | 'lists' | 'tags' |'year-in-media'| 'library';
 export type DashboardScopeMode = 'year' | 'all' | `${number}`;
 export type DashboardMediaFilter = 'all' | 'text' | 'screen';
 export type DashboardConsumptionFilter = 'all' | 'consumed' | 'unconsumed';
@@ -119,6 +119,7 @@ export class MediaLibrarySettingTab extends PluginSettingTab {
 						.addOption('activity', 'Activity')
 						.addOption('lists', 'Lists')
 						.addOption('tags', 'Tags')
+						.addOption('year-in-media', 'Year in Media')
 						.setValue(this.plugin.settings.defaultPageTab)
 						.onChange(async (value: string) => {
 							this.plugin.settings.defaultPageTab = value as LibraryPageTab;

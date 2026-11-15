@@ -157,31 +157,44 @@ export function renderLibraryCard(
 	actionBar.toggleClass("is-favorite", options.isFavorite ?? false);
 
 	const body = card.createDiv({ cls: "media-card-body" });
-	body.createEl("h3", { text: item.title });
 
-	const creator = body.createDiv({ text: item.creator, cls: "media-card-creator" });
+	const head = body.createDiv({ cls: "media-card-head" });
+	head.createEl("h3", { text: item.title, attr: { title: item.title } });
+
+	if (item.creator) {
+	const creator = head.createDiv({ text: item.creator, cls: "media-card-creator" });
 	creator.addEventListener("click", (event) => {
 		event.preventDefault();
 		event.stopPropagation();
 		options.onCreatorClick?.(item.creator);
 	});
+	}
 
+	if (item.genres?.length) {
 	const chips = body.createDiv({ cls: "media-card-chip-row" });
-	for (const genre of item.genres?.length ? item.genres.slice(0, 2) : [item.mediaType]) {
+	for (const genre of item.genres.slice(0, 2)) {
 		chips.createDiv({ text: genre, cls: "media-card-chip" });
+	}
 	}
 
 	const meta = body.createDiv({ cls: "media-card-meta" });
 	const metaRow = meta.createDiv({ cls: "media-card-meta-row" });
-	metaRow.createDiv({ text: item.mediaType, cls: "media-card-type" });
-	if (item.rating !== null && item.rating !== undefined) {
-		metaRow.createDiv({ text: `★ ${item.rating}`, cls: "media-card-rating" });
-	}
+
+	const typeYear = metaRow.createDiv({ cls: "media-card-type-year" });
+	typeYear.createSpan({ text: item.mediaType, cls: "media-card-type" });
 	if (item.year !== undefined) {
-		meta.createDiv({ text: String(item.year), cls: "media-card-year" });
+	typeYear.createSpan({ text: "·", cls: "media-card-dot" });
+	typeYear.createSpan({ text: String(item.year), cls: "media-card-year" });
 	}
+
+	if (item.rating !== null && item.rating !== undefined) {
+	metaRow.createDiv({ text: `★ ${item.rating}`, cls: "media-card-rating" });
+	}
+
 	if (item.date && (item.status === "read" || item.status === "watched")) {
-		meta.createDiv({ text: formatMediaDate(item.date), cls: "media-card-date" });
+	const dateRow = meta.createDiv({ cls: "media-card-date" });
+	setIcon(dateRow.createSpan({ cls: "media-card-date-icon" }), "calendar-check");
+	dateRow.createSpan({ text: formatMediaDate(item.date) });
 	}
 
 	return card;
@@ -280,12 +293,8 @@ function formatMediaDate(value: string): string {
 		return value;
 	}
 
-	const day = date.getUTCDate();
-	const suffix = day % 100 >= 11 && day % 100 <= 13
-		? "th"
-		: ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[day % 10] ?? "th";
-	const month = date.toLocaleString("en-US", { month: "long", timeZone: "UTC" });
-	return `${month} ${day}${suffix}, ${date.getUTCFullYear()}`;
+	const month = date.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+	return `${month} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
 }
 
 function createActionButton(

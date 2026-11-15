@@ -38,6 +38,7 @@ export function renderLibraryPageTabs(
 		["activity", "Activity"],
 		["lists", "Lists"],
 		["tags", "Tags"],
+		["year-in-media", "Year in Media"],
 	];
 
 	for (const [tab, label] of labels) {
