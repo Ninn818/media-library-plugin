@@ -22,7 +22,7 @@ import { getCompletionLabel } from "../utils/ActivityLabels";
 import { MediaActivityModal } from "../ui/MediaActivityModal";
 import { Poster } from "../PluginControllers";
 import { timeAgoFromDate } from "../utils/TimeAgo";
-import { CardView, GalleryView, ViewSwitcher } from "./LibraryDisplayViews";
+import { CardView, GalleryView, TableView, ViewSwitcher } from "./LibraryDisplayViews";
 import { renderMediaDashboard } from "./library/MediaInsightsDashboard";
 import { renderLibraryPageTabs, renderLibraryShell } from "./library/LibraryChrome";
 import { renderLibrarySidebar } from "./library/LibraryOverviewSidebar";
@@ -47,8 +47,8 @@ export class LibraryView extends ItemView {
 	private readonly persistSettings: () => Promise<void>;
 	private readonly cardView: CardView;
 	private readonly galleryView: GalleryView;
+	private readonly tableView: TableView;
 	private readonly activityLogService: ActivityLogService;
-
 	// Root DOM hosts
 	private toolbarHost!: HTMLElement;
 	private mediaControlsHost!: HTMLElement;
@@ -104,6 +104,7 @@ export class LibraryView extends ItemView {
 		this.settings.mediaCardSize = normalizeMediaCardSize(this.settings.mediaCardSize);
 		this.cardView = new CardView(this.app);
 		this.galleryView = new GalleryView(this.app);
+		this.tableView = new TableView(this.app);
 		this.activityLogService = new ActivityLogService(this.app);
 		this.activeSocialTab = this.settings.defaultSocialTab;
 		this.activeLibraryViewId = this.viewRegistry.getDefault().id;
@@ -405,6 +406,15 @@ export class LibraryView extends ItemView {
 			this.sidebarHost.addClass("is-hidden");
 			this.bodyHost?.addClass("is-sidebar-hidden");
 			this.renderGalleryLibraryView();
+			return;
+		}
+
+		if (this.activeLibraryViewId === "table") {
+			this.spotlightHost.empty();
+			this.spotlightHost.addClass("is-hidden");
+			this.sidebarHost.addClass("is-hidden");
+			this.bodyHost?.addClass("is-sidebar-hidden");
+			this.renderTableLibraryView();
 			return;
 		}
 
@@ -1244,6 +1254,36 @@ export class LibraryView extends ItemView {
 		this.renderVisibleMediaCount(renderedItems.length, this.currentLibraryItems.length);
 		this.renderShowMoreControl(this.currentLibraryItems.length, renderedItems.length, () => {
 			this.renderCurrentView();
+		});
+	}
+
+	private renderTableLibraryView(): void {
+		this.contentHost.empty();
+
+		this.currentLibraryItems = this.getVisibleItems();
+		const renderedItems = this.currentLibraryItems.slice(0, this.visibleItemCount);
+
+		this.tableView.render(this.contentHost, renderedItems, this.selectedItem, (item) => {
+			this.selectItem(item);
+			this.openActivityModal(item);
+		}, {
+			onOpenNote: (item) => {
+			this.selectItem(item);
+			void this.app.workspace.openLinkText(item.path, "", false);
+			},
+			onToggleFavorite: (item) => this.toggleFavorite(item),
+			isFavorite: (path) => ListService.isFavorite(this.settings, path),
+			onCreatorClick: (creator) => {
+			this.searchQuery = creator;
+			this.resetVisibleItemCount();
+			this.renderToolbarArea();
+			this.renderActivePage();
+			},
+		});
+
+		this.renderVisibleMediaCount(renderedItems.length, this.currentLibraryItems.length);
+		this.renderShowMoreControl(this.currentLibraryItems.length, renderedItems.length, () => {
+			this.renderTableLibraryView();
 		});
 	}
 

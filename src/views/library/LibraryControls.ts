@@ -1,4 +1,6 @@
-// Renders library search, filters, and sorting controls.
+// Renders search, sorting, filters, and media stats.
+
+import { setIcon } from "obsidian";
 
 import { MEDIA_TYPES, MediaStatus, MediaType, SortMode, SortType } from "../../models";
 import { MediaLibrary } from "../../core";
@@ -36,201 +38,247 @@ export interface LibraryToolbarCallbacks {
 	onMediaCardSizeCommit(): void;
 }
 
-export function renderLibraryToolbar(
-  container: HTMLElement,
-  state: LibraryToolbarState,
-  callbacks: LibraryToolbarCallbacks
-): void {
-  const shell = container.createDiv({ cls: "ml-toolbar-shell" });
-  const topRow = shell.createDiv({ cls: "ml-toolbar-row ml-toolbar-row--top" });
+let filtersOpen = false;
 
-  // Search (full-width left)
-  const searchWrap = topRow.createDiv({ cls: "ml-toolbar-search" });
-  const search = searchWrap.createEl("input", {
-    type: "search",
-    cls: "ml-toolbar-search-input",
-  });
-  search.placeholder = "Search title, creator, genre…";
-  search.value = state.searchQuery;
-  search.addEventListener("input", (event) => {
-    callbacks.onSearchChange((event.target as HTMLInputElement).value);
-  });
+const SORT_LABELS: Record<SortMode, string> = {
+	latest: "Newest added",
+	read: "Last read/watched",
+	title: "Title",
+	creator: "Creator",
+	year: "Year",
+	rating: "Rating",
+	random: "Random",
+};
 
-  // Right side: type, sort, direction, reset
-  const controlsRight = topRow.createDiv({ cls: "ml-toolbar-controls-right" });
-
-  const filterWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
-  const filterSelect = filterWrap.createEl("select", { cls: "ml-toolbar-select" });
-  filterSelect.createEl("option", { text: "All Media", value: "all" });
-  for (const type of MEDIA_TYPES) {
-    const label = type.charAt(0).toUpperCase() + type.slice(1);
-    filterSelect.createEl("option", { text: label, value: type });
-  }
-  filterSelect.value = state.currentFilter;
-  filterSelect.addEventListener("change", (event) => {
-    callbacks.onFilterChange((event.target as HTMLSelectElement).value as MediaType | "all");
-  });
-
-  const genreWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
-  const genreSelect = genreWrap.createEl("select", { cls: "ml-toolbar-select" });
-  genreSelect.createEl("option", { text: "All genres", value: "all" });
-  for (const genre of state.availableGenres) {
-    genreSelect.createEl("option", { text: genre, value: genre });
-  }
-  genreSelect.value = state.currentGenre;
-  genreSelect.addEventListener("change", (event) => {
-    callbacks.onGenreChange((event.target as HTMLSelectElement).value as string | "all");
-  });
-
-  const statusWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
-  const statusSelect = statusWrap.createEl("select", { cls: "ml-toolbar-select" });
-  for (const option of [
-    ["Any status", "all"],
-    ["Completed", "completed"],
-    ["Uncompleted", "uncompleted"],
-    ["Currently", "currently"],
-  ] as const) {
-    statusSelect.createEl("option", { text: option[0], value: option[1] });
-  }
-  statusSelect.value = state.currentStatus;
-  statusSelect.addEventListener("change", (event) => {
-    callbacks.onStatusChange((event.target as HTMLSelectElement).value as LibraryToolbarState["currentStatus"]);
-  });
-
-  const decadeWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
-  const decadeSelect = decadeWrap.createEl("select", { cls: "ml-toolbar-select" });
-  decadeSelect.createEl("option", { text: "Any decade", value: "all" });
-  for (const decade of state.availableDecades) {
-    decadeSelect.createEl("option", { text: decade, value: decade });
-  }
-  decadeSelect.value = state.currentDecade;
-  decadeSelect.addEventListener("change", (event) => {
-    callbacks.onDecadeChange((event.target as HTMLSelectElement).value as string | "all");
-  });
-
-  const ratingWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
-  const ratingSelect = ratingWrap.createEl("select", { cls: "ml-toolbar-select" });
-  for (const option of [["Any rating", "all"], ["Rated", "rated"], ["Unrated", "unrated"], ["8+ rating", "high"]] as const) {
-    ratingSelect.createEl("option", { text: option[0], value: option[1] });
-  }
-  ratingSelect.value = state.currentRating;
-  ratingSelect.addEventListener("change", (event) => {
-    callbacks.onRatingChange((event.target as HTMLSelectElement).value as LibraryToolbarState["currentRating"]);
-  });
-
-  const sortWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
-  const sortSelect = sortWrap.createEl("select", { cls: "ml-toolbar-select" });
-  const SORT_MODES: SortMode[] = ["latest", "read", "title", "creator", "year", "rating", "random"];
-  for (const mode of SORT_MODES) {
-    const label = mode.charAt(0).toUpperCase() + mode.slice(1);
-    sortSelect.createEl("option", { text: label, value: mode });
-  }
-  sortSelect.value = state.currentSortMode;
-  sortSelect.addEventListener("change", (event) => {
-    callbacks.onSortModeChange((event.target as HTMLSelectElement).value as SortMode);
-  });
-
-  if (state.currentSortMode !== "random") {
-    const dirWrap = controlsRight.createDiv({ cls: "ml-toolbar-field ml-toolbar-field--compact" });
-    const directionSelect = dirWrap.createEl("select", {
-      cls: "ml-toolbar-select ml-toolbar-select--Direction",
-    });
-
-    const ascOption = directionSelect.createEl("option", {
-      text: "▲",
-      value: "asc",
-    });
-    ascOption.selected = state.currentSortDirection === "asc";
-
-    const descOption = directionSelect.createEl("option", {
-      text: "▼",
-      value: "desc",
-    });
-    descOption.selected = state.currentSortDirection === "desc";
-
-    directionSelect.addEventListener("change", (event) => {
-      callbacks.onSortDirectionChange(
-        (event.target as HTMLSelectElement).value as "asc" | "desc",
-      );
-    });
-  }
-
-  const resetWrap = controlsRight.createDiv({ cls: "ml-toolbar-field" });
-  const resetButton = resetWrap.createEl("button", {
-    text: "Clear",
-    cls: "ml-toolbar-button ml-toolbar-button--ghost",
-  });
-  resetButton.type = "button";
-  resetButton.addEventListener("click", () => {
-    callbacks.onReset();
-    search.value = "";
-    filterSelect.value = "all";
-    genreSelect.value = "all";
-    statusSelect.value = "all";
-    decadeSelect.value = "all";
-    ratingSelect.value = "all";
-    sortSelect.value = state.currentSortMode;
-  });
-
-  if (callbacks.onViewSwitcher) {
-    const switcherHost = controlsRight.createDiv({ cls: "ml-toolbar-view-switcher-host" });
-    callbacks.onViewSwitcher(switcherHost);
-  }
-
-  const sizeWrap = controlsRight.createDiv({ cls: "ml-toolbar-card-size" });
-  const sizeLabel = sizeWrap.createEl("label", { cls: "ml-toolbar-card-size-label" });
-  sizeLabel.createSpan({ text: "Card size" });
-  const sizeValue = sizeLabel.createSpan({ text: `${state.mediaCardSize}px` });
-  const sizeInput = sizeLabel.createEl("input", {
-    type: "range",
-    attr: {
-      min: "120",
-      max: "320",
-      step: "10",
-      value: String(state.mediaCardSize),
-      "aria-label": "Card size",
-    },
-  });
-  sizeInput.addEventListener("input", () => {
-    const value = Number(sizeInput.value);
-    sizeValue.setText(`${value}px`);
-    callbacks.onMediaCardSizeChange(value);
-  });
-  sizeInput.addEventListener("change", () => {
-    callbacks.onMediaCardSizeCommit();
-  });
+function defaultDirection(mode: SortMode): "asc" | "desc" {
+	return mode === "title" || mode === "creator" ? "asc" : "desc";
 }
 
-/** Renders media-type counts and average rating for the Media page. */
-export function renderLibraryStatBar(container: HTMLElement, library: MediaLibrary): void {
-	const bar = container.createDiv({ cls: "media-library-stat-bar" });
-	const countsRow = bar.createDiv({ cls: "media-library-stat-bar-counts" });
-	const counts: Array<[string, number]> = [
-		["Books", library.getBookCount()],
-		["Films", library.getMovieCount()],
-		["Series", library.getSeriesCount()],
-		["Essays", library.getEssayCount()],
-	];
+export function renderLibraryToolbar(
+	container: HTMLElement,
+	state: LibraryToolbarState,
+	callbacks: LibraryToolbarCallbacks
+): void {
+	const shell = container.createDiv({ cls: "ml-toolbar-shell" });
+	const bar = shell.createDiv({ cls: "ml-toolbar-bar" });
+	const searchWrap = bar.createDiv({ cls: "ml-toolbar-search" });
+	const search = searchWrap.createEl("input", { type: "search", cls: "ml-toolbar-search-input" });
+	search.placeholder = "Search title, creator, genre…";
+	search.value = state.searchQuery;
+	search.addEventListener("input", (event) =>
+		callbacks.onSearchChange((event.target as HTMLInputElement).value)
+	);
 
-	for (const [label, value] of counts) {
-		const count = countsRow.createDiv({ cls: "media-library-stat-bar-count" });
-		count.createSpan({ cls: "media-library-stat-bar-count-label", text: label });
-		count.createSpan({ cls: "media-library-stat-bar-count-value", text: String(value) });
+	const sortGroup = bar.createDiv({ cls: "ml-toolbar-sort-group" });
+	const sortSelect = sortGroup.createEl("select", { cls: "ml-toolbar-select" });
+	for (const mode of Object.keys(SORT_LABELS) as SortMode[]) {
+		sortSelect.createEl("option", { text: SORT_LABELS[mode], value: mode });
+	}
+	sortSelect.value = state.currentSortMode;
+
+	let sortMode = state.currentSortMode;
+	let direction = state.currentSortDirection;
+	const directionButton = sortGroup.createEl("button", { cls: "ml-toolbar-icon-button" });
+	directionButton.type = "button";
+
+	const syncDirectionButton = () => {
+		directionButton.empty();
+		setIcon(directionButton, direction === "asc" ? "arrow-up" : "arrow-down");
+		const label = direction === "asc" ? "Ascending" : "Descending";
+		directionButton.setAttr("aria-label", label);
+		directionButton.setAttr("title", label);
+		directionButton.toggleClass("is-hidden", sortMode === "random");
+	};
+	syncDirectionButton();
+
+	sortSelect.addEventListener("change", () => {
+		const next = sortSelect.value as SortMode;
+		if (sortMode === "random") {
+			direction = "desc";
+		}
+		sortMode = next;
+		syncDirectionButton();
+		callbacks.onSortModeChange(next);
+	});
+	directionButton.addEventListener("click", () => {
+		direction = direction === "asc" ? "desc" : "asc";
+		syncDirectionButton();
+		callbacks.onSortDirectionChange(direction);
+	});
+
+	const filtersButton = bar.createEl("button", { cls: "ml-toolbar-button ml-toolbar-filters-button" });
+	filtersButton.type = "button";
+	setIcon(filtersButton.createSpan({ cls: "ml-toolbar-button-icon" }), "sliders-horizontal");
+	filtersButton.createSpan({ text: "Filters" });
+	const badge = filtersButton.createSpan({ cls: "ml-toolbar-badge is-hidden" });
+
+	if (callbacks.onViewSwitcher) {
+		callbacks.onViewSwitcher(bar.createDiv({ cls: "ml-toolbar-view-switcher-host" }));
 	}
 
-	const ratings = library.getAll()
-		.map((item) => item.rating)
-		.filter((rating): rating is number =>
-			typeof rating === "number" && Number.isFinite(rating) && rating > 0
-		);
-	const average = ratings.length
-		? Math.round((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length) * 10) / 10
-		: null;
+	const panel = shell.createDiv({ cls: "ml-toolbar-panel" });
+	panel.toggleClass("is-open", filtersOpen);
+	filtersButton.toggleClass("is-active", filtersOpen);
+	filtersButton.addEventListener("click", () => {
+		filtersOpen = !filtersOpen;
+		panel.toggleClass("is-open", filtersOpen);
+		filtersButton.toggleClass("is-active", filtersOpen);
+	});
 
-	const averageHost = bar.createDiv({ cls: "media-library-stat-bar-average" });
-	averageHost.createSpan({ cls: "media-library-stat-bar-average-icon", text: "★" });
-	averageHost.createSpan({ text: `Average ${average ?? "—"}/10` });
+	const grid = panel.createDiv({ cls: "ml-toolbar-panel-grid" });
+	const selects: HTMLSelectElement[] = [];
+	const updateBadge = () => {
+		const count = selects.filter((select) => select.value !== "all").length;
+		badge.setText(String(count));
+		badge.toggleClass("is-hidden", count === 0);
+	};
+	const addFilter = (
+		label: string,
+		options: Array<[string, string]>,
+		value: string,
+		onChange: (value: string) => void
+	): HTMLSelectElement => {
+		const field = grid.createDiv({ cls: "ml-toolbar-field" });
+		field.createEl("label", { text: label, cls: "ml-toolbar-field-label" });
+		const select = field.createEl("select", { cls: "ml-toolbar-select" });
+		for (const [text, optionValue] of options) {
+			select.createEl("option", { text, value: optionValue });
+		}
+		select.value = value;
+		select.addEventListener("change", () => {
+			onChange(select.value);
+			updateBadge();
+		});
+		selects.push(select);
+		return select;
+	};
+
+	addFilter(
+		"Media",
+		[["All media", "all"], ...MEDIA_TYPES.map((type): [string, string] => [
+			type.charAt(0).toUpperCase() + type.slice(1),
+			type,
+		])],
+		state.currentFilter,
+		(value) => callbacks.onFilterChange(value as MediaType | "all")
+	);
+	addFilter(
+		"Genre",
+		[["All genres", "all"], ...state.availableGenres.map((genre): [string, string] => [genre, genre])],
+		state.currentGenre,
+		callbacks.onGenreChange
+	);
+	addFilter(
+		"Status",
+		[["Any status", "all"], ["Completed", "completed"], ["Uncompleted", "uncompleted"], ["Currently", "currently"]],
+		state.currentStatus,
+		(value) => callbacks.onStatusChange(value as LibraryToolbarState["currentStatus"])
+	);
+	addFilter(
+		"Decade",
+		[["Any decade", "all"], ...state.availableDecades.map((decade): [string, string] => [decade, decade])],
+		state.currentDecade,
+		callbacks.onDecadeChange
+	);
+	addFilter(
+		"Rating",
+		[["Any rating", "all"], ["Rated", "rated"], ["Unrated", "unrated"], ["8+ rating", "high"]],
+		state.currentRating,
+		(value) => callbacks.onRatingChange(value as LibraryToolbarState["currentRating"])
+	);
+	updateBadge();
+
+	const footer = panel.createDiv({ cls: "ml-toolbar-panel-footer" });
+	const sizeWrap = footer.createDiv({ cls: "ml-toolbar-card-size" });
+	const sizeLabel = sizeWrap.createEl("label", { cls: "ml-toolbar-card-size-label" });
+	sizeLabel.createSpan({ text: "Card size" });
+	const sizeInput = sizeLabel.createEl("input", {
+		type: "range",
+		attr: {
+			min: "120",
+			max: "320",
+			step: "10",
+			value: String(state.mediaCardSize),
+			"aria-label": "Card size",
+		},
+	});
+	const sizeValue = sizeLabel.createSpan({
+		text: `${state.mediaCardSize}px`,
+		cls: "ml-toolbar-card-size-value",
+	});
+	sizeInput.addEventListener("input", () => {
+		const value = Number(sizeInput.value);
+		sizeValue.setText(`${value}px`);
+		callbacks.onMediaCardSizeChange(value);
+	});
+	sizeInput.addEventListener("change", () => callbacks.onMediaCardSizeCommit());
+
+	const clearButton = footer.createEl("button", {
+		text: "Clear all",
+		cls: "ml-toolbar-button ml-toolbar-button--ghost",
+	});
+	clearButton.type = "button";
+	clearButton.addEventListener("click", () => {
+		callbacks.onReset();
+		search.value = "";
+		for (const select of selects) {
+			select.value = "all";
+		}
+		sortMode = state.settings.defaultSortMode;
+		direction = defaultDirection(sortMode);
+		sortSelect.value = sortMode;
+		syncDirectionButton();
+		updateBadge();
+	});
 }
 
-//go and update modules that use this toolbar to include the new sort direction dropdown and shuffle button such as LibraryView, LibraryToolbar, and any other views that use the toolbar
-//i have updated the LibraryView to include the new sort direction dropdown and shuffle button in the toolbar, and updated the state interface to include the current sort direction.
+/** Renders media-type counts, library mix, and average rating for the Media page. */
+export function renderLibraryStatBar(container: HTMLElement, library: MediaLibrary): void {
+  const bar = container.createDiv({ cls: "ml-stats" });
+  const row = bar.createDiv({ cls: "ml-stats-row" });
+
+  const counts: Array<{ type: string; label: string; icon: string; value: number }> = [
+    { type: "book", label: "Books", icon: "book-open", value: library.getBookCount() },
+    { type: "movie", label: "Films", icon: "film", value: library.getMovieCount() },
+    { type: "series", label: "Series", icon: "tv", value: library.getSeriesCount() },
+    { type: "essay", label: "Essays", icon: "file-text", value: library.getEssayCount() },
+  ];
+
+  const tiles = row.createDiv({ cls: "ml-stats-tiles" });
+  for (const entry of counts) {
+    const tile = tiles.createDiv({ cls: `ml-stats-tile is-${entry.type}` });
+    setIcon(tile.createSpan({ cls: "ml-stats-icon" }), entry.icon);
+    const text = tile.createDiv({ cls: "ml-stats-text" });
+    text.createDiv({ cls: "ml-stats-value", text: entry.value.toLocaleString() });
+    text.createDiv({ cls: "ml-stats-label", text: entry.label });
+  }
+
+  const ratings = library.getAll()
+    .map((item) => item.rating)
+    .filter((rating): rating is number =>
+      typeof rating === "number" && Number.isFinite(rating) && rating > 0
+    );
+  const average = ratings.length
+    ? Math.round((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length) * 10) / 10
+    : null;
+
+  const avg = row.createDiv({ cls: "ml-stats-average" });
+  setIcon(avg.createSpan({ cls: "ml-stats-average-icon" }), "star");
+  const avgText = avg.createDiv({ cls: "ml-stats-text" });
+  const avgValue = avgText.createDiv({ cls: "ml-stats-value" });
+  avgValue.createSpan({ text: average != null ? average.toFixed(1) : "—" });
+  avgValue.createSpan({ cls: "ml-stats-value-suffix", text: "/10" });
+  avgText.createDiv({ cls: "ml-stats-label", text: "Avg rating" });
+
+  // Library mix: one thin segment per type, sized by share
+  const total = counts.reduce((sum, entry) => sum + entry.value, 0);
+  if (total > 0) {
+    const mix = bar.createDiv({ cls: "ml-stats-mix" });
+    for (const entry of counts) {
+      if (entry.value === 0) continue;
+      const segment = mix.createDiv({ cls: `ml-stats-mix-segment is-${entry.type}` });
+      segment.style.flexGrow = String(entry.value);
+      segment.setAttr("title", `${entry.label}: ${Math.round((entry.value / total) * 100)}%`);
+    }
+  }
+}

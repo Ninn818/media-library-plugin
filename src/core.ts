@@ -53,6 +53,7 @@ export class ViewRegistry {
 	private readonly views: ViewDefinition[] = [
 		{ id: "cards", name: "Cards", icon: "layout-grid" },
 		{ id: "gallery", name: "Gallery", icon: "images" },
+		{ id: "table", name: "Table", icon: "table" }
 	];
 
 	getAll(): ViewDefinition[] {

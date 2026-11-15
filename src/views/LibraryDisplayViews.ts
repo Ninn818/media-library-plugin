@@ -329,3 +329,65 @@ export class CardView {
 		});
 	}
 }
+
+/** Renders a compact, row-based table of media items. */
+export class TableView {
+  constructor(private readonly app: App) {}
+
+  render(
+    container: HTMLElement,
+    items: MediaItem[],
+    selectedItem: MediaItem | null = null,
+    onSelect: CardSelectionHandler | null = null,
+    callbacks: CardViewCallbacks = {}
+  ): void {
+    container.empty();
+
+    if (!items.length) {
+      container.createDiv({ cls: "media-library-empty", text: "No media found for this view." });
+      return;
+    }
+
+    const table = container.createDiv({ cls: "media-table" });
+
+    const head = table.createDiv({ cls: "media-table-row media-table-head" });
+    for (const label of ["", "Title", "Creator", "Type", "Year", "Rating", "Status", ""]) {
+      head.createDiv({ cls: "media-table-cell", text: label });
+    }
+
+    for (const item of items) {
+      const row = table.createDiv({ cls: "media-table-row media-table-item" });
+      row.toggleClass("is-selected", selectedItem?.path === item.path);
+      row.addEventListener("click", () => onSelect?.(item));
+
+      new Poster(item, this.app).render(row.createDiv({ cls: "media-table-cell media-table-poster" }));
+
+      const title = row.createDiv({ cls: "media-table-cell media-table-title" });
+      title.createDiv({ cls: "media-table-title-text", text: item.title });
+      if (item.genres?.length) {
+        title.createDiv({ cls: "media-table-subtext", text: item.genres.slice(0, 2).join(" • ") });
+      }
+
+      const creator = row.createDiv({ cls: "media-table-cell media-table-creator", text: item.creator || "—" });
+      if (item.creator) {
+        creator.addEventListener("click", (event) => {
+          event.stopPropagation();
+          callbacks.onCreatorClick?.(item.creator);
+        });
+      }
+
+      row.createDiv({ cls: "media-table-cell media-table-type", text: item.mediaType });
+      row.createDiv({ cls: "media-table-cell", text: item.year ? String(item.year) : "—" });
+      row.createDiv({
+        cls: "media-table-cell media-table-rating",
+        text: item.rating != null ? `★ ${item.rating}` : "—",
+      });
+      row.createDiv({ cls: "media-table-cell media-table-status", text: item.status ?? "—" });
+
+      const actions = row.createDiv({ cls: "media-table-cell media-table-actions" });
+      createActionButton(actions, "Open note", "eye", "media-table", () => callbacks.onOpenNote?.(item));
+      createActionButton(actions, "Favorite", "heart", "media-table", () => callbacks.onToggleFavorite?.(item));
+      actions.toggleClass("is-favorite", callbacks.isFavorite?.(item.path) ?? false);
+    }
+  }
+}
