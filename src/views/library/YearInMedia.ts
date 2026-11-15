@@ -32,10 +32,10 @@ const FALLBACK_MINUTES: Record<MediaType, number> = { book: 360, movie: 120, ser
 const TYPES: MediaType[] = ["book", "movie", "series", "essay"];
 
 const TYPE_META: Record<MediaType, { label: string; singular: string; icon: string; color: string }> = {
-	book: { label: "Books", singular: "book", icon: "book-open", color: "#ffb454" },
-	movie: { label: "Films", singular: "film", icon: "film", color: "#ff5c8a" },
-	series: { label: "Series", singular: "series", icon: "tv", color: "#9b7bff" },
-	essay: { label: "Essays", singular: "essay", icon: "file-text", color: "#3dd9c0" },
+	book: { label: "Books", singular: "book", icon: "book-open", color: "#7f9fd8" },
+	movie: { label: "Films", singular: "film", icon: "film", color: "#e48aa9" },
+	series: { label: "Series", singular: "series", icon: "tv", color: "#a68ddc" },
+	essay: { label: "Essays", singular: "essay", icon: "file-text", color: "#6cc3ae" },
 };
 
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -114,19 +114,21 @@ export function renderYearInMedia(
 		return;
 	}
 
-	renderNumbers(root, wrapped);
+	const split = root.createDiv({ cls: "ml-wrap-row is-split" });
+	renderNumbers(split, wrapped);
+	renderMonths(split, wrapped);
+
+	const trio = root.createDiv({ cls: "ml-wrap-row is-trio" });
+	renderGenres(trio, wrapped);
+	renderRatings(trio, wrapped);
+	renderNames(trio, wrapped);
+
 	renderByType(root, wrapped);
-	renderMonths(root, wrapped);
-
-	const duo = root.createDiv({ cls: "ml-wrap-duo" });
-	renderGenres(duo, wrapped);
-	renderRatings(duo, wrapped);
-
-	renderCreators(root, wrapped);
 	renderTopRated(root, wrapped, ctx);
 	renderHabits(root, wrapped, ctx);
 	renderTimeCapsule(root, wrapped, ctx);
 	renderBigAndSmall(root, wrapped, ctx);
+	renderCreators(root, wrapped);
 	renderPersona(root, wrapped);
 	renderYearOverYear(root, wrapped);
 	renderCoverWall(root, wrapped, ctx);
@@ -908,9 +910,13 @@ function kvRow(parent: HTMLElement, label: string, value: string, onClick?: () =
 	}
 }
 
+const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+
 function renderRanked(parent: HTMLElement, title: string, list: Ranked[], emptyText: string, limit = 5): void {
 	const block = parent.createDiv({ cls: "ml-wrap-ranked" });
-	subhead(block, title);
+	if (title) {
+		subhead(block, title);
+	}
 
 	if (!list.length) {
 		block.createDiv({ cls: "ml-wrap-empty", text: emptyText });
@@ -921,7 +927,7 @@ function renderRanked(parent: HTMLElement, title: string, list: Ranked[], emptyT
 	const max = shown[0]?.count ?? 1;
 	for (const [index, entry] of shown.entries()) {
 		const row = block.createDiv({ cls: "ml-wrap-ranked-row" });
-		row.createSpan({ cls: "ml-wrap-rank", text: String(index + 1) });
+		row.createSpan({ cls: "ml-wrap-rank", text: ROMAN[index] ?? String(index + 1) });
 		const body = row.createDiv({ cls: "ml-wrap-ranked-body" });
 		const line = body.createDiv({ cls: "ml-wrap-ranked-line" });
 		line.createSpan({ cls: "ml-wrap-ranked-label", text: entry.label });
@@ -947,7 +953,11 @@ function renderColumns(
 		}
 		col.createDiv({ cls: "ml-wrap-col-value", text: entry.value ? String(entry.value) : "" });
 		const track = col.createDiv({ cls: "ml-wrap-col-track" });
-		track.createDiv({ cls: "ml-wrap-col-fill" }).style.height = `${(entry.value / max) * 100}%`;
+		const fill = track.createDiv({ cls: "ml-wrap-col-fill" });
+		fill.style.height = `${(entry.value / max) * 100}%`;
+		if (!entry.value) {
+			fill.addClass("is-empty");
+		}
 		col.createDiv({ cls: "ml-wrap-col-label", text: entry.label });
 	}
 }
@@ -959,12 +969,7 @@ function renderColumns(
 function renderHero(root: HTMLElement, w: Wrapped, ctx: WrappedContext): void {
 	const hero = root.createDiv({ cls: "ml-wrap-hero" });
 
-	const top = hero.createDiv({ cls: "ml-wrap-hero-top" });
-	const yearLine = top.createDiv({ cls: "ml-wrap-hero-yearline" });
-	yearLine.createSpan({ cls: "ml-wrap-hero-year", text: String(w.year) });
-	yearLine.createSpan({ cls: "ml-wrap-hero-suffix", text: "in media" });
-
-	const controls = top.createDiv({ cls: "ml-wrap-controls" });
+	const controls = hero.createDiv({ cls: "ml-wrap-controls" });
 	const select = controls.createEl("select", { cls: "ml-wrap-select" });
 	select.setAttr("aria-label", "Choose year");
 	for (const year of ctx.years) {
@@ -979,74 +984,103 @@ function renderHero(root: HTMLElement, w: Wrapped, ctx: WrappedContext): void {
 	save.createSpan({ text: "Save" });
 	save.addEventListener("click", (event) => openSaveMenu(event, ctx.app, w));
 
+	const main = hero.createDiv({ cls: "ml-wrap-hero-main" });
+	const title = main.createDiv({ cls: "ml-wrap-hero-title" });
+	title.createDiv({ cls: "ml-wrap-hero-year", text: String(w.year) });
+	title.createDiv({ cls: "ml-wrap-hero-suffix", text: "in media" });
+
+	const card = main.createDiv({ cls: "ml-wrap-cartouche" });
 	if (w.total === 0) {
-		hero.createDiv({ cls: "ml-wrap-headline", text: `Nothing logged for ${w.year}.` });
-		hero.createDiv({
-			cls: "ml-wrap-sub",
-			text: "Log a read or a watch from any title and it will show up here.",
-		});
+		card.createDiv({ cls: "ml-wrap-headline", text: `Nothing logged for ${w.year}.` });
+		card.createDiv({ cls: "ml-wrap-sub", text: "Log a read or a watch from any title and it will show up here." });
 	} else {
-		const headline = hero.createDiv({ cls: "ml-wrap-headline" });
+		const headline = card.createDiv({ cls: "ml-wrap-headline" });
 		headline.appendText("You finished ");
 		headline.createSpan({ cls: "ml-wrap-headline-number", text: w.total.toLocaleString("en-US") });
-		headline.appendText(w.total === 1 ? " title." : " titles.");
+		headline.appendText(w.total === 1 ? " title this year." : " titles this year.");
 
 		const days = (w.minutes / 1440).toFixed(1);
-		hero.createDiv({
+		card.createDiv({
 			cls: "ml-wrap-sub",
 			text: `About ${formatHours(w.minutes)} hours of reading and watching, or ${days} full days.`,
 		});
-
-		const pills = hero.createDiv({ cls: "ml-wrap-pills" });
-		for (const type of TYPES) {
-			if (!w.byType[type]) continue;
-			const pill = pills.createDiv({ cls: "ml-wrap-pill" });
-			pill.style.setProperty("--wrap-type", TYPE_META[type].color);
-			pill.createSpan({ cls: "ml-wrap-pill-dot" });
-			pill.createSpan({ text: `${w.byType[type].toLocaleString("en-US")} ${TYPE_META[type].label.toLowerCase()}` });
-		}
 	}
 
-	const nextYear = ctx.unlockedYear + 1;
-	const unlockAt = unlockDateFor(nextYear);
-	const daysLeft = Math.max(1, Math.ceil((unlockAt.getTime() - ctx.now.getTime()) / 86400000));
-	const dateLabel = unlockAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-	hero.createDiv({
-		cls: "ml-wrap-unlock",
-		text: `Your ${nextYear} wrap unlocks on ${dateLabel}, ${plural(daysLeft, "day")} from now.`,
-	});
+	const foot = hero.createDiv({ cls: "ml-wrap-hero-foot" });
+	const pills = foot.createDiv({ cls: "ml-wrap-pills" });
+	for (const type of TYPES) {
+		if (!w.byType[type]) continue;
+		const pill = pills.createDiv({ cls: "ml-wrap-pill" });
+		pill.style.setProperty("--wrap-type", TYPE_META[type].color);
+		pill.createSpan({ cls: "ml-wrap-pill-dot" });
+		pill.createSpan({ text: `${w.byType[type].toLocaleString("en-US")} ${TYPE_META[type].label.toLowerCase()}` });
+	}
+
+	// Only the newest wrap counts down to the next unlock.
+	if (w.year === ctx.unlockedYear) {
+		const nextYear = ctx.unlockedYear + 1;
+		const unlockAt = unlockDateFor(nextYear);
+		const daysLeft = Math.max(1, Math.ceil((unlockAt.getTime() - ctx.now.getTime()) / 86400000));
+		const dateLabel = unlockAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+		foot.createDiv({
+			cls: "ml-wrap-unlock",
+			text: `Your ${nextYear} wrap unlocks on ${dateLabel}, ${plural(daysLeft, "day")} from now.`,
+		});
+	}
 }
 
-function renderNumbers(root: HTMLElement, w: Wrapped): void {
-	const body = panel(root, "ink", `${w.year} at a glance`);
+interface MedalTile {
+	value: string;
+	label: string;
+	sub?: string;
+	tone?: "up" | "down";
+}
+
+function renderMedals(parent: HTMLElement, tiles: MedalTile[]): void {
+	const grid = parent.createDiv({ cls: "ml-wrap-medals" });
+	for (const tile of tiles) {
+		const item = grid.createDiv({ cls: "ml-wrap-medal-item" });
+		const medal = item.createDiv({ cls: "ml-wrap-medal" });
+		medal.toggleClass("is-long", tile.value.length > 5);
+		if (tile.tone) {
+			medal.addClass(`is-${tile.tone}`);
+		}
+		medal.createDiv({ cls: "ml-wrap-medal-value", text: tile.value });
+		item.createDiv({ cls: "ml-wrap-tile-label", text: tile.label });
+		if (tile.sub) {
+			item.createDiv({ cls: "ml-wrap-tile-sub", text: tile.sub });
+		}
+	}
+}
+
+function renderNumbers(parent: HTMLElement, w: Wrapped): void {
+	const body = panel(parent, "ink", `${w.year} at a glance`);
 	const daysInYear = isLeap(w.year) ? 366 : 365;
 
-	const tiles: Array<{ value: string; label: string; sub?: string }> = [
+	const tiles: MedalTile[] = [
 		{ value: w.total.toLocaleString("en-US"), label: "Titles finished", sub: `${w.uniqueTitles.toLocaleString("en-US")} unique` },
 		{ value: formatHours(w.minutes), label: "Hours", sub: `${(w.minutes / 1440).toFixed(1)} full days` },
 	];
 	if (w.pages > 0) {
 		tiles.push({ value: w.pages.toLocaleString("en-US"), label: "Pages read" });
 	}
+
+	const streakTile: MedalTile = { value: String(w.streak?.length ?? 0), label: "Day streak" };
+	if (w.streak) {
+		streakTile.sub = formatRange(w.streak.start, w.streak.end);
+	}
+
 	tiles.push(
 		{ value: String(w.repeats), label: "Rewatches and rereads" },
 		{ value: w.average !== null ? w.average.toFixed(1) : "-", label: "Average rating", sub: `${w.ratedCount} rated` },
 		{ value: String(w.perfectTens), label: "Perfect 10s" },
 		{ value: String(w.activeDays), label: "Days with a finish", sub: `${Math.round((w.activeDays / daysInYear) * 100)}% of the year` },
-		{ value: String(w.streak?.length ?? 0), label: "Day streak", sub: w.streak ? formatRange(w.streak.start, w.streak.end) : undefined },
+		streakTile,
 		{ value: String(w.notes), label: "Notes written" },
 		{ value: String(w.favorites), label: "Favorited" },
 	);
 
-	const grid = body.createDiv({ cls: "ml-wrap-tiles" });
-	for (const tile of tiles) {
-		const el = grid.createDiv({ cls: "ml-wrap-tile" });
-		el.createDiv({ cls: "ml-wrap-tile-value", text: tile.value });
-		el.createDiv({ cls: "ml-wrap-tile-label", text: tile.label });
-		if (tile.sub) {
-			el.createDiv({ cls: "ml-wrap-tile-sub", text: tile.sub });
-		}
-	}
+	renderMedals(body, tiles);
 }
 
 function renderByType(root: HTMLElement, w: Wrapped): void {
@@ -1055,23 +1089,15 @@ function renderByType(root: HTMLElement, w: Wrapped): void {
 		if (w.byType[type] > w.byType[top]) top = type;
 	}
 
-	const body = panel(
-		root,
-		"plum",
-		"What filled your year",
-		`${TYPE_META[top].label} led with ${plural(w.byType[top], TYPE_META[top].singular)}.`,
-	);
-
-	const share = body.createDiv({ cls: "ml-wrap-share" });
-	for (const type of TYPES) {
-		if (!w.byType[type]) continue;
-		const segment = share.createDiv({ cls: "ml-wrap-share-seg" });
-		segment.style.flexGrow = String(w.byType[type]);
-		segment.style.background = TYPE_META[type].color;
-		segment.setAttr("title", `${TYPE_META[type].label}: ${w.byType[type]}`);
-	}
-
+	const body = panel(root, "plum", "What filled your year");
 	const grid = body.createDiv({ cls: "ml-wrap-type-grid" });
+
+	const lead = grid.createDiv({ cls: "ml-wrap-type-lead" });
+	lead.createDiv({
+		cls: "ml-wrap-type-lead-text",
+		text: `${TYPE_META[top].label} led with ${plural(w.byType[top], TYPE_META[top].singular)}.`,
+	});
+
 	for (const type of TYPES) {
 		const meta = TYPE_META[type];
 		const count = w.byType[type];
@@ -1102,33 +1128,37 @@ function renderByType(root: HTMLElement, w: Wrapped): void {
 	}
 }
 
-function renderMonths(root: HTMLElement, w: Wrapped): void {
+function renderMonths(parent: HTMLElement, w: Wrapped): void {
 	const totals = w.months.map((month) => month.total);
 	const max = Math.max(1, ...totals);
 	const peakIndex = totals.indexOf(max);
 	const quietIndex = totals.indexOf(Math.min(...totals));
 
 	const body = panel(
-		root,
+		parent,
 		"navy",
 		"Your year, month by month",
 		`${MONTHS_LONG[peakIndex] ?? ""} was your biggest month with ${plural(max, "finish", "finishes")}. ${MONTHS_LONG[quietIndex] ?? ""} was the quietest with ${totals[quietIndex] ?? 0}.`,
 	);
 
+	// One button per finished title, stacked up its month. Size adapts to the busiest month.
+	const size = Math.max(7, Math.min(18, Math.floor(200 / max)));
 	const chart = body.createDiv({ cls: "ml-wrap-months" });
+	chart.style.setProperty("--wrap-button", `${size}px`);
+
 	for (const [index, month] of w.months.entries()) {
 		const col = chart.createDiv({ cls: "ml-wrap-month" });
 		col.toggleClass("is-peak", index === peakIndex);
 		col.setAttr("title", `${MONTHS_LONG[index] ?? ""}: ${month.total}`);
 		col.createDiv({ cls: "ml-wrap-col-value", text: month.total ? String(month.total) : "" });
 
-		const track = col.createDiv({ cls: "ml-wrap-month-track" });
+		const stack = col.createDiv({ cls: "ml-wrap-month-stack" });
 		for (const type of TYPES) {
-			if (!month.counts[type]) continue;
-			const seg = track.createDiv({ cls: "ml-wrap-month-seg" });
-			seg.style.height = `${(month.counts[type] / max) * 100}%`;
-			seg.style.background = TYPE_META[type].color;
+			for (let count = 0; count < month.counts[type]; count += 1) {
+				stack.createDiv({ cls: "ml-wrap-button" }).style.setProperty("--wrap-type", TYPE_META[type].color);
+			}
 		}
+
 		col.createDiv({ cls: "ml-wrap-col-label", text: MONTHS_SHORT[index] ?? "" });
 	}
 
@@ -1149,7 +1179,29 @@ function renderGenres(parent: HTMLElement, w: Wrapped): void {
 		"Genres you kept coming back to",
 		top ? `${top.label} led the way with ${plural(top.count, "title")}.` : undefined,
 	);
-	renderRanked(body, "Top genres", w.genres, "No genres on the notes you finished this year.", 6);
+	renderRanked(body, "", w.genres, "No genres on the notes you finished this year.", 5);
+}
+
+function renderNames(parent: HTMLElement, w: Wrapped): void {
+	const merged = new Map<string, number>();
+	for (const list of [w.authors, w.directors, w.essayists]) {
+		for (const entry of list) {
+			merged.set(entry.label, (merged.get(entry.label) ?? 0) + entry.count);
+		}
+	}
+
+	const ranked = [...merged.entries()]
+		.map(([label, count]) => ({ label, count }))
+		.sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
+	const top = ranked[0];
+
+	const body = panel(
+		parent,
+		"ink",
+		"The names you saw most",
+		top && top.count > 1 ? `${top.label} showed up ${top.count} times.` : undefined,
+	);
+	renderRanked(body, "", ranked, "No authors or directors this year.", 5);
 }
 
 function renderRatings(parent: HTMLElement, w: Wrapped): void {
@@ -1159,10 +1211,11 @@ function renderRatings(parent: HTMLElement, w: Wrapped): void {
 		"How you rated",
 		w.average !== null
 			? `Your average was ${w.average.toFixed(1)} out of 10 across ${plural(w.ratedCount, "rating")}.`
-			: "No ratings for this year yet.",
+			: undefined,
 	);
 
 	if (w.average === null) {
+		body.createDiv({ cls: "ml-wrap-empty", text: "No ratings for this year yet." });
 		return;
 	}
 
@@ -1184,23 +1237,7 @@ function renderCreators(root: HTMLElement, w: Wrapped): void {
 		return;
 	}
 
-	const top = best(
-		[
-			{ label: w.authors[0]?.label, count: w.authors[0]?.count ?? 0 },
-			{ label: w.directors[0]?.label, count: w.directors[0]?.count ?? 0 },
-			{ label: w.essayists[0]?.label, count: w.essayists[0]?.count ?? 0 },
-		],
-		(entry) => entry.count,
-		"max",
-	);
-
-	const body = panel(
-		root,
-		"ink",
-		"The names you saw most",
-		top && top.label ? `${top.label} showed up ${top.count} ${top.count === 1 ? "time" : "times"}.` : undefined,
-	);
-
+	const body = panel(root, "navy", "Cast and crew");
 	const grid = body.createDiv({ cls: "ml-wrap-ranked-grid" });
 	if (w.authors.length) renderRanked(grid, "Authors", w.authors, "", 5);
 	if (w.directors.length) renderRanked(grid, "Directors and creators", w.directors, "", 5);
@@ -1368,20 +1405,21 @@ function renderYearOverYear(root: HTMLElement, w: Wrapped): void {
 		return;
 	}
 
-	const grid = body.createDiv({ cls: "ml-wrap-tiles" });
+	const tiles: MedalTile[] = [];
 	const delta = (label: string, current: number, previous: number, unit = ""): void => {
 		const diff = current - previous;
 		const pct = previous > 0 ? Math.round((diff / previous) * 100) : null;
-		const tile = grid.createDiv({ cls: "ml-wrap-tile" });
-		tile.createDiv({
-			cls: `ml-wrap-tile-value ${diff > 0 ? "is-up" : diff < 0 ? "is-down" : ""}`.trim(),
-			text: `${diff > 0 ? "+" : ""}${unit === "" ? diff : diff.toFixed(1)}${unit}`,
-		});
-		tile.createDiv({ cls: "ml-wrap-tile-label", text: label });
-		tile.createDiv({
-			cls: "ml-wrap-tile-sub",
-			text: `${previous.toLocaleString("en-US")} last year${pct !== null ? `, ${pct > 0 ? "+" : ""}${pct}%` : ""}`,
-		});
+		const tile: MedalTile = {
+			value: `${diff > 0 ? "+" : ""}${unit === "" ? String(diff) : diff.toFixed(1)}${unit}`,
+			label,
+			sub: `${previous.toLocaleString("en-US")} last year${pct !== null ? `, ${pct > 0 ? "+" : ""}${pct}%` : ""}`,
+		};
+		if (diff > 0) {
+			tile.tone = "up";
+		} else if (diff < 0) {
+			tile.tone = "down";
+		}
+		tiles.push(tile);
 	};
 
 	delta("Titles finished", w.total, w.previous.total);
@@ -1389,6 +1427,8 @@ function renderYearOverYear(root: HTMLElement, w: Wrapped): void {
 	if (w.average !== null && w.previous.average !== null) {
 		delta("Average rating", w.average, w.previous.average, " pts");
 	}
+
+	renderMedals(body, tiles);
 }
 
 function renderCoverWall(root: HTMLElement, w: Wrapped, ctx: WrappedContext): void {
@@ -1626,10 +1666,15 @@ function buildMarkdown(w: Wrapped): string {
 }
 
 /* ---------------------------------------------------------------------------
- * Share image (1080 x 1920, typographic, no posters)
+ * Share image (1080 x 1920, storybook plate, follows the theme, no posters)
  * ------------------------------------------------------------------------ */
 
-const IMAGE_FONT = "'Inter', 'SF Pro Display', system-ui, -apple-system, 'Segoe UI', sans-serif";
+const IMAGE_FONT = "'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif";
+
+function themeColor(name: string, fallback: string): string {
+	const value = getComputedStyle(document.body).getPropertyValue(name).trim();
+	return value || fallback;
+}
 
 function drawText(
 	g: CanvasRenderingContext2D,
@@ -1640,19 +1685,17 @@ function drawText(
 	weight: number,
 	fill: string,
 	align: CanvasTextAlign = "left",
-	spacing = 0,
+	italic = false,
 ): void {
-	g.font = `${weight} ${size}px ${IMAGE_FONT}`;
+	g.font = `${italic ? "italic " : ""}${weight} ${size}px ${IMAGE_FONT}`;
 	g.fillStyle = fill;
 	g.textAlign = align;
 	g.textBaseline = "alphabetic";
-	(g as unknown as { letterSpacing: string }).letterSpacing = `${spacing}px`;
 	g.fillText(text, x, y);
 }
 
 function fitText(g: CanvasRenderingContext2D, text: string, maxWidth: number, size: number, weight: number): string {
 	g.font = `${weight} ${size}px ${IMAGE_FONT}`;
-	(g as unknown as { letterSpacing: string }).letterSpacing = "0px";
 	if (g.measureText(text).width <= maxWidth) {
 		return text;
 	}
@@ -1674,18 +1717,64 @@ function roundedRect(g: CanvasRenderingContext2D, x: number, y: number, width: n
 	g.closePath();
 }
 
-function glow(g: CanvasRenderingContext2D, x: number, y: number, radius: number, rgb: string, alpha: number): void {
-	const gradient = g.createRadialGradient(x, y, 0, x, y, radius);
-	gradient.addColorStop(0, `rgba(${rgb},${alpha})`);
-	gradient.addColorStop(1, `rgba(${rgb},0)`);
-	g.fillStyle = gradient;
-	g.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+/** A strip of scalloped lace with an eyelet in every scallop. */
+function drawLace(g: CanvasRenderingContext2D, x1: number, x2: number, y: number, direction: 1 | -1, color: string): void {
+	const step = 40;
+	const radius = 20;
+
+	g.strokeStyle = color;
+	g.lineWidth = 2.5;
+	g.setLineDash([]);
+	g.beginPath();
+	g.moveTo(x1, y);
+	g.lineTo(x2, y);
+	g.stroke();
+
+	for (let x = x1; x + step <= x2; x += step) {
+		g.beginPath();
+		if (direction === 1) {
+			g.arc(x + radius, y, radius, 0, Math.PI, false);
+		} else {
+			g.arc(x + radius, y, radius, Math.PI, Math.PI * 2, false);
+		}
+		g.stroke();
+
+		g.beginPath();
+		g.arc(x + radius, y + direction * 11, 3.5, 0, Math.PI * 2);
+		g.stroke();
+	}
+}
+
+/** Thin outline with a stitched inner line, used for every box on the card. */
+function drawPlate(
+	g: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+	radius: number,
+	color: string,
+): void {
+	g.strokeStyle = color;
+	g.globalAlpha = 0.8;
+	g.setLineDash([]);
+	g.lineWidth = 2.5;
+	roundedRect(g, x, y, width, height, radius);
+	g.stroke();
+
+	g.lineWidth = 1.5;
+	g.setLineDash([7, 7]);
+	roundedRect(g, x + 9, y + 9, width - 18, height - 18, Math.max(6, radius - 9));
+	g.stroke();
+
+	g.setLineDash([]);
+	g.globalAlpha = 1;
 }
 
 async function renderShareImage(w: Wrapped): Promise<Blob> {
 	const W = 1080;
 	const H = 1920;
-	const PAD = 90;
+	const PAD = 120;
 
 	const canvas = document.createElement("canvas");
 	canvas.width = W;
@@ -1695,59 +1784,93 @@ async function renderShareImage(w: Wrapped): Promise<Blob> {
 		throw new Error("Canvas 2D is not available.");
 	}
 
-	const background = g.createLinearGradient(0, 0, W, H);
-	background.addColorStop(0, "#1a0b3d");
-	background.addColorStop(0.55, "#4a1a8c");
-	background.addColorStop(1, "#b4208a");
-	g.fillStyle = background;
+	// Colors follow the active Obsidian theme.
+	const paper = themeColor("--background-primary", "#fbf7f0");
+	const ink = themeColor("--text-normal", "#2c2a35");
+	const muted = themeColor("--text-muted", "#6b6878");
+	const accent = themeColor("--interactive-accent", "#7f9fd8");
+
+	g.fillStyle = paper;
 	g.fillRect(0, 0, W, H);
-	glow(g, 900, 260, 520, "255,92,138", 0.35);
-	glow(g, 100, 1500, 620, "61,217,192", 0.2);
 
-	drawText(g, "in media", PAD, 150, 34, 600, "rgba(255,255,255,0.75)");
-	drawText(g, String(w.year), PAD - 8, 430, 330, 900, "#ffffff", "left", -12);
+	// Page frame and lace
+	drawPlate(g, 40, 40, W - 80, H - 80, 64, muted);
+	drawLace(g, 120, W - 120, 98, 1, accent);
+	drawLace(g, 120, W - 120, H - 98, -1, accent);
 
-	drawText(g, w.total.toLocaleString("en-US"), PAD, 690, 190, 900, "#ffffff", "left", -4);
-	drawText(g, w.total === 1 ? "title finished" : "titles finished", PAD, 765, 52, 600, "rgba(255,255,255,0.9)");
+	// Title: outlined year
+	g.strokeStyle = accent;
+	g.lineWidth = 5;
+	g.lineJoin = "round";
+	g.font = `700 330px ${IMAGE_FONT}`;
+	g.textAlign = "center";
+	g.textBaseline = "alphabetic";
+	g.strokeText(String(w.year), W / 2, 450);
+	drawText(g, "in media", W / 2, 545, 78, 400, ink, "center", true);
+
+	// Headline plate
+	drawPlate(g, PAD, 620, W - PAD * 2, 300, 84, muted);
+	drawText(g, "You finished", W / 2, 700, 44, 400, muted, "center", true);
+	drawText(g, w.total.toLocaleString("en-US"), W / 2, 832, 150, 700, ink, "center");
+	drawText(g, w.total === 1 ? "title this year" : "titles this year", W / 2, 888, 44, 400, muted, "center", true);
 	drawText(
 		g,
 		`About ${formatHours(w.minutes)} hours, or ${(w.minutes / 1440).toFixed(1)} full days`,
-		PAD,
-		840,
-		36,
-		500,
-		"rgba(255,255,255,0.72)",
+		W / 2,
+		1000,
+		34,
+		400,
+		ink,
+		"center",
 	);
 
-	// Type breakdown
-	drawText(g, "By type", PAD, 960, 28, 600, "rgba(255,255,255,0.6)");
+	// By type: stitched lines
+	drawText(g, "What filled your year", W / 2, 1100, 46, 700, ink, "center", true);
 	const maxCount = Math.max(1, ...TYPES.map((type) => w.byType[type]));
+	const trackWidth = W - PAD * 2 - 16;
 	for (const [index, type] of TYPES.entries()) {
-		const y = 1020 + index * 84;
-		drawText(g, TYPE_META[type].label, PAD, y, 38, 600, "#ffffff");
-		drawText(g, String(w.byType[type]), W - PAD, y, 38, 800, "#ffffff", "right");
+		const y = 1180 + index * 82;
+		drawText(g, TYPE_META[type].label, PAD, y, 38, 400, ink);
+		drawText(g, String(w.byType[type]), W - PAD, y, 38, 700, ink, "right");
 
-		g.fillStyle = "rgba(255,255,255,0.16)";
-		roundedRect(g, PAD, y + 16, W - PAD * 2, 14, 7);
-		g.fill();
+		const lineY = y + 26;
+		g.lineCap = "round";
+		g.strokeStyle = muted;
+		g.globalAlpha = 0.4;
+		g.lineWidth = 2;
+		g.setLineDash([2, 8]);
+		g.beginPath();
+		g.moveTo(PAD, lineY);
+		g.lineTo(PAD + trackWidth, lineY);
+		g.stroke();
+		g.globalAlpha = 1;
 
-		const fillWidth = Math.max(w.byType[type] > 0 ? 14 : 0, ((W - PAD * 2) * w.byType[type]) / maxCount);
-		if (fillWidth > 0) {
-			g.fillStyle = TYPE_META[type].color;
-			roundedRect(g, PAD, y + 16, fillWidth, 14, 7);
+		const length = (trackWidth * w.byType[type]) / maxCount;
+		if (length > 0) {
+			g.strokeStyle = TYPE_META[type].color;
+			g.lineWidth = 6;
+			g.setLineDash([16, 11]);
+			g.beginPath();
+			g.moveTo(PAD, lineY);
+			g.lineTo(PAD + length, lineY);
+			g.stroke();
+
+			g.setLineDash([]);
+			g.lineWidth = 4;
+			g.fillStyle = paper;
+			g.beginPath();
+			g.arc(PAD + length + 8, lineY, 8, 0, Math.PI * 2);
 			g.fill();
+			g.stroke();
 		}
+
+		g.setLineDash([]);
+		g.lineCap = "butt";
 	}
 
-	// Stat boxes
-	const topCreator = best(
-		[w.authors[0], w.directors[0], w.essayists[0]].filter((entry): entry is Ranked => Boolean(entry)),
-		(entry) => entry.count,
-		"max",
-	);
+	// Three small plates
 	const boxes: Array<{ label: string; value: string; sub: string }> = [
 		{ label: "Top genre", value: w.genres[0]?.label ?? "-", sub: w.genres[0] ? plural(w.genres[0].count, "title") : "" },
-		{ label: "Most seen", value: topCreator?.label ?? "-", sub: topCreator ? plural(topCreator.count, "title") : "" },
 		{ label: "Average rating", value: w.average !== null ? `${w.average.toFixed(1)}/10` : "-", sub: `${w.ratedCount} rated` },
 		{
 			label: "Longest streak",
@@ -1756,24 +1879,20 @@ async function renderShareImage(w: Wrapped): Promise<Blob> {
 		},
 	];
 
-	const boxWidth = (W - PAD * 2 - 24) / 2;
+	const gap = 20;
+	const boxWidth = (W - PAD * 2 - gap * 2) / 3;
 	for (const [index, box] of boxes.entries()) {
-		const x = PAD + (index % 2) * (boxWidth + 24);
-		const y = 1350 + Math.floor(index / 2) * 164;
-
-		g.fillStyle = "rgba(255,255,255,0.12)";
-		roundedRect(g, x, y, boxWidth, 140, 22);
-		g.fill();
-
-		drawText(g, box.label, x + 28, y + 42, 24, 600, "rgba(255,255,255,0.62)");
-		drawText(g, fitText(g, box.value, boxWidth - 56, 44, 800), x + 28, y + 92, 44, 800, "#ffffff");
-		drawText(g, fitText(g, box.sub, boxWidth - 56, 24, 500), x + 28, y + 125, 24, 500, "rgba(255,255,255,0.66)");
+		const x = PAD + index * (boxWidth + gap);
+		const y = 1530;
+		drawPlate(g, x, y, boxWidth, 150, 30, muted);
+		drawText(g, box.label, x + boxWidth / 2, y + 44, 22, 400, muted, "center", true);
+		drawText(g, fitText(g, box.value, boxWidth - 50, 36, 700), x + boxWidth / 2, y + 90, 36, 700, ink, "center");
+		drawText(g, fitText(g, box.sub, boxWidth - 50, 22, 400), x + boxWidth / 2, y + 122, 22, 400, muted, "center");
 	}
 
-	// Persona
-	drawText(g, w.persona.title, W / 2, 1770, 66, 800, "#ffffff", "center");
-	drawText(g, fitText(g, w.persona.blurb, W - PAD * 2, 28, 500), W / 2, 1822, 28, 500, "rgba(255,255,255,0.75)", "center");
-	drawText(g, "Media Library", W / 2, 1884, 22, 500, "rgba(255,255,255,0.4)", "center");
+	// Personality
+	drawText(g, w.persona.title, W / 2, 1752, 66, 700, ink, "center", true);
+	drawText(g, fitText(g, w.persona.blurb, W - PAD * 2, 28, 400), W / 2, 1796, 28, 400, muted, "center");
 
 	return await new Promise<Blob>((resolve, reject) => {
 		canvas.toBlob((blob) => {
