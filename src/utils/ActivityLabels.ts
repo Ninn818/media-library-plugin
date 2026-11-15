@@ -1,4 +1,4 @@
-import { MediaItem } from "../models/MediaItem";
+import { MediaItem } from "../models";
 
 export interface CompletionEvent {
 	date: string;

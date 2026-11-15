@@ -1,7 +1,7 @@
 import { App, Modal } from "obsidian";
-import { MediaItem } from "../models/MediaItem";
+import { MediaItem } from "../models";
 import { MediaLibraryCustomList } from "../settings";
-import { Poster } from "../components/Poster";
+import { Poster } from "../PluginControllers";
 
 export interface MediaListModalOptions {
   app: App;

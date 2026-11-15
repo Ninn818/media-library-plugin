@@ -1,6 +1,6 @@
 import { App, DropdownComponent, PluginSettingTab, Setting, ToggleComponent } from 'obsidian';
 import MediaLibraryPlugin from './main';
-import type { SortMode, SortType } from "./models/SortType"; // add near top with other imports
+import type { SortMode, SortType } from "./models";
 
 export type LibrarySortMode = SortMode; // "latest" | "title" | "creator" | "year" | "rating" | "random"
 export type LibraryPageTab = 'home' | 'dashboard' | 'media' | 'diary' | 'activity' | 'lists' | 'tags' | 'library';

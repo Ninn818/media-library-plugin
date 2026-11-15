@@ -1,10 +1,8 @@
 import { Modal, Notice, TFile } from "obsidian";
 
-import { Poster } from "../components/Poster";
-import { MediaActivityEntry, MediaItem } from "../models";
-import { isMediaStatus } from "../models/MediaStatus";
-import { ActivityLogService, getFallbackActivityEntries } from "../services/ActivityLogService";
-import { addTagToMediaNote } from "../services/TagService";
+import { Poster } from "../PluginControllers";
+import { isMediaStatus, MediaActivityEntry, MediaItem } from "../models";
+import { ActivityLogService, addTagToMediaNote, getFallbackActivityEntries } from "../services";
 import { TagStorageFormat } from "../settings";
 
 interface MediaActivityModalOptions {
@@ -272,7 +270,7 @@ export class MediaActivityModal extends Modal {
 			const editBtn = viewMode.createEl("button", { text: "Edit", cls: "media-activity-entry-edit-btn" });
 			editBtn.type = "button";
 			editBtn.addEventListener("click", () => {
-				this.openActivityEditMode(card, entry, originalIndex, entries, timeline);
+				this.openActivityEditMode(card, entry, originalIndex, entries);
 			});
 
 			card.style.cursor = "pointer";
@@ -283,8 +281,7 @@ export class MediaActivityModal extends Modal {
 		cardEl: HTMLElement,
 		entry: MediaActivityEntry,
 		originalIndex: number,
-		allEntries: MediaActivityEntry[],
-		timelineEl: HTMLElement
+		allEntries: MediaActivityEntry[]
 	): void {
 		const file = this.app.vault.getAbstractFileByPath(this.item.path);
 		if (!(file instanceof TFile)) {

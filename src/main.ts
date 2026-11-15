@@ -7,16 +7,15 @@ import {
 
 import {
 	PluginController,
-} from "./controllers/PluginControllers";
+} from "./PluginControllers";
 
 import {
 	DEFAULT_SETTINGS,
 	MediaLibrarySettings,
 	MediaLibrarySettingTab,
 } from "./settings";
-import { LibraryView } from "./views/LibraryView";
-import { MediaLibrary } from "./core/MediaLibrary";
-import { ViewRegistry } from "./core/ViewRegistry";
+import { LibraryView } from "./views/MediaLibraryView";
+import { MediaLibrary, ViewRegistry } from "./core";
 
 
 
@@ -49,8 +48,6 @@ export default class MediaLibraryPlugin extends Plugin {
 	library!: MediaLibrary;
 
 	viewRegistry!: ViewRegistry;
-
-	private leaf?: WorkspaceLeaf;
 
 	async onload(): Promise<void> {
 
@@ -87,7 +84,6 @@ export default class MediaLibraryPlugin extends Plugin {
 		this.registerView(
 			"media-library-view",
 			(leaf: WorkspaceLeaf) => {
-				this.leaf = leaf;
 				return new LibraryView(leaf, this.library, this.viewRegistry, this.settings, () => this.saveSettings());
 			}
 		);

@@ -1,8 +1,9 @@
 import { App, TFile } from "obsidian";
 
-import { MediaActivityEntry } from "../models/MediaActivityEntry";
-import { MediaItem } from "../models/MediaItem";
+import { MediaActivityEntry, MediaItem } from "./models";
+import { MediaLibraryCustomList, MediaLibrarySettings, TagStorageFormat } from "./settings";
 
+/** Activity logging. */
 const ACTIVITY_CALLOUT_HEADER = "> [!media-activity]+ Activity log";
 
 export class ActivityLogService {
@@ -267,4 +268,290 @@ function getRawProgress(raw: Record<string, unknown>): number | null {
 
 function clampProgress(progress: number): number {
 	return Math.max(0, Math.min(100, Math.round(progress)));
+}
+
+/** Custom lists and favorites. */
+const FAVORITES_LIST_NAME = "Favorites";
+const UP_NEXT_LIST_NAME = "Up Next";
+const CURRENTLY_LIST_NAME = "Currently";
+
+function nowIso(): string {
+	return new Date().toISOString();
+}
+
+function normalizeName(name: string): string {
+	return name.trim().replace(/\s+/g, " ");
+}
+
+function makeListId(name: string): string {
+	const base = normalizeName(name)
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+	return `${base || "list"}-${Date.now().toString(36)}`;
+}
+
+function findByName(settings: MediaLibrarySettings, listName: string): MediaLibraryCustomList | undefined {
+	const target = normalizeName(listName).toLowerCase();
+	return settings.customLists.find((list) => list.name.toLowerCase() === target);
+}
+
+export function getFavoritesList(settings: MediaLibrarySettings): MediaLibraryCustomList | undefined {
+	return findByName(settings, FAVORITES_LIST_NAME);
+}
+
+export function getUpNextList(settings: MediaLibrarySettings): MediaLibraryCustomList | undefined {
+	return findByName(settings, UP_NEXT_LIST_NAME);
+}
+
+export function getCurrentlyList(settings: MediaLibrarySettings): MediaLibraryCustomList | undefined {
+	return findByName(settings, CURRENTLY_LIST_NAME);
+}
+
+export function ensureFavoritesList(settings: MediaLibrarySettings): MediaLibraryCustomList {
+	const existing = getFavoritesList(settings);
+	if (existing) {
+		return existing;
+	}
+
+	const created: MediaLibraryCustomList = {
+		id: makeListId(FAVORITES_LIST_NAME),
+		name: FAVORITES_LIST_NAME,
+		itemPaths: [],
+		createdAt: nowIso(),
+		updatedAt: nowIso(),
+	};
+	settings.customLists = [...settings.customLists, created];
+	return created;
+}
+
+export function ensureUpNextList(settings: MediaLibrarySettings): MediaLibraryCustomList {
+	const existing = getUpNextList(settings);
+	if (existing) {
+		return existing;
+	}
+
+	const created: MediaLibraryCustomList = {
+		id: makeListId(UP_NEXT_LIST_NAME),
+		name: UP_NEXT_LIST_NAME,
+		itemPaths: [],
+		createdAt: nowIso(),
+		updatedAt: nowIso(),
+	};
+	settings.customLists = [...settings.customLists, created];
+	return created;
+}
+
+export function ensureCurrentlyList(settings: MediaLibrarySettings): MediaLibraryCustomList {
+	const existing = getCurrentlyList(settings);
+	if (existing) {
+		return existing;
+	}
+
+	const created: MediaLibraryCustomList = {
+		id: makeListId(CURRENTLY_LIST_NAME),
+		name: CURRENTLY_LIST_NAME,
+		itemPaths: [],
+		createdAt: nowIso(),
+		updatedAt: nowIso(),
+	};
+	settings.customLists = [...settings.customLists, created];
+	return created;
+}
+
+export function createCustomList(settings: MediaLibrarySettings, rawName: string): MediaLibraryCustomList | null {
+	const name = normalizeName(rawName);
+	if (!name) {
+		return null;
+	}
+
+	const existing = findByName(settings, name);
+	if (existing) {
+		return existing;
+	}
+
+	const created: MediaLibraryCustomList = {
+		id: makeListId(name),
+		name,
+		itemPaths: [],
+		createdAt: nowIso(),
+		updatedAt: nowIso(),
+	};
+	settings.customLists = [...settings.customLists, created];
+	return created;
+}
+
+export function deleteCustomList(settings: MediaLibrarySettings, listId: string): boolean {
+	const before = settings.customLists.length;
+	settings.customLists = settings.customLists.filter((list) => list.id !== listId);
+	return settings.customLists.length < before;
+}
+
+export function addMediaToCustomList(settings: MediaLibrarySettings, listId: string, itemPath: string): boolean {
+	const list = settings.customLists.find((entry) => entry.id === listId);
+	if (!list || list.itemPaths.includes(itemPath)) {
+		return false;
+	}
+
+	list.itemPaths = [...list.itemPaths, itemPath];
+	list.updatedAt = nowIso();
+	return true;
+}
+
+export function removeMediaFromCustomList(settings: MediaLibrarySettings, listId: string, itemPath: string): boolean {
+	const list = settings.customLists.find((entry) => entry.id === listId);
+	if (!list || !list.itemPaths.includes(itemPath)) {
+		return false;
+	}
+
+	list.itemPaths = list.itemPaths.filter((path) => path !== itemPath);
+	list.updatedAt = nowIso();
+	return true;
+}
+
+export function toggleItemInList(settings: MediaLibrarySettings, listId: string, itemPath: string): boolean {
+	const list = settings.customLists.find((entry) => entry.id === listId);
+	if (!list) {
+		return false;
+	}
+
+	const hasItem = list.itemPaths.includes(itemPath);
+	list.itemPaths = hasItem
+		? list.itemPaths.filter((path) => path !== itemPath)
+		: [...list.itemPaths, itemPath];
+	list.updatedAt = nowIso();
+	return !hasItem;
+}
+
+export function addItemToFavorites(settings: MediaLibrarySettings, itemPath: string): boolean {
+	const favorites = ensureFavoritesList(settings);
+	if (favorites.itemPaths.includes(itemPath)) {
+		return false;
+	}
+
+	favorites.itemPaths = [...favorites.itemPaths, itemPath];
+	favorites.updatedAt = nowIso();
+	settings.favoriteDates = {
+		...(settings.favoriteDates ?? {}),
+		[itemPath]: nowIso(),
+	};
+	return true;
+}
+
+export function removeItemFromFavorites(settings: MediaLibrarySettings, itemPath: string): boolean {
+	const favorites = getFavoritesList(settings);
+	if (!favorites || !favorites.itemPaths.includes(itemPath)) {
+		return false;
+	}
+
+	favorites.itemPaths = favorites.itemPaths.filter((path) => path !== itemPath);
+	favorites.updatedAt = nowIso();
+	if (settings.favoriteDates?.[itemPath]) {
+		const favoriteDates = { ...settings.favoriteDates };
+		delete favoriteDates[itemPath];
+		settings.favoriteDates = favoriteDates;
+	}
+	return true;
+}
+
+export function isFavorite(settings: MediaLibrarySettings, itemPath: string): boolean {
+	const favorites = getFavoritesList(settings);
+	return favorites ? favorites.itemPaths.includes(itemPath) : false;
+}
+
+/** Media note tags. */
+const TAG_BLOCK_START = "<!-- media-library-tags:start -->";
+const TAG_BLOCK_END = "<!-- media-library-tags:end -->";
+const TAG_CALLOUT_HEADER = "> [!media-tags]+ Media tags";
+const MEDIA_TAGS_FIELD = "mediaTags";
+
+function normalizeTag(rawTag: string): string {
+	return rawTag.trim().replace(/^#+/, "").replace(/^\[\[|\]\]$/g, "").replace(/\s+/g, "-").toLowerCase();
+}
+
+function formatTag(tag: string, format: TagStorageFormat): string {
+	if (format === "wikilink") {
+		return `[[${tag}]]`;
+	}
+
+	return `#${tag}`;
+}
+
+function readFrontmatterMediaTags(frontmatter: Record<string, unknown>): string[] {
+	const value = frontmatter[MEDIA_TAGS_FIELD];
+	if (Array.isArray(value)) {
+		return value.map((entry) => String(entry));
+	}
+
+	if (typeof value === "string") {
+		return value
+			.split(/[\s,]+/)
+			.map((entry) => entry.trim())
+			.filter((entry) => entry.length > 0);
+	}
+
+	return [];
+}
+
+function renderTagBlock(tags: string[]): string {
+	const line = tags.join(" ");
+	return `${TAG_BLOCK_START}\n${TAG_CALLOUT_HEADER}\n> ${line}\n${TAG_BLOCK_END}\n`;
+}
+
+function upsertInlineTagBlock(content: string, nextTags: string[]): string {
+	const startIndex = content.indexOf(TAG_BLOCK_START);
+	const endIndex = content.indexOf(TAG_BLOCK_END);
+
+	const deduped = [...new Set(nextTags.map((tag) => tag.trim()).filter((tag) => tag.length > 0))];
+	if (deduped.length === 0) {
+		return content;
+	}
+
+	if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
+		const suffix = content.endsWith("\n") ? "" : "\n";
+		return `${content}${suffix}\n${renderTagBlock(deduped)}`;
+	}
+
+	const before = content.slice(0, startIndex);
+	const after = content.slice(endIndex + TAG_BLOCK_END.length);
+
+	const normalizedAfter = after.startsWith("\n") ? after.slice(1) : after;
+	return `${before}${renderTagBlock(deduped)}${normalizedAfter}`;
+}
+
+export async function addTagToMediaNote(app: App, itemPath: string, rawTag: string, format: TagStorageFormat): Promise<{ added: boolean; value: string; reason?: string }> {
+	const file = app.vault.getAbstractFileByPath(itemPath);
+	if (!(file instanceof TFile)) {
+		return { added: false, value: "", reason: "note-not-found" };
+	}
+
+	const normalized = normalizeTag(rawTag);
+	if (!normalized) {
+		return { added: false, value: "", reason: "empty-tag" };
+	}
+
+	const formatted = formatTag(normalized, format);
+	let added = false;
+	let updatedMediaTags: string[] = [];
+	await app.fileManager.processFrontMatter(file, (frontmatter) => {
+		const mutableFrontmatter = frontmatter as Record<string, unknown>;
+		const tags = readFrontmatterMediaTags(mutableFrontmatter);
+		if (tags.includes(formatted)) {
+			updatedMediaTags = tags;
+			return;
+		}
+		updatedMediaTags = [...tags, formatted];
+		mutableFrontmatter[MEDIA_TAGS_FIELD] = updatedMediaTags;
+		added = true;
+	});
+
+	if (added) {
+		const current = await app.vault.cachedRead(file);
+		const updated = upsertInlineTagBlock(current, updatedMediaTags);
+		if (updated !== current) {
+			await app.vault.modify(file, updated);
+		}
+	}
+
+	return { added, value: formatted };
 }

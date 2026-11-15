@@ -1,9 +1,15 @@
-// src/parsers/BaseParser.ts
+import { TFile } from "obsidian";
+
 import {
+	BookFrontmatter,
+	EssayFrontmatter,
 	MediaItem,
 	MediaStatus,
+	MediaType,
+	MovieFrontmatter,
+	SeriesFrontmatter,
 	isMediaStatus,
-} from "../models";
+} from "./models";
 
 /**
  * BaseParser
@@ -684,4 +690,410 @@ export abstract class BaseParser<TFrontmatter> {
         const fileName = path.split("/").pop() ?? path;
         return fileName.replace(/\.md$/i, "").trim();
     }
+}
+
+/**
+ * BookParser
+ *
+ * Responsible for converting a Book note's frontmatter
+ * into a normalized MediaItem.
+ *
+ * This class should NEVER:
+ *
+ * - Read files
+ * - Scan the vault
+ * - Create HTML
+ * - Open notes
+ *
+ * It only translates metadata.
+ */
+export class BookParser extends BaseParser<BookFrontmatter> {
+    parse(path: string, frontmatter: BookFrontmatter): MediaItem | null {
+
+        const title = this.getTitle(frontmatter, path);
+
+        if (!title) {
+            return null;
+        }
+
+        const releaseDate = this.getReleaseDate(frontmatter);
+
+        return {
+            path,
+            title,
+            creator: this.getCreator(frontmatter),
+            mediaType: "book",
+            //
+            status: this.getStatus(frontmatter),
+            //
+            genres: this.getGenres(frontmatter),
+
+            summary: this.getSummary(frontmatter),
+
+            review: this.getReview(frontmatter),
+
+            synopsis: frontmatter.synopsis,
+
+            rating: this.getRating(frontmatter),
+            //date 
+            date: this.getCompletedDate(frontmatter),
+
+            year: this.extractYear(releaseDate),
+
+            releaseDate,
+
+            createdDate: this.getCreatedDate(frontmatter),
+
+            addedDate: undefined,
+
+            ...this.getCover(frontmatter),
+
+            pages: this.getPages(frontmatter),
+
+            isbn: this.getIsbn(frontmatter),
+
+            publisher: this.getPublisher(frontmatter),
+
+            raw: frontmatter,
+        };
+    }
+}
+
+/**
+ * MovieParser
+ *
+ * Converts a Movie note's frontmatter into a MediaItem.
+ *
+ * This parser is responsible ONLY for translating metadata.
+ */
+export class MovieParser extends BaseParser<MovieFrontmatter> {
+	parse(
+		path: string,
+		frontmatter: MovieFrontmatter
+	): MediaItem | null {
+
+		// -----------------------------
+		// Title
+		// -----------------------------
+
+		const title = this.getTitle(frontmatter, path);
+
+		if (!title) {
+			return null;
+		}
+
+		// -----------------------------
+		// Release Date
+		// -----------------------------
+
+		const releaseDate = this.getReleaseDate(frontmatter);
+
+		// -----------------------------
+		// Cover
+		// -----------------------------
+
+		const cover = this.getCover(frontmatter);
+
+		// -----------------------------
+		// Build MediaItem
+		// -----------------------------
+
+		return {
+			path,
+
+			title,
+
+			creator: this.getCreator(frontmatter),
+
+			mediaType: "movie",
+
+			status: this.getStatus(frontmatter),
+
+			genres: this.getGenres(frontmatter),
+
+			summary: this.getSummary(frontmatter),
+
+			review: this.getReview(frontmatter),
+
+			synopsis: frontmatter.synopsis,
+
+			rating: this.getRating(frontmatter),
+
+			date: this.getCompletedDate(frontmatter),
+
+			year: this.extractYear(releaseDate),
+
+			releaseDate,
+
+			createdDate: this.getCreatedDate(frontmatter),
+
+			addedDate: undefined,
+
+			coverLocal: cover.coverLocal ?? null,
+
+			coverUrl: cover.coverUrl ?? null,
+
+			duration: this.getDuration(frontmatter),
+
+			externalId: this.getExternalId(frontmatter as any),
+
+			url: this.getUrl(frontmatter as any),
+
+			actors: this.getActors(frontmatter),
+
+			studio: this.getStudio(frontmatter),
+
+			raw: frontmatter,
+		};
+	}
+}
+
+/**
+ * SeriesParser
+ *
+ * Converts a TV Series note into a MediaItem.
+ *
+ * This parser should ONLY translate metadata.
+ */
+export class SeriesParser extends BaseParser<SeriesFrontmatter> {
+	parse(
+		path: string,
+		frontmatter: SeriesFrontmatter
+	): MediaItem | null {
+
+		const title = this.getTitle(frontmatter, path);
+
+		if (!title) {
+			return null;
+		}
+
+		const releaseDate = this.getReleaseDate(frontmatter);
+
+		const cover = this.getCover(frontmatter);
+
+		return {
+			path,
+
+			title,
+
+			creator: this.getCreator(frontmatter),
+
+			mediaType: "series",
+
+			status: this.getStatus(frontmatter),
+
+			genres: this.getGenres(frontmatter),
+
+			summary: this.getSummary(frontmatter),
+
+			review: this.getReview(frontmatter),
+
+			synopsis: frontmatter.synopsis,
+
+			rating: this.getRating(frontmatter),
+
+			date: this.getCompletedDate(frontmatter),
+
+			year: this.extractYear(releaseDate),
+
+			releaseDate,
+
+			createdDate: this.getCreatedDate(frontmatter),
+
+			addedDate: undefined,
+
+			coverLocal: cover.coverLocal ?? null,
+
+			coverUrl: cover.coverUrl ?? null,
+
+			raw: frontmatter,
+		};
+	}
+}
+
+/**
+ * EssayParser
+ *
+ * Converts an Essay note into a MediaItem.
+ */
+export class EssayParser extends BaseParser<EssayFrontmatter> {
+	parse(
+		path: string,
+		frontmatter: EssayFrontmatter
+	): MediaItem | null {
+
+		const title = this.getTitle(frontmatter, path);
+
+		if (!title) {
+			return null;
+		}
+
+		const releaseDate = this.getReleaseDate(frontmatter);
+
+		const cover = this.getCover(frontmatter);
+
+		return {
+			path,
+
+			title,
+
+			creator: this.getCreator(frontmatter),
+
+			mediaType: "essay",
+
+			status: this.getStatus(frontmatter),
+
+			genres: this.getGenres(frontmatter),
+
+			rating: this.getRating(frontmatter),
+
+			review: this.getReview(frontmatter),
+
+			date: this.getCompletedDate(frontmatter),
+
+			year: this.extractYear(releaseDate),
+
+			releaseDate,
+
+			createdDate: this.getCreatedDate(frontmatter),
+
+			addedDate: undefined,
+
+			coverLocal: cover.coverLocal ?? null,
+
+			coverUrl: cover.coverUrl ?? null,
+
+			raw: frontmatter,
+		};
+	}
+}
+
+/**
+ * ParserRegistry
+ *
+ * Responsible for selecting the correct parser
+ * for a piece of frontmatter.
+ *
+ * The rest of the plugin should NEVER import
+ * BookParser, MovieParser, etc.
+ *
+ * Instead:
+ *
+ * ParserRegistry.parse(file, frontmatter)
+ */
+export class ParserRegistry {
+	private readonly bookParser = new BookParser();
+
+	private readonly movieParser = new MovieParser();
+
+	private readonly essayParser = new EssayParser();
+
+	private readonly seriesParser = new SeriesParser();
+
+	/**
+	 * Parse frontmatter into a MediaItem.
+	 *
+	 * Returns null if the media type
+	 * isn't supported.
+	 */
+	parse(
+		file: TFile,
+		frontmatter: Record<string, unknown>
+	): MediaItem | null {
+
+		const mediaType = this.detectMediaType(frontmatter);
+
+		if (!mediaType) {
+			return null;
+		}
+
+		switch (mediaType) {
+			case "book":
+				return this.bookParser.parse(
+					file.path,
+					frontmatter
+				);
+
+			case "movie":
+				return this.movieParser.parse(
+					file.path,
+					frontmatter
+				);
+
+			case "essay":
+				return this.essayParser.parse(
+					file.path,
+					frontmatter
+				);
+
+			case "series":
+				return this.seriesParser.parse(
+					file.path,
+					frontmatter
+				);
+
+			default:
+				return null;
+		}
+	}
+
+	/**
+	 * Determines the media type.
+	 *
+	 * Supported aliases:
+	 *
+	 * mediaType
+	 * media
+	 * type
+	 */
+	private detectMediaType(
+		frontmatter: Record<string, unknown>
+	): MediaType | null {
+
+		const value =
+			frontmatter.mediaType ??
+			frontmatter.media ??
+			frontmatter.type;
+
+		const candidates: string[] = [];
+
+		if (typeof value === "string") {
+			candidates.push(value);
+		} else if (Array.isArray(value)) {
+			for (const item of value) {
+				if (typeof item === "string") {
+					candidates.push(item);
+				}
+			}
+		}
+
+		if (candidates.length === 0) {
+			return null;
+		}
+
+		for (const candidate of candidates) {
+			switch (candidate.trim().toLowerCase()) {
+
+			case "book":
+				return "book";
+
+			case "movie":
+			case "film":
+				return "movie";
+
+			case "series":
+			case "tv":
+			case "show":
+				return "series";
+
+			case "essay":
+				return "essay";
+
+			default:
+				continue;
+			}
+		}
+
+		return null;
+	}
 }

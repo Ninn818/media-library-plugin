@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 
-import { Poster } from "../../components/Poster";
-import { MediaItem } from "../../models/MediaItem";
+import { Poster } from "../../PluginControllers";
+import { MediaItem } from "../../models";
 import { MediaLibraryCustomList, SocialHubTab } from "../../settings";
 import { getCompletionEvents, getCompletionLabel } from "../../utils/ActivityLabels";
 import { timeAgoFromDate } from "../../utils/TimeAgo";

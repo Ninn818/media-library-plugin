@@ -1,4 +1,4 @@
-import { MediaItem } from "../../models/MediaItem";
+import { MediaItem } from "../../models";
 import { getCompletionLabel } from "../../utils/ActivityLabels";
 import { timeAgoFromDate } from "../../utils/TimeAgo";
 

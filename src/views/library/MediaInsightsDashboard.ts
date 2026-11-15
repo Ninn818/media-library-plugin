@@ -1,7 +1,6 @@
 import { Notice, setIcon } from "obsidian";
 
-import { MediaItem } from "../../models/MediaItem";
-import { MediaType } from "../../models/MediaType";
+import { MediaItem, MediaType } from "../../models";
 import {
 	DashboardConsumptionFilter,
 	DashboardMediaFilter,
@@ -88,7 +87,6 @@ export function renderMediaDashboard(
 	renderHero(hosts.heroHost, activeItems, state, callbacks);
 	renderContent(hosts.contentHost, activeItems, state, callbacks);
 	renderSidebar(hosts.sidebarHost, state, activeItems, callbacks);
-	// renderStatus(hosts.statusHost, state.items, activeItems, state.scope, state.consumption);
 }
 
 function renderHero(
@@ -229,23 +227,6 @@ function renderFilterGroup(
 	}
 	select.value = activeValue;
 	select.addEventListener("change", () => onChange(select.value));
-}
-
-function renderStatus(
-	container: HTMLElement,
-	allItems: MediaItem[],
-	activeItems: MediaItem[],
-	scope: DashboardScopeMode,
-	consumption: DashboardConsumptionFilter
-): void {
-	const queued = allItems.filter((item) => isQueued(item.status)).length;
-	const consumedCount = allItems.filter((item) => isConsumed(item)).length;
-	const unconsumedCount = allItems.length - consumedCount;
-	const daysLeft = daysLeftInYear();
-
-	container.setText(
-		`${activeItems.length} ${getStatusLineLabel(consumption)} in view • ${consumedCount} completed • ${unconsumedCount} backlog • ${queued} queued${scope === "year" && consumption !== "unconsumed" ? ` • ${daysLeft} days left this year` : ""}`
-	);
 }
 
 function renderDashboardChart(
@@ -820,16 +801,8 @@ function getCreatorNames(item: MediaItem): string[] {
 		.filter(Boolean);
 }
 
-function isQueued(status: string | null | undefined): boolean {
-	return status === "want to read" || status === "want to watch" || status === "planned";
-}
-
 function isInProgress(status: string | null | undefined): boolean {
 	return status === "reading" || status === "watching" || status === "paused" || status === "on hold";
-}
-
-function isInCurrentYear(value: string | undefined): boolean {
-	return Boolean(value?.startsWith(String(new Date().getFullYear())));
 }
 
 function daysLeftInYear(): number {
@@ -845,20 +818,6 @@ function fadeColor(value: string, alpha: number): string {
 
 function capitalize(value: string): string {
 	return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-function getHeroSubtitle(scope: DashboardScopeMode, consumption: DashboardConsumptionFilter): string {
-	if (consumption === "unconsumed") {
-		return "See the authors, directors, and genres shaping your backlog before you get to them.";
-	}
-
-	if (consumption === "all") {
-		return "See the patterns across everything you track, from completed favorites to titles still waiting.";
-	}
-
-	return scope === "year"
-		? `A sharper read on what ${new Date().getFullYear()} looks like across the media you've completed.`
-		: "A wider view of the media you've already completed.";
 }
 
 function getEmptyTitle(consumption: DashboardConsumptionFilter): string {
@@ -885,14 +844,6 @@ function getEmptyCopy(scope: DashboardScopeMode, consumption: DashboardConsumpti
 	return scope === "year"
 		? "Try switching the dashboard to all time or finish a few titles this year to populate the charts."
 		: "Finish a few books, movies, series, or essays to populate the dashboard.";
-}
-
-function getStatusLineLabel(consumption: DashboardConsumptionFilter): string {
-	if (consumption === "all") {
-		return "items";
-	}
-
-	return consumption === "unconsumed" ? "backlog items" : "completed items";
 }
 
 function getHeroCountLabel(scope: DashboardScopeMode, consumption: DashboardConsumptionFilter): string {
@@ -927,75 +878,4 @@ function getSummaryCopy(
 	return scope === "year"
 		? `This year leans ${topGenre}, with ${books} books and ${screen} screen picks completed. ${topCreator} shows up often, and your average rating is ${averageRating ?? "-"}/10.`
 		: `Across what you've completed, ${topGenre} comes up often, ${topCreator} is a recurring name, and your average rating sits at ${averageRating ?? "-"}/10.`;
-}
-
-function getActivitySentence(item: MediaItem): string {
-	const action = item.date
-		? (item.mediaType === "book" || item.mediaType === "essay" ? "You read" : "You watched")
-		: "You added";
-	const typeLabel = capitalize(item.mediaType);
-	const estimate = getTimeEstimate(item);
-	const stamp = item.date ?? item.addedDate;
-	return [
-		`${action} ${item.title}`,
-		`${typeLabel}${estimate ? ` ${estimate}` : ""}`,
-		stamp ?? item.creator,
-	].filter(Boolean).join(" • ");
-}
-
-function getTimeEstimate(item: MediaItem): string | null {
-	const minutes = getEstimatedMinutes(item);
-	if (!minutes) {
-		return null;
-	}
-
-	const roundedHours = Math.max(1, Math.round(minutes / 60));
-	return `${roundedHours}h`;
-}
-
-function getEstimatedMinutes(item: MediaItem): number | null {
-	const fromDuration = parseDurationToMinutes(item.duration);
-	if (fromDuration != null) {
-		return fromDuration;
-	}
-
-	if ((item.mediaType === "book" || item.mediaType === "essay") && typeof item.pages === "number" && item.pages > 0) {
-		const pagesPerHour = item.mediaType === "essay" ? 20 : 45;
-		return Math.max(30, Math.round((item.pages / pagesPerHour) * 60));
-	}
-
-	if (item.mediaType === "movie") {
-		return 120;
-	}
-
-	if (item.mediaType === "series") {
-		return 300;
-	}
-
-	return null;
-}
-
-function parseDurationToMinutes(duration: string | null | undefined): number | null {
-	if (!duration) {
-		return null;
-	}
-
-	const normalized = duration.toLowerCase();
-	const hourMatch = normalized.match(/(\d+(?:\.\d+)?)\s*h/);
-	const minuteMatch = normalized.match(/(\d+)\s*m/);
-	const numericMatch = normalized.match(/^(\d{2,4})$/);
-
-	if (hourMatch || minuteMatch) {
-		const hours = hourMatch ? Number.parseFloat(hourMatch[1] ?? "0") : 0;
-		const minutes = minuteMatch ? Number.parseInt(minuteMatch[1] ?? "0", 10) : 0;
-		const total = Math.round(hours * 60) + minutes;
-		return total > 0 ? total : null;
-	}
-
-	if (numericMatch) {
-		const total = Number.parseInt(numericMatch[1] ?? "0", 10);
-		return total > 0 ? total : null;
-	}
-
-	return null;
 }

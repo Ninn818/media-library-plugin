@@ -1,10 +1,10 @@
-// src/controllers/PluginController.ts
+// Plugin coordination and poster rendering.
 
-import { App, Plugin } from "obsidian";
+import { App, Plugin, setIcon } from "obsidian";
 
-import { MediaLibrary } from "../core/MediaLibrary";
-import { MediaRegistry } from "../core/MediaRegistry";
-import { ViewRegistry } from "../core/ViewRegistry";
+import { MediaLibrary, MediaRegistry, ViewRegistry } from "./core";
+import { MediaItem } from "./models";
+import { resolveCoverSource } from "./utils/Covers";
 
 /**
  * PluginController
@@ -18,7 +18,7 @@ import { ViewRegistry } from "../core/ViewRegistry";
  * - Register events
  * - Open the library view (later)
  *
- * This class should NOT:
+ * The coordinator should NOT:
  * - Parse frontmatter
  * - Scan the vault directly
  * - Render UI
@@ -132,5 +132,69 @@ export class PluginController {
 	 */
 	private registerWorkspaceEvents(): void {
 		// Reserved for future use.
+	}
+}
+// Poster rendering
+const PLACEHOLDER_ICONS: Record<string, string> = {
+	book: "book",
+	movie: "clapperboard",
+	series: "tv",
+	essay: "scroll-text",
+};
+
+/**
+ * Renders a media item's cover image, or a type-specific placeholder.
+ */
+export class Poster {
+	private readonly item: MediaItem;
+	private readonly app?: App;
+
+	constructor(item: MediaItem, app?: App) {
+		this.item = item;
+		this.app = app;
+	}
+
+	render(container: HTMLElement): HTMLElement {
+		const wrapper = container.createDiv({ cls: "media-poster" });
+		this.renderImage(wrapper);
+		return wrapper;
+	}
+
+	private renderImage(container: HTMLElement): void {
+		const sources = [this.item.coverLocal, this.item.coverUrl]
+			.filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+
+		if (!sources.length) {
+			this.renderPlaceholder(container);
+			return;
+		}
+
+		this.createImage(container, sources, 0);
+	}
+
+	private createImage(container: HTMLElement, sources: string[], index: number): void {
+		const source = sources[index];
+		if (!source) {
+			container.empty();
+			this.renderPlaceholder(container);
+			return;
+		}
+
+		const resolvedSource = resolveCoverSource(this.app, this.item.path, source);
+		const image = container.createEl("img");
+		image.src = resolvedSource;
+		image.alt = this.item.title;
+		image.addClass("media-poster-image");
+		image.addEventListener("error", () => {
+			image.remove();
+			this.createImage(container, sources, index + 1);
+		});
+	}
+
+	private renderPlaceholder(container: HTMLElement): void {
+		container.addClass("media-poster-placeholder");
+		const icon = container.createDiv({ cls: "media-poster-placeholder-icon" });
+		setIcon(icon, PLACEHOLDER_ICONS[this.item.mediaType] ?? "image-off");
+		container.createDiv({ cls: "media-poster-placeholder-title", text: this.item.title });
 	}
 }

@@ -1,9 +1,8 @@
-//module to render the library toolbar with search, filter, and sort controls
+// Renders library search, filters, and sorting controls.
 
-import { MEDIA_TYPES, MediaType } from "../../models/MediaType";
-import { SortMode, SortType } from "../../models/SortType";
+import { MEDIA_TYPES, MediaStatus, MediaType, SortMode, SortType } from "../../models";
+import { MediaLibrary } from "../../core";
 import { MediaLibrarySettings } from "../../settings";
-import { MediaStatus } from "../../models/MediaStatus";
 
 export interface LibraryToolbarState {
 	searchQuery: string;
@@ -200,6 +199,37 @@ export function renderLibraryToolbar(
   sizeInput.addEventListener("change", () => {
     callbacks.onMediaCardSizeCommit();
   });
+}
+
+/** Renders media-type counts and average rating for the Media page. */
+export function renderLibraryStatBar(container: HTMLElement, library: MediaLibrary): void {
+	const bar = container.createDiv({ cls: "media-library-stat-bar" });
+	const countsRow = bar.createDiv({ cls: "media-library-stat-bar-counts" });
+	const counts: Array<[string, number]> = [
+		["Books", library.getBookCount()],
+		["Films", library.getMovieCount()],
+		["Series", library.getSeriesCount()],
+		["Essays", library.getEssayCount()],
+	];
+
+	for (const [label, value] of counts) {
+		const count = countsRow.createDiv({ cls: "media-library-stat-bar-count" });
+		count.createSpan({ cls: "media-library-stat-bar-count-label", text: label });
+		count.createSpan({ cls: "media-library-stat-bar-count-value", text: String(value) });
+	}
+
+	const ratings = library.getAll()
+		.map((item) => item.rating)
+		.filter((rating): rating is number =>
+			typeof rating === "number" && Number.isFinite(rating) && rating > 0
+		);
+	const average = ratings.length
+		? Math.round((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length) * 10) / 10
+		: null;
+
+	const averageHost = bar.createDiv({ cls: "media-library-stat-bar-average" });
+	averageHost.createSpan({ cls: "media-library-stat-bar-average-icon", text: "★" });
+	averageHost.createSpan({ text: `Average ${average ?? "—"}/10` });
 }
 
 //go and update modules that use this toolbar to include the new sort direction dropdown and shuffle button such as LibraryView, LibraryToolbar, and any other views that use the toolbar

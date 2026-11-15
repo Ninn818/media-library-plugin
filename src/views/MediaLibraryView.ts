@@ -1,16 +1,12 @@
-// src/views/LibraryView.ts
+// src/views/MediaLibraryView.ts
 
 //update to add sort direction dropdown and shuffle button to the library toolbar, and update modules that use this toolbar to include the new sort direction dropdown  such as LibraryView, LibraryToolbar, and any other views that use the toolbar
 
 
-import { ItemView, Modal, Notice, WorkspaceLeaf, setIcon } from "obsidian";
+import { ItemView, Notice, WorkspaceLeaf, setIcon } from "obsidian";
 
-import { MediaLibrary } from "../core/MediaLibrary";
-import { ViewRegistry } from "../core/ViewRegistry";
-import { MediaItem } from "../models/MediaItem";
-import { MediaType } from "../models/MediaType";
-import { MediaStatus } from "../models/MediaStatus";
-import { SortType, SortDirection, SortMode} from "../models/SortType";
+import { MediaLibrary, ViewRegistry } from "../core";
+import { MediaItem, MediaStatus, MediaType, SortMode, SortType } from "../models";
 import {
 	DashboardConsumptionFilter,
 	DashboardMediaFilter,
@@ -20,24 +16,18 @@ import {
 	MediaLibraryCustomList,
 	SocialHubTab,
 } from "../settings";
-import * as ListService from "../services/ListService";
-import { addTagToMediaNote } from "../services/TagService";
-import { ActivityLogService } from "../services/ActivityLogService";
+import * as ListService from "../services";
+import { ActivityLogService, addTagToMediaNote } from "../services";
 import { getCompletionLabel } from "../utils/ActivityLabels";
 import { MediaActivityModal } from "../ui/MediaActivityModal";
-import { Poster } from "../components/Poster";
-import { resolveCoverSource } from "../utils/Covers";
+import { Poster } from "../PluginControllers";
 import { timeAgoFromDate } from "../utils/TimeAgo";
-import { CardView } from "./CardView";
-import { GalleryView } from "./GalleryView";
-import { ViewSwitcher } from "./ViewSwitcher";
-import { renderMediaDashboard } from "./library/MediaDashboard";
-import { renderLibraryPageTabs } from "./library/LibraryPageTabs";
-import { renderLibraryShell } from "./library/LibraryShell";
-import { renderLibrarySidebar } from "./library/LibrarySidebar";
-import { renderLibrarySocialHub } from "./library/LibrarySocialHub";
-import { renderLibraryToolbar } from "./library/LibraryToolbar";
-import { renderLibraryStatBar } from "./library/LibraryHeader";
+import { CardView, GalleryView, ViewSwitcher } from "./LibraryDisplayViews";
+import { renderMediaDashboard } from "./library/MediaInsightsDashboard";
+import { renderLibraryPageTabs, renderLibraryShell } from "./library/LibraryChrome";
+import { renderLibrarySidebar } from "./library/LibraryOverviewSidebar";
+import { renderLibrarySocialHub } from "./library/LibrarySocialPanel";
+import { renderLibraryStatBar, renderLibraryToolbar } from "./library/LibraryControls";
 import { MediaListModal } from "../ui/MediaListModal";
 
 type HomeActivityKind = "added" | "favorited" | "rated" | "note" | "read" | "watched" | "reading" | "watching";
@@ -1188,7 +1178,6 @@ export class LibraryView extends ItemView {
 		this.galleryView.render({
 			carouselHost: this.spotlightHost,
 			contentHost: this.contentHost,
-			sidebarHost: this.sidebarHost,
 		}, renderedItems, {
 			onSelectItem: (item) => {
 				this.selectItem(item);
@@ -1465,30 +1454,6 @@ export class LibraryView extends ItemView {
 		};
 	}
 
-	private async promptAndAddTag(item: MediaItem): Promise<void> {
-		const input = await this.askForTag();
-		if (!input || !input.trim()) {
-			return;
-		}
-
-		const result = await addTagToMediaNote(this.app, item.path, input, this.settings.tagStorageFormat);
-		if (!result.added) {
-			if (result.reason === "note-not-found") {
-				new Notice("Could not find note for this media item.");
-				return;
-			}
-			if (result.reason === "empty-tag") {
-				new Notice("Tag was empty.");
-				return;
-			}
-			new Notice("Tag already exists.");
-			return;
-		}
-
-		new Notice(`Added tag ${result.value}`);
-		await this.refreshLibraryAfterMutation(item.path);
-	}
-
 	private async addTagFromSocial(item: MediaItem, tag: string): Promise<void> {
 		if (!tag.trim()) {
 			return;
@@ -1519,42 +1484,6 @@ export class LibraryView extends ItemView {
 			ListService.addItemToFavorites(this.settings, item.path);
 		}
 		void this.persistAndRender();
-	}
-
-	private askForTag(): Promise<string | null> {
-		return new Promise((resolve) => {
-			const modal = new Modal(this.app);
-			modal.setTitle("Add tag");
-
-			const wrap = modal.contentEl.createDiv({ cls: "media-tag-modal" });
-			const input = wrap.createEl("input", {
-				type: "text",
-				placeholder: "tag-name",
-			});
-
-			const actions = wrap.createDiv({ cls: "media-tag-modal-actions" });
-			const cancel = actions.createEl("button", { text: "Cancel" });
-			cancel.type = "button";
-			cancel.addEventListener("click", () => {
-				modal.close();
-				resolve(null);
-			});
-
-			const add = actions.createEl("button", { text: "Add", cls: "mod-cta" });
-			add.type = "button";
-			add.addEventListener("click", () => {
-				const value = input.value.trim();
-				modal.close();
-				resolve(value.length > 0 ? value : null);
-			});
-
-			modal.onClose = () => {
-				resolve(null);
-			};
-
-			modal.open();
-			input.focus();
-		});
 	}
 
 	private async persistAndRender(): Promise<void> {
