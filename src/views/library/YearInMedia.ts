@@ -968,8 +968,6 @@ function kvRow(parent: HTMLElement, label: string, value: string, onClick?: () =
 	}
 }
 
-const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
-
 function renderRanked(parent: HTMLElement, title: string, list: Ranked[], emptyText: string, limit = 5): void {
 	const block = parent.createDiv({ cls: "ml-wrap-ranked" });
 	if (title) {
@@ -983,9 +981,8 @@ function renderRanked(parent: HTMLElement, title: string, list: Ranked[], emptyT
 
 	const shown = list.slice(0, limit);
 	const max = shown[0]?.count ?? 1;
-	for (const [index, entry] of shown.entries()) {
+	for (const entry of shown) {
 		const row = block.createDiv({ cls: "ml-wrap-ranked-row" });
-		row.createSpan({ cls: "ml-wrap-rank", text: ROMAN[index] ?? String(index + 1) });
 		const body = row.createDiv({ cls: "ml-wrap-ranked-body" });
 		const line = body.createDiv({ cls: "ml-wrap-ranked-line" });
 		line.createSpan({ cls: "ml-wrap-ranked-label", text: entry.label });
@@ -1296,7 +1293,7 @@ function renderCreators(root: HTMLElement, w: Wrapped): void {
 		return;
 	}
 
-	const body = panel(root, "navy", "Cast and crew");
+	const body = panel(root, "navy", "Creators");
 	const grid = body.createDiv({ cls: "ml-wrap-ranked-grid" });
 	if (w.authors.length) renderRanked(grid, "Authors", w.authors, "", 5);
 	if (w.directors.length) renderRanked(grid, "Directors and creators", w.directors, "", 5);
@@ -1410,6 +1407,7 @@ function renderHabits(root: HTMLElement, w: Wrapped, ctx: WrappedContext): void 
 	renderColumns(left, WEEKDAYS_SHORT.map((label, index) => ({ label, value: w.weekdays[index] ?? 0 })));
 
 	const right = panel(duo, "wine", "Streaks and standouts");
+	right.parentElement?.addClass("is-standouts");
 	const list = right.createDiv({ cls: "ml-wrap-plainlist" });
 
 	if (w.streak) {
@@ -1514,6 +1512,7 @@ function renderPersona(root: HTMLElement, w: Wrapped): void {
 
 function renderYearOverYear(root: HTMLElement, w: Wrapped): void {
 	const body = panel(root, "ink", `${w.year} compared with ${w.year - 1}`);
+	body.parentElement?.addClass("is-year-over-year");
 
 	if (w.previous.total === 0) {
 		body.createDiv({ cls: "ml-wrap-empty", text: `Nothing logged for ${w.year - 1}, so there is nothing to compare yet.` });

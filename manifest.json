@@ -1,7 +1,7 @@
 {
 	"id": "media-library-plugin",
 	"name": "Media Library Plugin",
-	"version": "1.2.0",
+	"version": "1.2.1",
 	"minAppVersion": "1.0.0",
 	"description": "A media library plugin for browsing and organizing media in your vault.",
 	"author": "nini",
