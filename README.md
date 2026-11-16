@@ -1,103 +1,100 @@
-Media Library Plugin
-A media library plugin for Obsidian to browse, organize, and log activity for books, movies, series, and essays stored in your vault.
+# Media Library Plugin
 
-Features
-Index media notes and surface them in a dedicated library view.
-Multiple library views: card, gallery, diary (Letterboxd-style), activity timeline, lists, and tags.
-Activity logging (read/watch entries) with date, status, rating, and notes.
-Tag management for media notes.
-Custom lists (collections) with add/remove and reorder in a modal.
-Search, filter, sort (mode + direction), and pagination for diary & activity views.
-Lightweight UI with poster rendering, responsive modals, and theme-aware styles.
-Installation
-Installation options:
+Media Library turns media notes in your Obsidian vault into a personal catalog. Browse books, movies, series, and essays; track what you finish; and keep your ratings, reviews, lists, and tags alongside your notes.
 
-Manually copy the plugin folder into your vault at: .obsidian/plugins/media-library-plugin
+## Features
 
-Or, during development, clone into your Obsidian plugins directory.
+- **Library views:** browse your catalog as cards, a gallery, or a table. Search, filter, sort, and adjust card size.
+- **Personal pages:** Home, Dashboard, Media, Diary, Activity, Lists, Tags, and Year in Media.
+- **Activity tracking:** log reading and watching dates, statuses, ratings, and notes.
+- **Reviews and ratings:** add a review from a media note's spotlight or activity modal. Ratings are stored out of 10; choose a 5- or 10-star display.
+- **Dashboard:** review yearly goals, completed and backlog items, quick picks, summaries, and rating charts.
+- **Year in Media:** explore a yearly recap across all four media types, including ratings and written reviews. Save the recap as a Markdown note or share image.
+- **Lists and tags:** create custom collections, manage favorites, and add tags to media notes.
 
-After placing the plugin, enable it in Obsidian Settings → Community Plugins.
+## Install
 
-Development
-Prerequisites
+### With BRAT
 
-Node >= 18
-npm
-Install dependencies:
+1. Install and enable **BRAT** from Obsidian's Community Plugins.
+2. In BRAT settings, add `Ninn818/media-library-plugin` as a beta plugin.
+3. Install a published release, then enable **Media Library Plugin** in Community Plugins.
 
-bash
+BRAT installs published GitHub releases. A Git tag by itself is not a release.
 
-npm install
-Build (production):
+### Manually
 
-bash
+1. Download `main.js`, `manifest.json`, and `styles.css` from a published GitHub release.
+2. Put the files in your vault's `.obsidian/plugins/media-library-plugin/` folder.
+3. In Obsidian, enable **Media Library Plugin** under **Settings → Community Plugins**.
 
+## Get started
+
+The plugin scans Markdown notes throughout your vault. A note is included when its frontmatter identifies a supported media type with `type`, `mediaType`, or `media`.
+
+For example:
+
+```yaml
+---
+type: book
+title: Dune
+author: Frank Herbert
+status: read
+genres:
+  - Science Fiction
+personalRating: 9
+pages: 412
+dateRead: 2025-11-15
+---
+```
+
+Supported type values are `book`, `movie` (also `film`), `series` (also `tv`), and `essay`. A title is optional; when omitted, the note's filename is used. Common metadata fields include `author`, `director`, `genres`, `status`, `rating` or `personalRating`, `review`, `cover`, and `coverUrl`. The accepted fields vary by media type.
+
+Open the library from the **Media library** ribbon icon or run **Open media library** from the command palette. If you have changed note metadata and want to rescan, run **Refresh media library**.
+
+## Main pages
+
+- **Home:** see currently reading/watching items and what's up next.
+- **Dashboard:** review your yearly or all-time activity, goals, ratings, and quick picks.
+- **Media:** browse and organize your full catalog.
+- **Diary:** view completed reads and watches by date.
+- **Activity:** see a combined timeline of library and activity events.
+- **Lists:** manage custom collections.
+- **Tags:** browse and manage tags on media notes.
+- **Year in Media:** choose a year to review your reading and watching recap, including ratings and written reviews. Use **Save** to export it as a Markdown note, share image, or both.
+
+## Settings
+
+Open **Settings → Media Library Plugin** to configure:
+
+- Where the library opens and which page opens first.
+- Default sorting, tag format, and card counts.
+- Whether the spotlight includes a review editor and whether animations are enabled.
+- Rating display scale (5 or 10 stars).
+- Dashboard defaults, visible dashboard sections, and yearly goals for each media type.
+
+## Development
+
+Requirements: Node.js 18 or newer and npm.
+
+```bash
+npm ci
 npm run build
-Build + watch (development):
+```
 
-bash
+`npm run build` type-checks the TypeScript and creates the production `main.js` bundle. For development, run `npm run dev` to watch and rebuild the bundle as files change.
 
-npm run dev
-Notes:
+The main source is under `src/`; plugin styles are in `styles.css`. The generated `main.js` is ignored by Git and should be attached to a GitHub release with `manifest.json` and `styles.css`.
 
-Bundles are produced in top-level main.js for Obsidian to load.
-Source TypeScript is under src/. The repo includes esbuild configuration.
-Usage
-Open the Media Library view from the command palette or the sidebar (depends on your setup). Main areas:
+## Troubleshooting
 
-Toolbar: search, filters, status filter, sort mode & direction, view switcher.
-Pages/tabs: Home, Media, Diary, Activity, Lists, Tags, Dashboard.
-Diary: displays dated media entries; supports pagination and opens activity modal to add/edit review.
-Activity: combined timeline of adds + diary events; supports pagination and opens activity modal.
-Modals:
-Activity modal — log reading/watching activity, manage tags.
-List modal — view or edit custom lists; add/remove items.
-Keyboard and click interactions follow Obsidian defaults for opening notes and links.
+- **The library is empty:** confirm that media notes have valid frontmatter and a supported value in `type`, `mediaType`, or `media`. Then run **Refresh media library**.
+- **The plugin does not appear:** confirm the plugin is enabled and that its folder contains `manifest.json`, `main.js`, and `styles.css`.
+- **A recap is missing a completion or review:** add a completion date or activity entry to the media note. Year in Media uses dated activity and review information for the selected year.
+- **Covers are missing:** check that the note has a valid cover field or a local cover image path.
 
-Settings
-Accessible in Settings → Plugin settings. Some notable settings:
+If the problem persists, check Obsidian's developer console for errors and include relevant details when reporting an issue.
 
-Default page tab (home, media, diary, activity, etc.)
-Default sort mode and direction
-Dashboard preferences (consumption, scope, filter)
-Tag storage format
-UI animation toggle and modal sizing preferences
-Contributing
-Contributions, bug reports, and feature requests are welcome.
+## License
 
-Create issues and PRs on the repository.
-Follow existing code style and tests (if present).
-Before submitting larger changes, open an issue to discuss design.
-Developer tips:
-
-Work from src/ TypeScript files.
-Use npm run dev to rebuild bundles while developing.
-Keep UI changes theme-aware (use CSS variables provided by Obsidian).
-File structure (important files)
-main.js — plugin bundle loaded by Obsidian
-src/ — TypeScript source
-ui/ — modals and UI bits (MediaActivityModal.ts, MediaListModal.ts)
-views/ — main views (LibraryView.ts, CardView.ts, GalleryView.ts)
-services/ — activity log, tag service, lists
-models/ — types and enums
-styles.css — plugin styles
-manifest.json — Obsidian plugin manifest
-README.md — this file
-Styling and customization
-Edit styles.css to tweak layout, modal width, spacing, and color tokens.
-The plugin uses Obsidian CSS variables (e.g., --background-primary, --text-muted) to remain theme-compatible.
-Example: to make modals wider on desktop, add a media query:
-
-css
-
-@media (min-width: 900px) {
-  .media-activity-modal-shell .modal { max-width: 900px; }
-  .media-list-modal .modal { max-width: 820px; }
-}
-Troubleshooting
-If the plugin does not appear, confirm the folder name and ensure manifest.json exists and main.js is present.
-Check Obsidian console (Developer Tools) for errors when opening views.
-If posters or covers do not display, confirm the note frontmatter contains recognizable cover fields (cover, coverUrl, image, poster, localCover).
-License
-MIT — see LICENSE file for full text.
-
+This project is licensed under the [0BSD license](./LICENSE).
