@@ -73,19 +73,6 @@ Open **Settings → Media Library Plugin** to configure:
 - Rating display scale (5 or 10 stars).
 - Dashboard defaults, visible dashboard sections, and yearly goals for each media type.
 
-## Development
-
-Requirements: Node.js 18 or newer and npm.
-
-```bash
-npm ci
-npm run build
-```
-
-`npm run build` type-checks the TypeScript and creates the production `main.js` bundle. For development, run `npm run dev` to watch and rebuild the bundle as files change.
-
-The main source is under `src/`; plugin styles are in `styles.css`. The generated `main.js` is ignored by Git and should be attached to a GitHub release with `manifest.json` and `styles.css`.
-
 ## Troubleshooting
 
 - **The library is empty:** confirm that media notes have valid frontmatter and a supported value in `type`, `mediaType`, or `media`. Then run **Refresh media library**.
