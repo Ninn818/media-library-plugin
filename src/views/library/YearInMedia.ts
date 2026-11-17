@@ -26,6 +26,8 @@ const OUTPUT_FOLDER = "Year in Media";
 const COVER_WALL_LIMIT = 150;
 const REVIEW_PREVIEW_LIMIT = 6;
 
+const UNFINISHED_LIMIT = 12;
+
 /** Time estimates: used when an item has no duration. Tweak to taste. */
 const PAGES_PER_HOUR: Record<"book" | "essay", number> = { book: 45, essay: 20 };
 const FALLBACK_MINUTES: Record<MediaType, number> = { book: 360, movie: 120, series: 300, essay: 30 };
@@ -99,6 +101,7 @@ export function renderYearInMedia(
 
 	const year = state.year !== null && years.includes(state.year) ? state.year : unlockedYear;
 	const wrapped = buildWrapped(all, year, state.settings);
+	wrapped.unfinished = collectUnfinished(state.items, year, unlockedYear);
 
 	const ctx: WrappedContext = {
 		app: state.app,
@@ -133,6 +136,7 @@ export function renderYearInMedia(
 	renderCreators(root, wrapped);
 	renderPersona(root, wrapped);
 	renderYearOverYear(root, wrapped);
+	renderUnfinished(root, wrapped, ctx);
 	renderCoverWall(root, wrapped, ctx);
 	renderLog(root, wrapped, ctx);
 }
@@ -170,6 +174,14 @@ interface ReviewHighlight {
 	day: string;
 	rating: number | null;
 	text: string;
+}
+
+/** Something started but not finished yet. */
+interface Unfinished {
+	item: MediaItem;
+	started: string | null;
+	lastLogged: string | null;
+	progress: number | null;
 }
 
 interface Span {
@@ -247,6 +259,7 @@ interface Wrapped {
 
 	previous: { total: number; minutes: number; average: number | null };
 	persona: Persona;
+	unfinished: Unfinished[];
 }
 
 /* ---------------------------------------------------------------------------
@@ -862,6 +875,7 @@ function buildWrapped(all: Completion[], year: number, settings: MediaLibrarySet
 			),
 		},
 		persona,
+		unfinished: [],
 	};
 }
 
@@ -1592,6 +1606,98 @@ function renderCoverWall(root: HTMLElement, w: Wrapped, ctx: WrappedContext): vo
 	}
 }
 
+function progressOf(item: MediaItem): number | null {
+	const entries = item.activityEntries ?? [];
+	for (let index = entries.length - 1; index >= 0; index -= 1) {
+		const progress = entries[index]?.progress;
+		if (typeof progress === "number" && Number.isFinite(progress)) {
+			return progress;
+		}
+	}
+
+	if (item.raw?.progress == null) {
+		return null;
+	}
+	const raw = Number(item.raw.progress);
+	return Number.isFinite(raw) ? raw : null;
+}
+
+/**
+ * Items still marked reading/watching. An item belongs to the year it was last
+ * worked on; an item with no dated log shows up on the newest wrap.
+ */
+function collectUnfinished(items: MediaItem[], year: number, unlockedYear: number): Unfinished[] {
+	const out: Unfinished[] = [];
+
+	for (const item of items) {
+		if (!IN_PROGRESS_STATUSES.has(normStatus(item.status))) {
+			continue;
+		}
+
+		const days = (item.activityEntries ?? [])
+			.filter((entry) => IN_PROGRESS_STATUSES.has(normStatus(entry.status)))
+			.map((entry) => parseDay(entry.date)?.day)
+			.filter((day): day is string => day !== undefined)
+			.sort();
+		const started = days[0] ?? null;
+		const lastLogged = days[days.length - 1] ?? null;
+
+		const belongs = lastLogged ? Number(lastLogged.slice(0, 4)) === year : year === unlockedYear;
+		if (belongs) {
+			out.push({ item, started, lastLogged, progress: progressOf(item) });
+		}
+	}
+
+	return out.sort(
+		(left, right) =>
+			(right.lastLogged ?? "").localeCompare(left.lastLogged ?? "") || left.item.title.localeCompare(right.item.title),
+	);
+}
+
+function itemPosterCard(parent: HTMLElement, item: MediaItem, ctx: WrappedContext, caption?: string): HTMLElement {
+	const card = parent.createDiv({ cls: "ml-wrap-poster" });
+	card.style.setProperty("--wrap-type", TYPE_META[item.mediaType].color);
+	new Poster(item, ctx.app).render(card.createDiv({ cls: "ml-wrap-poster-art" }));
+	card.createDiv({ cls: "ml-wrap-poster-title", text: item.title });
+	if (caption) {
+		card.createDiv({ cls: "ml-wrap-poster-caption", text: caption });
+	}
+	card.addEventListener("click", () => ctx.callbacks.onOpenItem(item));
+	return card;
+}
+
+function renderUnfinished(root: HTMLElement, w: Wrapped, ctx: WrappedContext): void {
+	const list = w.unfinished;
+	if (!list.length) {
+		return;
+	}
+
+	const body = panel(
+		root,
+		"navy",
+		"Started but not finished",
+		`You were partway through ${plural(list.length, "title")} and have not finished ${list.length === 1 ? "it" : "them"} yet.`,
+	);
+
+	const row = body.createDiv({ cls: "ml-wrap-poster-row" });
+	for (const entry of list.slice(0, UNFINISHED_LIMIT)) {
+		const card = itemPosterCard(
+			row,
+			entry.item,
+			ctx,
+			entry.progress !== null ? `${Math.round(entry.progress)}% through` : "In progress",
+		);
+		if (entry.started) {
+			const otherYear = entry.started.slice(0, 4) !== String(w.year);
+			card.createDiv({ cls: "ml-wrap-poster-caption", text: `Started ${formatDay(entry.started, otherYear)}` });
+		}
+	}
+
+	if (list.length > UNFINISHED_LIMIT) {
+		body.createDiv({ cls: "ml-wrap-empty", text: `And ${list.length - UNFINISHED_LIMIT} more.` });
+	}
+}
+
 function renderLog(root: HTMLElement, w: Wrapped, ctx: WrappedContext): void {
 	const details = root.createEl("details", { cls: "ml-wrap-log" });
 	details.createEl("summary", { text: `Full log, ${plural(w.total, "entry", "entries")}` });
@@ -1772,6 +1878,19 @@ function buildMarkdown(w: Wrapped): string {
 				...review.text.split(/\r?\n/).map((line) => `> ${line}`),
 				"",
 			);
+		}
+	}
+
+	if (w.unfinished.length) {
+		add("", "## Started but not finished", "");
+		for (const entry of w.unfinished) {
+			const detail = [
+				entry.progress !== null ? `${Math.round(entry.progress)}% through` : "in progress",
+				entry.started ? `started ${formatDay(entry.started, true)}` : "",
+			]
+				.filter(Boolean)
+				.join(", ");
+			add(`- ${wikilink(entry.item)} (${typeLabel(entry.item)}, ${detail})`);
 		}
 	}
 

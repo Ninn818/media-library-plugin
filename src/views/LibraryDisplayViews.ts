@@ -162,12 +162,7 @@ export function renderLibraryCard(
 	head.createEl("h3", { text: item.title, attr: { title: item.title } });
 
 	if (item.creator) {
-	const creator = head.createDiv({ text: item.creator, cls: "media-card-creator" });
-	creator.addEventListener("click", (event) => {
-		event.preventDefault();
-		event.stopPropagation();
-		options.onCreatorClick?.(item.creator);
-	});
+		renderCreatorLinks(head.createDiv({ cls: "media-card-creator" }), item.creator, options.onCreatorClick);
 	}
 
 	if (item.genres?.length) {
@@ -377,13 +372,12 @@ export class TableView {
         title.createDiv({ cls: "media-table-subtext", text: item.genres.slice(0, 2).join(" • ") });
       }
 
-      const creator = row.createDiv({ cls: "media-table-cell media-table-creator", text: item.creator || "—" });
-      if (item.creator) {
-        creator.addEventListener("click", (event) => {
-          event.stopPropagation();
-          callbacks.onCreatorClick?.(item.creator);
-        });
-      }
+	const creator = row.createDiv({ cls: "media-table-cell media-table-creator" });
+	if (item.creator) {
+		renderCreatorLinks(creator, item.creator, callbacks.onCreatorClick);
+	} else {
+		creator.setText("—");
+	}
 
       row.createDiv({ cls: "media-table-cell media-table-type", text: item.mediaType });
       row.createDiv({ cls: "media-table-cell", text: item.year ? String(item.year) : "—" });
@@ -399,4 +393,40 @@ export class TableView {
       actions.toggleClass("is-favorite", callbacks.isFavorite?.(item.path) ?? false);
     }
   }
+}
+
+/** "A, B" becomes ["A", "B"]. A trailing "Jr." or "III" stays with the previous name. */
+function splitCreatorNames(creator: string): string[] {
+	const names: string[] = [];
+	for (const part of creator.split(",").map((entry) => entry.trim()).filter(Boolean)) {
+		const previous = names[names.length - 1];
+		if (previous && /^(jr|sr|ii|iii|iv)\.?$/i.test(part)) {
+			names[names.length - 1] = `${previous}, ${part}`;
+		} else {
+			names.push(part);
+		}
+	}
+	return names;
+}
+
+/** Renders each creator as its own clickable name, separated by commas. */
+function renderCreatorLinks(container: HTMLElement, creator: string, onClick?: (name: string) => void): void {
+	const names = splitCreatorNames(creator);
+	names.forEach((name, index) => {
+		const link = container.createSpan({ cls: "media-card-creator-name", text: name });
+		link.setAttr("role", "button");
+		link.setAttr("tabindex", "0");
+		const activate = (event: Event): void => {
+			event.preventDefault();
+			event.stopPropagation();
+			onClick?.(name);
+		};
+		link.addEventListener("click", activate);
+		link.addEventListener("keydown", (event) => {
+			if (event.key === "Enter" || event.key === " ") activate(event);
+		});
+		if (index < names.length - 1) {
+			container.appendText(", ");
+		}
+	});
 }

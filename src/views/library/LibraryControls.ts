@@ -65,9 +65,38 @@ export function renderLibraryToolbar(
 	const search = searchWrap.createEl("input", { type: "search", cls: "ml-toolbar-search-input" });
 	search.placeholder = "Search title, creator, genre…";
 	search.value = state.searchQuery;
-	search.addEventListener("input", (event) =>
-		callbacks.onSearchChange((event.target as HTMLInputElement).value)
-	);
+
+	const clearSearch = searchWrap.createEl("button", {
+		cls: "ml-toolbar-search-clear",
+		attr: { "aria-label": "Clear search", title: "Clear search" },
+	});
+	clearSearch.type = "button";
+	setIcon(clearSearch, "x");
+
+	const syncClear = (): void => {
+		clearSearch.toggleClass("is-hidden", search.value.length === 0);
+	};
+	syncClear();
+
+	search.addEventListener("input", (event) => {
+		callbacks.onSearchChange((event.target as HTMLInputElement).value);
+		syncClear();
+	});
+	search.addEventListener("keydown", (event) => {
+		if (event.key === "Escape" && search.value) {
+			event.preventDefault();
+			event.stopPropagation();
+			search.value = "";
+			syncClear();
+			callbacks.onSearchChange("");
+		}
+	});
+	clearSearch.addEventListener("click", () => {
+		search.value = "";
+		syncClear();
+		callbacks.onSearchChange("");
+		search.focus();
+	});
 
 	const sortGroup = bar.createDiv({ cls: "ml-toolbar-sort-group" });
 	const sortSelect = sortGroup.createEl("select", { cls: "ml-toolbar-select" });
