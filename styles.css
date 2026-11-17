@@ -1523,10 +1523,32 @@ button.media-home-sidebar-all{
 }
 
 .media-library-visible-count {
-	padding: 2px 0;
-	font-size: 0.78em;
-	letter-spacing: 0.04em;
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 4px 0 12px;
+	font-size: 0.82em;
 	color: var(--text-muted);
+}
+
+.media-library-visible-number {
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-normal);
+}
+
+.media-library-visible-bar {
+	width: 96px;
+	height: 3px;
+	overflow: hidden;
+	border-radius: 999px;
+	background: var(--background-modifier-border);
+}
+
+.media-library-visible-bar > div {
+	height: 100%;
+	border-radius: inherit;
+	background: var(--interactive-accent);
 }
 
 /* Social hub */

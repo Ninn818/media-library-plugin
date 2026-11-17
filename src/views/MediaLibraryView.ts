@@ -1299,10 +1299,23 @@ export class LibraryView extends ItemView {
 	}
 
 	private renderVisibleMediaCount(showing: number, total: number): void {
-		const count = this.contentHost.createDiv({
-			cls: "media-library-visible-count",
-			text: `Showing ${showing} of ${total} media`,
-		});
+		const count = this.contentHost.createDiv({ cls: "media-library-visible-count" });
+		const text = count.createDiv({ cls: "media-library-visible-text" });
+
+		if (showing >= total) {
+			text.createSpan({ cls: "media-library-visible-number", text: total.toLocaleString() });
+			text.appendText(total === 1 ? " title" : " titles");
+		} else {
+			text.appendText("Showing ");
+			text.createSpan({ cls: "media-library-visible-number", text: showing.toLocaleString() });
+			text.appendText(" of ");
+			text.createSpan({ cls: "media-library-visible-number", text: total.toLocaleString() });
+			text.appendText(" titles");
+
+			const bar = count.createDiv({ cls: "media-library-visible-bar" });
+			bar.createDiv().style.width = `${(showing / total) * 100}%`;
+		}
+
 		this.contentHost.prepend(count);
 	}
 
