@@ -6,10 +6,10 @@ Media Library turns media notes in your Obsidian vault into a personal catalog. 
 
 - **Library views:** browse your catalog as cards, a gallery, or a table. Search, filter, sort, and adjust card size.
 - **Personal pages:** Home, Dashboard, Media, Diary, Activity, Lists, Tags, and Year in Media.
-- **Activity tracking:** log reading and watching dates, statuses, ratings, and notes.
-- **Reviews and ratings:** add a review from a media note's spotlight or activity modal. Ratings are stored out of 10; choose a 5- or 10-star display.
+- **Activity tracking:** log and edit reading and watching dates, statuses, ratings, and notes.
+- **Reviews and ratings:** create a review note from an activity entry or its edit form. Review notes are saved as Markdown files in `Personal/Review` and linked to the media note; the folder is created when needed. Ratings are stored out of 10; choose a 5- or 10-star display.
 - **Dashboard:** review yearly goals, completed and backlog items, quick picks, summaries, and rating charts.
-- **Year in Media:** explore a yearly recap across all four media types, including ratings and written reviews. Save the recap as a Markdown note or share image.
+- **Year in Media:** explore a yearly recap across all four media types, including ratings, written reviews, and titles started but not finished. Save the recap as a Markdown note or share image.
 - **Lists and tags:** create custom collections, manage favorites, and add tags to media notes.
 
 ## Install
@@ -58,10 +58,10 @@ Open the library from the **Media library** ribbon icon or run **Open media libr
 - **Dashboard:** review your yearly or all-time activity, goals, ratings, and quick picks.
 - **Media:** browse and organize your full catalog.
 - **Diary:** view completed reads and watches by date.
-- **Activity:** see a combined timeline of library and activity events.
+- **Activity:** see a combined timeline of library and activity events, edit entries, and create linked review notes.
 - **Lists:** manage custom collections.
 - **Tags:** browse and manage tags on media notes.
-- **Year in Media:** choose a year to review your reading and watching recap, including ratings and written reviews. Use **Save** to export it as a Markdown note, share image, or both.
+- **Year in Media:** choose a year to review your reading and watching recap, including ratings, written reviews, and titles started but not finished. Use **Save** to export it as a Markdown note, share image, or both.
 
 ## Settings
 
