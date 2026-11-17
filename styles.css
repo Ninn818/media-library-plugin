@@ -4541,6 +4541,21 @@ button.media-diary-col-sort {
 	color: var(--wrap-muted);
 }
 
+.ml-wrap-persona-meanings {
+	display: grid;
+	gap: 8px;
+	max-width: 48ch;
+}
+
+.ml-wrap-persona-meaning {
+	padding: 9px 13px;
+	border-left: 2px solid color-mix(in srgb, var(--wrap-rose) 65%, transparent);
+	border-radius: 0 4px 4px 0;
+	background: color-mix(in srgb, var(--wrap-rose) 7%, var(--background-primary));
+	line-height: 1.55;
+	color: var(--wrap-muted);
+}
+
 .ml-wrap-persona .ml-wrap-chip.is-plain {
 	border: 1px solid color-mix(in srgb, var(--wrap-rose) 35%, transparent);
 	background: color-mix(in srgb, var(--wrap-rose) 9%, transparent);

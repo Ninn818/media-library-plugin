@@ -210,6 +210,7 @@ export class LibraryView extends ItemView {
 		};
 	}
 
+	//In renderToolbarArea, only create the sidebar toggle button on those two tabs.
 	private renderToolbarArea(): void {
 		this.toolbarHost.empty();
 		this.mediaControlsHost.empty();
@@ -227,23 +228,22 @@ export class LibraryView extends ItemView {
 			},
 		});
 
-		const sidebarButton = tabsRow.createEl("button", {
-			cls: "media-library-sidebar-toggle",
-			attr: {
-				title: this.isSidebarVisible ? "Hide sidebar" : "Show sidebar",
-				"aria-label": this.isSidebarVisible ? "Hide sidebar" : "Show sidebar",
-			},
-		});
-		sidebarButton.type = "button";
-		setIcon(sidebarButton, this.isSidebarVisible ? "panel-right-close" : "panel-right-open");
-		sidebarButton.addEventListener("click", () => {
-			this.isSidebarVisible = !this.isSidebarVisible;
-			this.renderToolbarArea();
-			this.renderActivePage();
-		});
 
-		if (this.currentPageTab === "home") {
-			return;
+		if (this.currentPageTab === "home" || this.currentPageTab === "dashboard") {
+			const sidebarButton = tabsRow.createEl("button", {
+				cls: "media-library-sidebar-toggle",
+				attr: {
+					title: this.isSidebarVisible ? "Hide sidebar" : "Show sidebar",
+					"aria-label": this.isSidebarVisible ? "Hide sidebar" : "Show sidebar",
+				},
+			});
+			sidebarButton.type = "button";
+			setIcon(sidebarButton, this.isSidebarVisible ? "panel-right-close" : "panel-right-open");
+			sidebarButton.addEventListener("click", () => {
+				this.isSidebarVisible = !this.isSidebarVisible;
+				this.renderToolbarArea();
+				this.renderActivePage();
+			});
 		}
 
 		if (this.currentPageTab === "media") {
@@ -362,6 +362,13 @@ export class LibraryView extends ItemView {
 		this.bodyHost?.removeClass("is-social-layout");
 		this.updateLayoutMode();
 
+		// Only Home and Dashboard have a sidebar.
+		if (this.currentPageTab !== "home" && this.currentPageTab !== "dashboard") {
+			this.sidebarHost.empty();
+			this.sidebarHost.addClass("is-hidden");
+			this.bodyHost?.addClass("is-sidebar-hidden");
+		}
+
 		if (this.currentPageTab === "home") {
 			this.spotlightHost.empty();
 			this.spotlightHost.addClass("is-hidden");
@@ -436,10 +443,7 @@ export class LibraryView extends ItemView {
 
 		this.spotlightHost.empty();
 		this.spotlightHost.addClass("is-hidden");
-		this.sidebarHost.removeClass("is-hidden");
 		this.renderCurrentView();
-		this.renderSidebar();
-		this.applySidebarVisibility();
 	}
 
 	private renderTopSocialPage(tab: SocialHubTab): void {
@@ -1671,9 +1675,9 @@ export class LibraryView extends ItemView {
 			items = items.filter((item) => String(item.year ?? "").slice(0, 3) === this.currentDecade.slice(0, 3));
 		}
 		if (this.currentRating === "rated") {
-			items = items.filter((item) => this.isCompleted(item) || (typeof item.rating === "number" && item.rating > 0));
+			items = items.filter((item) => typeof item.rating === "number" && item.rating > 0);
 		} else if (this.currentRating === "unrated") {
-			items = items.filter((item) => !this.isCompleted(item) && !(typeof item.rating === "number" && item.rating > 0));
+			items = items.filter((item) => !(typeof item.rating === "number" && item.rating > 0));
 		} else if (this.currentRating === "high") {
 			items = items.filter((item) => typeof item.rating === "number" && item.rating >= 8);
 		}

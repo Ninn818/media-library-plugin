@@ -1495,6 +1495,23 @@ function renderBigAndSmall(root: HTMLElement, w: Wrapped, ctx: WrappedContext): 
 		feature("Shortest film", w.shortestFilm, formatRuntime(w.shortestFilm.minutes));
 	}
 }
+const TRAIT_MEANINGS: Record<string, string> = {
+	"Comfort rewatcher": "At least a fifth of your finishes were titles you had finished before.",
+	"Binge mode": "You finished three or more titles in a single day.",
+	"Generous critic": "Your average rating was 8 or higher.",
+	"Tough critic": "Your average rating was 5.5 or lower.",
+	"Old soul": "The average title you finished came out 30 or more years before this year.",
+	"Fresh-release hunter": "The average title you finished came out in the last four years.",
+	"Note taker": "You wrote notes on five or more of your finishes.",
+	"Goal crusher": "You reached every one of your yearly goals.",
+};
+
+function traitMeaning(trait: string): string {
+	if (/-day streak$/.test(trait)) {
+		return "You finished something on that many days in a row. Streaks of seven days or more count.";
+	}
+	return TRAIT_MEANINGS[trait] ?? "";
+}
 
 function renderPersona(root: HTMLElement, w: Wrapped): void {
 	const persona = root.createDiv({ cls: "ml-wrap-persona" });
@@ -1505,7 +1522,16 @@ function renderPersona(root: HTMLElement, w: Wrapped): void {
 	if (w.persona.traits.length) {
 		const chips = persona.createDiv({ cls: "ml-wrap-chips" });
 		for (const trait of w.persona.traits) {
-			chips.createDiv({ cls: "ml-wrap-chip is-plain", text: trait });
+			const chip = chips.createDiv({ cls: "ml-wrap-chip is-plain", text: trait });
+			chip.setAttr("title", traitMeaning(trait));
+		}
+
+		const meanings = w.persona.traits.map(traitMeaning).filter((meaning) => meaning.length > 0);
+		if (meanings.length) {
+			const meaningList = persona.createDiv({ cls: "ml-wrap-persona-meanings" });
+			for (const meaning of meanings) {
+				meaningList.createDiv({ cls: "ml-wrap-persona-meaning", text: meaning });
+			}
 		}
 	}
 }
@@ -1680,7 +1706,8 @@ function buildMarkdown(w: Wrapped): string {
 
 	add(`# ${w.year} Year in Media`, "", `> **${w.persona.title}.** ${w.persona.blurb}`, "");
 	if (w.persona.traits.length) {
-		add(w.persona.traits.map((trait) => `\`${trait}\``).join(" "), "");
+		w.persona.traits.forEach((trait) => add(`- ${traitMeaning(trait)}`));
+		add("");
 	}
 
 	add(
