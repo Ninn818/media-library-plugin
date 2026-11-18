@@ -126,7 +126,7 @@ export default class MediaLibraryPlugin extends Plugin {
 		const existingLeaves = this.app.workspace.getLeavesOfType("media-library-view");
 		const leaf = existingLeaves.length > 0
 			? existingLeaves[0]
-			: this.app.workspace.getLeaf(this.settings.openInSidebar);
+			: this.app.workspace.getLeaf(false);
 		if (!leaf) {
 			return;
 		}
