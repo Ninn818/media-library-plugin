@@ -104,7 +104,6 @@ function renderHero(
 	callbacks: MediaDashboardCallbacks
 ): void {
 	const hero = container.createDiv({ cls: "media-dashboard-hero" });
-	hero.createDiv({ text: "Insights", cls: "media-dashboard-eyebrow" });
 	hero.createEl("h3", { text: "Media dashboard", cls: "media-dashboard-title" });
 
 	const metricGrid = hero.createDiv({ cls: "media-dashboard-metric-grid" });
@@ -158,9 +157,9 @@ function renderFilterBar(
 		(value) => callbacks.onFilterChange(value as DashboardMediaFilter)
 	);
 
-	const period = bar.createDiv({ cls: "media-dashboard-filter-group" });
+	const period = bar.createDiv({ cls: "media-dashboard-filter-group media-dashboard-filter-period" });
 	period.createSpan({ text: "Period", cls: "media-dashboard-filter-label" });
-	const select = period.createEl("select", { cls: "media-dashboard-filter-select dropdown" });
+	const select = period.createEl("select", { cls: "media-dashboard-filter-select" });
 	const options = [
 		{ value: "year", label: "This year" },
 		...getConsumptionYears(state.items).map((year) => ({ value: year, label: year })),
