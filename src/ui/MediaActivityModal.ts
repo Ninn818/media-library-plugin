@@ -1,7 +1,7 @@
 import { Modal, Notice, TFile, TFolder, setIcon } from "obsidian";
 
 import { Poster } from "../PluginControllers";
-import { isMediaStatus, MediaActivityEntry, MediaItem } from "../models";
+import { isMediaStatus, MediaActivityChange, MediaActivityEntry, MediaItem } from "../models";
 import { ActivityLogService, addTagToMediaNote } from "../services";
 import { TagStorageFormat } from "../settings";
 
@@ -454,15 +454,20 @@ export class MediaActivityModal extends Modal {
 
 				saveButton.disabled = true;
 				try {
-					entries[index] = {
+					const updatedEntry: MediaActivityEntry = {
+						...entry,
 						date: dateInput.value,
-						recordedAt: new Date().toISOString(),
 						status: statusSelect.value || getCompletedStatus(this.item),
 						rating: ratingSelect.value ? Number(ratingSelect.value) : null,
 						progress: parseProgress(progressInput.value),
 						note: noteInput.value,
-						kind: entry.kind,
 					};
+					const changes = getChangedActivityFields(entry, updatedEntry);
+					if (changes.length) {
+						updatedEntry.editedAt = new Date().toISOString();
+						updatedEntry.changes = changes;
+					}
+					entries[index] = updatedEntry;
 
 					await this.activityLogService.replaceEntries(file, this.item, entries);
 					this.syncItem(entries);
@@ -577,6 +582,19 @@ function parseProgress(value: string): number | null {
 
 	const progress = Number(value);
 	return Number.isFinite(progress) ? Math.max(0, Math.min(100, Math.round(progress))) : null;
+}
+
+function getChangedActivityFields(
+	previous: MediaActivityEntry,
+	updated: MediaActivityEntry,
+): MediaActivityChange[] {
+	const changes: MediaActivityChange[] = [];
+	if (previous.date !== updated.date) changes.push("date");
+	if (previous.status !== updated.status) changes.push("status");
+	if (previous.rating !== updated.rating) changes.push("rating");
+	if ((previous.progress ?? null) !== (updated.progress ?? null)) changes.push("progress");
+	if ((previous.note ?? "").trim() !== (updated.note ?? "").trim()) changes.push("note");
+	return changes;
 }
 
 function capitalize(value: string): string {

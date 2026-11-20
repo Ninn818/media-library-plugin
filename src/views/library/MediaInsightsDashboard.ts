@@ -8,6 +8,7 @@ import {
 	MediaDashboardGoals,
 	MediaLibrarySettings,
 } from "../../settings";
+
 type DashboardDatum = [string, number, (() => void)?];
 type DashboardChartMode = "bar" | "pie" | "spotlight";
 
@@ -22,6 +23,14 @@ interface DashboardQuickPick {
 	label: string;
 	types: MediaType[];
 	buttonLabel: string;
+}
+
+interface DashboardChartConfig {
+	title: string;
+	description: string;
+	data: DashboardDatum[];
+	/** Small line under the chart, for things the chart cannot show. */
+	note?: string;
 }
 
 export interface MediaDashboardHosts {
@@ -46,32 +55,30 @@ export interface MediaDashboardCallbacks {
 	onFilterChange(filter: DashboardMediaFilter): void;
 }
 
-function getChartIconSvg(kind: string): string {
-	if (kind === "bar") {
-		return `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
-			<rect x="2" y="8" width="2.5" height="6" rx="1" fill="currentColor"></rect>
-			<rect x="6.75" y="5" width="2.5" height="9" rx="1" fill="currentColor"></rect>
-			<rect x="11.5" y="2" width="2.5" height="12" rx="1" fill="currentColor"></rect>
-		</svg>`;
-	}
-	if (kind === "pie") {
-		return `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
-			<path d="M8 1a7 7 0 1 0 7 7H8z" fill="currentColor"></path>
-			<path d="M9 1.07A7 7 0 0 1 14.93 7H9z" fill="currentColor" opacity="0.6"></path>
-		</svg>`;
-	}
-	if (kind === "focus") {
-		return `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
-			<rect x="2.5" y="2.5" width="11" height="11" rx="3" fill="currentColor"></rect>
-			<circle cx="8" cy="8" r="2.4" fill="white"></circle>
-		</svg>`;
-	}
-	return `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
-		<circle cx="8" cy="8" r="6" fill="currentColor" opacity="0.3"></circle>
-		<rect x="7.25" y="6.5" width="1.5" height="4.5" rx=".75" fill="currentColor"></rect>
-		<circle cx="8" cy="4.3" r="1" fill="currentColor"></circle>
-	</svg>`;
-}
+const MEDIA_ORDER: MediaType[] = ["book", "movie", "series", "essay"];
+const MEDIA_LABELS: Record<MediaType, string> = { book: "Books", movie: "Films", series: "Series", essay: "Essays" };
+const MEDIA_SINGULAR: Record<MediaType, string> = { book: "book", movie: "film", series: "series", essay: "essay" };
+
+const CHART_ICONS = {
+	bar: `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+<rect x="2" y="8" width="2.5" height="6" rx="1"></rect>
+<rect x="6.75" y="5" width="2.5" height="9" rx="1"></rect>
+<rect x="11.5" y="2" width="2.5" height="12" rx="1"></rect>
+</svg>`,
+	pie: `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+<path d="M8 1a7 7 0 1 0 7 7H8z"></path>
+<path d="M9 1.07A7 7 0 0 1 14.93 7H9z" opacity="0.6"></path>
+</svg>`,
+	focus: `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+<circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+<circle cx="8" cy="8" r="2" fill="currentColor"></circle>
+</svg>`,
+	info: `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+<circle cx="8" cy="8" r="6" opacity="0.3"></circle>
+<rect x="7.25" y="6.5" width="1.5" height="4.5" rx=".75"></rect>
+<circle cx="8" cy="4.3" r="1"></circle>
+</svg>`,
+};
 
 export function renderMediaDashboard(
 	hosts: MediaDashboardHosts,
@@ -85,7 +92,8 @@ export function renderMediaDashboard(
 	hosts.sidebarHost.empty();
 
 	renderHero(hosts.heroHost, activeItems, state, callbacks);
-	renderContent(hosts.contentHost, activeItems, state, callbacks);
+	renderFilterBar(hosts.contentHost, state, callbacks);
+	renderContent(hosts.contentHost, activeItems, state);
 	renderSidebar(hosts.sidebarHost, state, activeItems, callbacks);
 }
 
@@ -115,11 +123,98 @@ function renderHero(
 	}
 }
 
+/* ---------------------------------------------------------------------------
+ * Filters
+ * ------------------------------------------------------------------------ */
+
+function renderFilterBar(
+	container: HTMLElement,
+	state: MediaDashboardState,
+	callbacks: MediaDashboardCallbacks
+): void {
+	const bar = container.createDiv({ cls: "media-dashboard-filterbar" });
+
+	renderSegmented(
+		bar,
+		"Show",
+		[
+			{ value: "consumed", label: "Finished" },
+			{ value: "unconsumed", label: "Not finished" },
+			{ value: "all", label: "Everything" },
+		],
+		state.consumption,
+		(value) => callbacks.onConsumptionChange(value as DashboardConsumptionFilter)
+	);
+
+	renderSegmented(
+		bar,
+		"Type",
+		[
+			{ value: "all", label: "All media" },
+			{ value: "text", label: "Books and essays" },
+			{ value: "screen", label: "Films and series" },
+		],
+		state.filter,
+		(value) => callbacks.onFilterChange(value as DashboardMediaFilter)
+	);
+
+	const period = bar.createDiv({ cls: "media-dashboard-filter-group" });
+	period.createSpan({ text: "Period", cls: "media-dashboard-filter-label" });
+	const select = period.createEl("select", { cls: "media-dashboard-filter-select dropdown" });
+	const options = [
+		{ value: "year", label: "This year" },
+		...getConsumptionYears(state.items).map((year) => ({ value: year, label: year })),
+		{ value: "all", label: "All time" },
+	];
+	for (const option of options) {
+		select.createEl("option", { text: option.label, value: option.value });
+	}
+	select.value = state.scope;
+	select.addEventListener("change", () => callbacks.onScopeChange(select.value as DashboardScopeMode));
+
+	// Titles you have not finished have no finish date, so a period does not apply to them.
+	if (state.consumption === "unconsumed") {
+		select.disabled = true;
+		select.setAttr("title", "Period only applies to finished titles");
+	}
+}
+
+function renderSegmented(
+	container: HTMLElement,
+	label: string,
+	options: Array<{ value: string; label: string }>,
+	active: string,
+	onChange: (value: string) => void
+): void {
+	const group = container.createDiv({ cls: "media-dashboard-filter-group" });
+	group.createSpan({ text: label, cls: "media-dashboard-filter-label" });
+
+	const track = group.createDiv({ cls: "media-dashboard-segmented" });
+	track.setAttr("role", "group");
+	track.setAttr("aria-label", label);
+
+	for (const option of options) {
+		const button = track.createEl("button", { text: option.label, cls: "media-dashboard-segment" });
+		button.type = "button";
+		const isActive = option.value === active;
+		button.toggleClass("is-active", isActive);
+		button.setAttr("aria-pressed", isActive ? "true" : "false");
+		button.addEventListener("click", () => {
+			if (!isActive) {
+				onChange(option.value);
+			}
+		});
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * Content and sidebar
+ * ------------------------------------------------------------------------ */
+
 function renderContent(
 	container: HTMLElement,
 	activeItems: MediaItem[],
-	state: MediaDashboardState,
-	callbacks: MediaDashboardCallbacks
+	state: MediaDashboardState
 ): void {
 	if (!activeItems.length) {
 		const empty = container.createDiv({ cls: "media-library-empty media-dashboard-empty" });
@@ -130,9 +225,20 @@ function renderContent(
 		return;
 	}
 
+	const configs = getChartConfigs(activeItems, state.settings, (creator, mediaType) => {
+		void creator;
+		void mediaType;
+	});
+
+	const undated = describeUndated(state);
+	const breakdown = configs[0];
+	if (undated && breakdown) {
+		breakdown.note = undated;
+	}
+
 	const grid = container.createDiv({ cls: "media-dashboard-chart-grid" });
-	for (const config of getChartConfigs(activeItems, state.settings, callbacks)) {
-		renderDashboardChart(grid, config.title, config.description, config.data);
+	for (const config of configs) {
+		renderDashboardChart(grid, config);
 	}
 }
 
@@ -143,7 +249,6 @@ function renderSidebar(
 	callbacks: MediaDashboardCallbacks
 ): void {
 	const sidebar = container.createDiv({ cls: "media-dashboard-sidebar" });
-	renderFilterRail(sidebar, state, callbacks);
 
 	if (state.settings.dashboardShowSummary) {
 		renderSummaryPanel(sidebar, activeItems, state.scope, state.consumption);
@@ -158,83 +263,12 @@ function renderSidebar(
 	}
 }
 
-function renderFilterRail(
-	container: HTMLElement,
-	state: MediaDashboardState,
-	callbacks: MediaDashboardCallbacks
-): void {
-	const section = createSidebarSection(container, "Filters", "sliders-horizontal");
-	section.addClass("media-dashboard-filters");
+/* ---------------------------------------------------------------------------
+ * Charts
+ * ------------------------------------------------------------------------ */
 
-	renderFilterGroup(
-		section,
-		"Focus",
-		"target",
-		[
-			{ value: "consumed", label: "Completed" },
-			{ value: "unconsumed", label: "Uncompleted" },
-			{ value: "all", label: "All" },
-		],
-		state.consumption,
-		(value) => callbacks.onConsumptionChange(value as DashboardConsumptionFilter)
-	);
-
-	renderFilterGroup(
-		section,
-		"Scope",
-		"calendar-range",
-		[
-			{ value: "year", label: "This year" },
-			...getConsumptionYears(state.items).map((year) => ({ value: year, label: year })),
-			{ value: "all", label: "All time" },
-		],
-		state.scope,
-		(value) => callbacks.onScopeChange(value as DashboardScopeMode)
-	);
-
-	renderFilterGroup(
-		section,
-		"Media",
-		"library",
-		[
-			{ value: "all", label: "All media" },
-			{ value: "text", label: "Books + essays" },
-			{ value: "screen", label: "Movies + series" },
-		],
-		state.filter,
-		(value) => callbacks.onFilterChange(value as DashboardMediaFilter)
-	);
-
-}
-
-function renderFilterGroup(
-	container: HTMLElement,
-	title: string,
-	icon: string,
-	options: Array<{ value: string; label: string }>,
-	activeValue: string,
-	onChange: (value: string) => void
-): void {
-	const group = container.createDiv({ cls: "media-dashboard-filter-group" });
-	const titleRow = group.createDiv({ cls: "media-dashboard-filter-title-row" });
-	createIcon(titleRow, icon, "media-dashboard-filter-title-icon");
-	titleRow.createDiv({ text: title, cls: "media-dashboard-filter-title" });
-
-	const row = group.createDiv({ cls: "media-dashboard-filter-buttons" });
-	const select = row.createEl("select", { cls: "media-dashboard-filter-select" });
-	for (const option of options) {
-		select.createEl("option", { text: option.label, value: option.value });
-	}
-	select.value = activeValue;
-	select.addEventListener("change", () => onChange(select.value));
-}
-
-function renderDashboardChart(
-	container: HTMLElement,
-	title: string,
-	description: string,
-	data: DashboardDatum[]
-): void {
+function renderDashboardChart(container: HTMLElement, config: DashboardChartConfig): void {
+	const { title, description, data, note } = config;
 	if (!data.length) {
 		return;
 	}
@@ -247,120 +281,63 @@ function renderDashboardChart(
 	const controls = header.createDiv({ cls: "media-dashboard-chart-controls" });
 	const info = panel.createDiv({ text: description, cls: "media-dashboard-chart-meta" });
 	const area = panel.createDiv({ cls: "media-dashboard-chart-area" });
+	if (note) {
+		panel.createDiv({ text: note, cls: "media-dashboard-chart-note" });
+	}
 
 	let mode: DashboardChartMode = data.length === 1 ? "spotlight" : "bar";
-	let isInfoVisible = false;
 	const buttons = new Map<DashboardChartMode, HTMLButtonElement>();
 
-	for (const option of [
-		{ mode: "bar" as DashboardChartMode, label: "Bar chart", icon: "bar" },
-		{ mode: "pie" as DashboardChartMode, label: "Pie chart", icon: "pie" },
-		{ mode: "spotlight" as DashboardChartMode, label: "Focus chart", icon: "focus" },
-	]) {
+	const modes: Array<{ mode: DashboardChartMode; label: string; icon: string }> = [
+		{ mode: "bar", label: "Bar chart", icon: CHART_ICONS.bar },
+		{ mode: "pie", label: "Pie chart", icon: CHART_ICONS.pie },
+		{ mode: "spotlight", label: "Focus chart", icon: CHART_ICONS.focus },
+	];
+
+	for (const option of modes) {
 		const button = controls.createEl("button", { cls: "media-dashboard-chart-button" });
 		button.type = "button";
 		button.setAttr("aria-label", option.label);
 		button.setAttr("title", option.label);
-		button.style.border = "1px solid rgba(0, 0, 0, 0.2)";
-		button.style.borderRadius = "12px";
-		button.style.width = "32px";
-		button.style.height = "32px";
-		button.style.padding = "0";
-		button.style.display = "grid";
-		button.style.placeItems = "center";
-		button.style.background = "rgba(255, 255, 255, 0.12)";
-		button.style.backdropFilter = "blur(10px)";
-		button.style.cursor = "pointer";
-		button.style.color = "var(--text-normal)";
-		button.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
-		button.style.transition = "all 0.15s ease";
-		
-		const iconSvg = getChartIconSvg(option.icon);
-		button.innerHTML = iconSvg;
-
+		button.innerHTML = option.icon;
 		button.addEventListener("click", () => {
 			mode = option.mode;
 			updateButtons();
 			draw();
-		});
-		button.addEventListener("mouseenter", () => {
-			if (!button.hasClass("is-active")) {
-				button.style.background = "rgba(255, 255, 255, 0.18)";
-				button.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
-			}
-		});
-		button.addEventListener("mouseleave", () => {
-			if (!button.hasClass("is-active")) {
-				button.style.background = "rgba(255, 255, 255, 0.12)";
-				button.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
-			}
 		});
 		buttons.set(option.mode, button);
 	}
 
 	const infoButton = controls.createEl("button", { cls: "media-dashboard-chart-button" });
 	infoButton.type = "button";
-	infoButton.setAttr("aria-label", "Chart information");
-	infoButton.setAttr("title", "Chart information");
+	infoButton.setAttr("aria-label", "About this chart");
+	infoButton.setAttr("title", "About this chart");
 	infoButton.setAttr("aria-pressed", "false");
-	infoButton.style.border = "1px solid rgba(0, 0, 0, 0.2)";
-	infoButton.style.borderRadius = "12px";
-	infoButton.style.width = "32px";
-	infoButton.style.height = "32px";
-	infoButton.style.padding = "0";
-	infoButton.style.display = "grid";
-	infoButton.style.placeItems = "center";
-	infoButton.style.background = "rgba(255, 255, 255, 0.12)";
-	infoButton.style.backdropFilter = "blur(10px)";
-	infoButton.style.cursor = "pointer";
-	infoButton.style.color = "var(--text-normal)";
-	infoButton.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
-	infoButton.style.transition = "all 0.15s ease";
-	
-	const infoIconSvg = getChartIconSvg("info");
-	infoButton.innerHTML = infoIconSvg;
-	
+	infoButton.innerHTML = CHART_ICONS.info;
 	infoButton.addEventListener("click", () => {
-		isInfoVisible = !isInfoVisible;
-		info.toggleClass("is-visible", isInfoVisible);
-		infoButton.toggleClass("is-active", isInfoVisible);
-		infoButton.setAttr("aria-pressed", isInfoVisible ? "true" : "false");
-	});
-	infoButton.addEventListener("mouseenter", () => {
-		infoButton.style.background = "rgba(255, 255, 255, 0.18)";
-		infoButton.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
-	});
-	infoButton.addEventListener("mouseleave", () => {
-		infoButton.style.background = "rgba(255, 255, 255, 0.12)";
-		infoButton.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
+		const visible = !info.hasClass("is-visible");
+		info.toggleClass("is-visible", visible);
+		infoButton.toggleClass("is-active", visible);
+		infoButton.setAttr("aria-pressed", visible ? "true" : "false");
 	});
 
-	const updateButtons = () => {
+	const updateButtons = (): void => {
 		for (const [key, button] of buttons) {
 			const active = key === mode;
 			button.toggleClass("is-active", active);
 			button.setAttr("aria-pressed", active ? "true" : "false");
-			button.style.background = active ? "rgba(122, 195, 255, 0.35)" : "rgba(255, 255, 255, 0.12)";
-			button.style.borderColor = active ? "rgba(122, 195, 255, 0.6)" : "rgba(0, 0, 0, 0.2)";
-			button.style.boxShadow = active
-				? "0 2px 8px rgba(0, 0, 0, 0.15), inset 0 0 0 1px rgba(122, 195, 255, 0.4)"
-				: "0 2px 8px rgba(0, 0, 0, 0.1)";
 		}
 	};
 
-	const draw = () => {
+	const draw = (): void => {
 		area.empty();
 		if (mode === "bar") {
 			renderBarChart(area, data);
-			return;
-		}
-
-		if (mode === "pie") {
+		} else if (mode === "pie") {
 			renderPieChart(area, data);
-			return;
+		} else {
+			renderSpotlightChart(area, data);
 		}
-
-		renderSpotlightChart(area, data);
 	};
 
 	updateButtons();
@@ -390,6 +367,17 @@ function renderBarChart(container: HTMLElement, data: DashboardDatum[]): void {
 	}
 }
 
+/**
+ * Slice colors are tones of the theme's accent color, mixed toward its border
+ * color, so the chart follows whatever theme is active. Nothing here is a fixed color.
+ */
+const PIE_TONES = [100, 76, 56, 42, 30, 20];
+
+function pieColor(index: number): string {
+	const tone = PIE_TONES[index % PIE_TONES.length] ?? 100;
+	return `color-mix(in srgb, var(--interactive-accent) ${tone}%, var(--background-modifier-border))`;
+}
+
 function renderPieChart(container: HTMLElement, data: DashboardDatum[]): void {
 	const total = data.reduce((sum, [, value]) => sum + value, 0);
 	if (!total) {
@@ -397,57 +385,77 @@ function renderPieChart(container: HTMLElement, data: DashboardDatum[]): void {
 		return;
 	}
 
-	const colors = [
-		"rgba(120, 194, 255, 0.92)",
-		"rgba(78, 143, 255, 0.82)",
-		"rgba(94, 212, 181, 0.8)",
-		"rgba(255, 189, 89, 0.82)",
-		"rgba(255, 132, 132, 0.78)",
-	];
-
 	let angle = 0;
-	const parts = data.map(([label, value], index) => {
+	const slices = data.map(([label, value], index) => {
 		const start = angle;
-		const size = (value / total) * 360;
-		angle += size;
-		return {
-			label,
-			value,
-			start,
-			end: angle,
-			color: colors[index % colors.length] ?? colors[0] ?? "rgba(122, 195, 255, 0.92)",
-		};
+		angle += (value / total) * 360;
+		return { label, value, start, end: angle, color: pieColor(index), onClick: data[index]?.[2] };
 	});
+	const visible = slices.filter((slice) => slice.value > 0);
 
 	const wrap = container.createDiv({ cls: "media-dashboard-pie-wrap" });
-	const pie = wrap.createDiv({ cls: "media-dashboard-pie" });
+	const holder = wrap.createDiv({ cls: "media-dashboard-pie-holder" });
+	const pie = holder.createDiv({ cls: "media-dashboard-pie" });
+	pie.setAttr("role", "img");
+	pie.setAttr("aria-label", slices.map((slice) => `${slice.label} ${slice.value}`).join(", "));
+
+	const center = holder.createDiv({ cls: "media-dashboard-pie-center" });
+	const centerValue = center.createDiv({ cls: "media-dashboard-pie-center-value" });
+	const centerLabel = center.createDiv({ cls: "media-dashboard-pie-center-label" });
+	const showCenter = (value: number, label: string): void => {
+		centerValue.setText(String(value));
+		centerLabel.setText(label);
+	};
+	showCenter(total, "total");
+
 	const legend = wrap.createDiv({ cls: "media-dashboard-pie-legend" });
 
-	const renderPie = (highlight?: string) => {
-		const gradient = `conic-gradient(${parts.map((part) => {
-			const color = highlight && highlight !== part.label
-				? fadeColor(part.color, 0.3)
-				: part.color;
-			return `${color} ${part.start}deg ${part.end}deg`;
-		}).join(", ")})`;
-		pie.style.setProperty("--media-dashboard-pie-background", gradient);
+	const renderPie = (highlight?: string): void => {
+		const stops: string[] = [];
+		for (const slice of visible) {
+			const color =
+				highlight && highlight !== slice.label
+					? `color-mix(in srgb, ${slice.color} 28%, transparent)`
+					: slice.color;
+
+			// A hairline gap between slices, so neighbouring tones stay distinct.
+			const gap = visible.length > 1 ? Math.min(0.8, (slice.end - slice.start) / 4) : 0;
+			if (gap > 0) {
+				stops.push(
+					`transparent ${slice.start}deg ${slice.start + gap}deg`,
+					`${color} ${slice.start + gap}deg ${slice.end - gap}deg`,
+					`transparent ${slice.end - gap}deg ${slice.end}deg`
+				);
+			} else {
+				stops.push(`${color} ${slice.start}deg ${slice.end}deg`);
+			}
+		}
+
+		pie.style.setProperty("--media-dashboard-pie-background", `conic-gradient(${stops.join(", ")})`);
 	};
 
 	renderPie();
 
-	for (const part of parts) {
+	for (const slice of slices) {
 		const row = legend.createDiv({ cls: "media-dashboard-pie-row" });
 		const dot = row.createDiv({ cls: "media-dashboard-pie-dot" });
-		dot.style.setProperty("--media-dashboard-pie-dot-color", part.color);
-		row.createDiv({ text: part.label, cls: "media-dashboard-pie-label" });
-		row.createDiv({ text: String(part.value), cls: "media-dashboard-pie-value" });
-		const onClick = data.find(([label]) => label === part.label)?.[2];
-		if (onClick) {
+		dot.style.setProperty("--media-dashboard-pie-dot-color", slice.color);
+		row.createDiv({ text: slice.label, cls: "media-dashboard-pie-label" });
+		row.createDiv({ text: String(slice.value), cls: "media-dashboard-pie-value" });
+
+		if (slice.onClick) {
 			row.addClass("is-clickable");
-			row.addEventListener("click", onClick);
+			row.addEventListener("click", slice.onClick);
 		}
-		row.addEventListener("mouseenter", () => renderPie(part.label));
-		row.addEventListener("mouseleave", () => renderPie());
+
+		row.addEventListener("mouseenter", () => {
+			renderPie(slice.label);
+			showCenter(slice.value, slice.label);
+		});
+		row.addEventListener("mouseleave", () => {
+			renderPie();
+			showCenter(total, "total");
+		});
 	}
 }
 
@@ -476,6 +484,10 @@ function renderSpotlightChart(container: HTMLElement, data: DashboardDatum[]): v
 		});
 	}
 }
+
+/* ---------------------------------------------------------------------------
+ * Sidebar panels
+ * ------------------------------------------------------------------------ */
 
 function renderSummaryPanel(
 	container: HTMLElement,
@@ -545,15 +557,14 @@ function renderGoalProgress(
 	}
 
 	const section = createSidebarSection(container, "Year progress", "goal");
-	const types: MediaType[] = ["book", "movie", "series", "essay"];
 
-	for (const type of types) {
+	for (const type of MEDIA_ORDER) {
 		const goal = goals[type] ?? 0;
 		const current = activeItems.filter((item) => item.mediaType === type).length;
 		const remaining = Math.max(goal - current, 0);
 
 		const row = section.createDiv({ cls: "media-dashboard-goal-row" });
-		row.createDiv({ text: `${capitalize(type)} ${current}/${goal}`, cls: "media-dashboard-goal-label" });
+		row.createDiv({ text: `${MEDIA_LABELS[type]} ${current}/${goal}`, cls: "media-dashboard-goal-label" });
 		const track = row.createDiv({ cls: "media-dashboard-goal-track" });
 		const fill = track.createDiv({ cls: "media-dashboard-goal-fill" });
 		fill.style.width = `${goal > 0 ? Math.min(current / goal, 1) * 100 : 0}%`;
@@ -577,13 +588,17 @@ function createIcon(container: HTMLElement, icon: string, cls: string): void {
 	iconEl.setAttr("aria-hidden", "true");
 }
 
+/* ---------------------------------------------------------------------------
+ * Data
+ * ------------------------------------------------------------------------ */
+
 function getHeroMetrics(
 	allItems: MediaItem[],
 	activeItems: MediaItem[],
 	scope: DashboardScopeMode,
 	consumption: DashboardConsumptionFilter
 ): DashboardMetric[] {
-	const recommendation = pickRandomQueuedItem(allItems, ["book", "movie", "series", "essay"]);
+	const recommendation = pickRandomQueuedItem(allItems, MEDIA_ORDER);
 	const averageRating = getAverageRating(activeItems);
 	const consumedThisYear = getDashboardItems(allItems, "consumed", "year", "all").length;
 
@@ -591,7 +606,7 @@ function getHeroMetrics(
 		{
 			label: getHeroCountLabel(scope, consumption),
 			value: String(activeItems.length),
-			note: scope === "year" && consumption !== "unconsumed" ? `${daysLeftInYear()} days left` : `${consumedThisYear} completed this year`,
+			note: scope === "year" && consumption !== "unconsumed" ? `${daysLeftInYear()} days left` : `${consumedThisYear} finished this year`,
 		},
 		{
 			label: "Average rating",
@@ -615,19 +630,25 @@ function getHeroMetrics(
 function getChartConfigs(
 	items: MediaItem[],
 	settings: MediaLibrarySettings,
-	callbacks: MediaDashboardCallbacks
-): Array<{ title: string; description: string; data: DashboardDatum[] }> {
+	onCreator: (creator: string, mediaType?: MediaType) => void
+): DashboardChartConfig[] {
 	const creatorData = (mediaItems: MediaItem[], mediaType?: MediaType): DashboardDatum[] =>
 		countBy(
 			mediaItems.flatMap((item) => getCreatorNames(item)),
 			(creator) => creator
-		).map(([creator, count]) => [creator, count, () => callbacks.onCreatorClick(creator, mediaType)]);
+		).map(([creator, count]) => [creator, count, () => onCreator(creator, mediaType)]);
 
-	const configs = [
+	// Every type is always listed, so a type with nothing in this view shows as 0
+	// instead of silently disappearing.
+	const breakdown: DashboardDatum[] = MEDIA_ORDER
+		.map((type): DashboardDatum => [MEDIA_LABELS[type], items.filter((item) => item.mediaType === type).length])
+		.sort((left, right) => right[1] - left[1]);
+
+	const configs: DashboardChartConfig[] = [
 		{
 			title: "Media breakdown",
-			description: "Books, essays, movies, and series in the active scope.",
-			data: countBy(items, (item) => capitalize(item.mediaType)),
+			description: "Books, films, series, and essays in this view.",
+			data: breakdown,
 		},
 		{
 			title: "Top genres",
@@ -636,22 +657,22 @@ function getChartConfigs(
 		},
 		{
 			title: "Books by length",
-			description: "How your completed books spread across page bands.",
+			description: "How your books spread across page bands.",
 			data: getBookPageBuckets(items),
 		},
 		{
-			title: "Top Authors",
+			title: "Top authors",
 			description: "Authors of books.",
 			data: creatorData(items.filter((item) => item.mediaType === "book"), "book"),
 		},
 		{
-			title: "Top Essayists",
+			title: "Top essayists",
 			description: "Essayists that repeat most often.",
 			data: creatorData(items.filter((item) => item.mediaType === "essay"), "essay"),
 		},
 		{
-			title: "Top Directors",
-			description: "Directors of movies and series.",
+			title: "Top directors",
+			description: "Directors of films and series.",
 			data: creatorData(items.filter((item) => item.mediaType === "movie" || item.mediaType === "series")),
 		},
 	];
@@ -668,6 +689,18 @@ function getChartConfigs(
 	}
 
 	return configs.filter((config) => config.data.length > 0);
+}
+
+function matchesMediaFilter(item: MediaItem, filter: DashboardMediaFilter): boolean {
+	if (filter === "text") {
+		return item.mediaType === "book" || item.mediaType === "essay";
+	}
+
+	if (filter === "screen") {
+		return item.mediaType === "movie" || item.mediaType === "series";
+	}
+
+	return true;
 }
 
 function getDashboardItems(
@@ -689,16 +722,31 @@ function getDashboardItems(
 			return false;
 		}
 
-		if (filter === "text") {
-			return item.mediaType === "book" || item.mediaType === "essay";
-		}
-
-		if (filter === "screen") {
-			if (item.mediaType !== "movie" && item.mediaType !== "series") return false;
-		}
-
-		return true;
+		return matchesMediaFilter(item, filter);
 	});
+}
+
+/**
+ * Finished titles that a year cannot place because they have no finish date.
+ * They are left out of "This year" and each past year, and this says so.
+ */
+function describeUndated(state: MediaDashboardState): string | null {
+	if (state.consumption === "unconsumed" || state.scope === "all") {
+		return null;
+	}
+
+	const counts: Record<MediaType, number> = { book: 0, movie: 0, series: 0, essay: 0 };
+	for (const item of state.items) {
+		if (matchesMediaFilter(item, state.filter) && isConsumed(item) && !item.date) {
+			counts[item.mediaType] += 1;
+		}
+	}
+
+	const parts = MEDIA_ORDER
+		.filter((type) => counts[type] > 0)
+		.map((type) => `${counts[type]} ${counts[type] === 1 ? MEDIA_SINGULAR[type] : MEDIA_LABELS[type].toLowerCase()}`);
+
+	return parts.length ? `${parts.join(", ")} finished without a date, so they only appear under All time.` : null;
 }
 
 function getConsumptionYears(items: MediaItem[]): string[] {
@@ -781,6 +829,8 @@ function getAverageRating(items: MediaItem[]): number | null {
 	return Math.round((ratings.reduce((sum, value) => sum + value, 0) / ratings.length) * 10) / 10;
 }
 
+const FINISHED_WORDS = new Set(["read", "watched", "finished", "completed", "done"]);
+
 function isConsumed(item: MediaItem): boolean {
 	if (isInProgress(item.status)) {
 		return false;
@@ -790,8 +840,15 @@ function isConsumed(item: MediaItem): boolean {
 		return true;
 	}
 
-	const status = item.status?.toLowerCase() ?? "";
-	return status === "read" || status === "watched" || status === "finished" || status === "completed";
+	if (FINISHED_WORDS.has(item.status?.toLowerCase() ?? "")) {
+		return true;
+	}
+
+	// The parser only keeps the standard statuses. A note that says
+	// "status: completed" or "completed: true" would otherwise look unfinished.
+	const raw = item.raw ?? {};
+	const rawStatus = typeof raw.status === "string" ? raw.status.toLowerCase().trim() : "";
+	return FINISHED_WORDS.has(rawStatus) || raw.completed === true || raw.watched === true || raw.read === true;
 }
 
 function getCreatorNames(item: MediaItem): string[] {
@@ -812,50 +869,54 @@ function daysLeftInYear(): number {
 	return Math.max(0, Math.floor((nextYear.getTime() - startOfTomorrow.getTime()) / 86400000));
 }
 
-function fadeColor(value: string, alpha: number): string {
-	return value.replace(/,\s*([01](?:\.\d+)?)\)$/, `, ${alpha})`);
-}
-
 function capitalize(value: string): string {
 	return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+/* ---------------------------------------------------------------------------
+ * Wording
+ * ------------------------------------------------------------------------ */
+
 function getEmptyTitle(consumption: DashboardConsumptionFilter): string {
 	if (consumption === "unconsumed") {
-		return "No backlog items in this view";
+		return "Everything here is finished";
 	}
 
 	if (consumption === "all") {
-		return "No items in this view";
+		return "No titles in this view";
 	}
 
-	return "No completed items yet";
+	return "Nothing finished yet";
 }
 
 function getEmptyCopy(scope: DashboardScopeMode, consumption: DashboardConsumptionFilter): string {
 	if (consumption === "unconsumed") {
-		return "Try switching the media filter or review your queue to surface titles you still have left to read or watch.";
+		return "Try changing the type, or add titles you want to get to.";
 	}
 
 	if (consumption === "all") {
-		return "Try switching the scope or media filter to surface more of your library.";
+		return "Try changing the period or the type to see more of your library.";
 	}
 
 	return scope === "year"
-		? "Try switching the dashboard to all time or finish a few titles this year to populate the charts."
-		: "Finish a few books, movies, series, or essays to populate the dashboard.";
+		? "Try All time, or finish a few titles this year to fill in the charts."
+		: "Finish a few books, films, series, or essays to fill in the dashboard.";
 }
 
 function getHeroCountLabel(scope: DashboardScopeMode, consumption: DashboardConsumptionFilter): string {
 	if (consumption === "all") {
-		return scope === "year" ? "Items in view" : "Items shown";
+		return "Titles in view";
 	}
 
 	if (consumption === "unconsumed") {
-		return "Backlog items";
+		return "Not finished";
 	}
 
-	return scope === "year" ? "Completed this year" : "Completed shown";
+	if (scope === "year") {
+		return "Finished this year";
+	}
+
+	return scope === "all" ? "Finished, all time" : `Finished in ${scope}`;
 }
 
 function getSummaryCopy(
@@ -868,7 +929,7 @@ function getSummaryCopy(
 	averageRating: number | null
 ): string {
 	if (consumption === "unconsumed") {
-		return `Your backlog leans ${topGenre}, with ${books} books and ${screen} screen picks still waiting. ${topCreator} appears often, which makes them one of the biggest names in your queue.`;
+		return `What you have not finished leans ${topGenre}, with ${books} books and ${screen} screen picks waiting. ${topCreator} appears often, which makes them one of the biggest names on your list.`;
 	}
 
 	if (consumption === "all") {
@@ -876,6 +937,6 @@ function getSummaryCopy(
 	}
 
 	return scope === "year"
-		? `This year leans ${topGenre}, with ${books} books and ${screen} screen picks completed. ${topCreator} shows up often, and your average rating is ${averageRating ?? "-"}/10.`
-		: `Across what you've completed, ${topGenre} comes up often, ${topCreator} is a recurring name, and your average rating sits at ${averageRating ?? "-"}/10.`;
+		? `This year leans ${topGenre}, with ${books} books and ${screen} screen picks finished. ${topCreator} shows up often, and your average rating is ${averageRating ?? "-"}/10.`
+		: `Across what you have finished, ${topGenre} comes up often, ${topCreator} is a recurring name, and your average rating sits at ${averageRating ?? "-"}/10.`;
 }

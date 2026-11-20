@@ -1,6 +1,6 @@
 import { App, TFile } from "obsidian";
 
-import { MediaActivityEntry, MediaItem } from "./models";
+import type { MediaActivityChange, MediaActivityEntry, MediaItem } from "./models";
 import { MediaLibraryCustomList, MediaLibrarySettings, TagStorageFormat } from "./settings";
 
 /** Activity logging. */
@@ -181,9 +181,13 @@ function parseActivityLine(line: string, item: MediaItem): MediaActivityEntry | 
 	const progressValue = values.get("progress");
 	const progress = progressValue ? Number(progressValue) : null;
 	const recordedAt = values.get("recorded") ?? date;
+	const editedAt = values.get("edited");
+	const changes = parseActivityChanges(values.get("changes"));
 	return normalizeEntry({
 		date,
 		recordedAt,
+		editedAt,
+		changes,
 		status: values.get("status") ?? null,
 		rating: Number.isFinite(rating) ? rating : null,
 		progress: typeof progress === "number" && Number.isFinite(progress) ? clampProgress(progress) : null,
@@ -219,6 +223,12 @@ function serializeActivityCallout(entries: MediaActivityEntry[]): string {
 	const normalizedEntries = [...entries].sort((left, right) => left.date.localeCompare(right.date));
 	const lines = normalizedEntries.map((entry) => {
 		const parts = [`date: ${entry.date}`, `recorded: ${entry.recordedAt ?? entry.date}`, `kind: ${entry.kind}`];
+		if (entry.editedAt) {
+			parts.push(`edited: ${entry.editedAt}`);
+		}
+		if (entry.changes?.length) {
+			parts.push(`changes: ${entry.changes.join(",")}`);
+		}
 		if (entry.status) {
 			parts.push(`status: ${entry.status}`);
 		}
@@ -246,7 +256,18 @@ function normalizeEntry(entry: MediaActivityEntry, item: MediaItem): MediaActivi
 		progress: entry.progress == null ? null : clampProgress(entry.progress),
 		note: entry.note?.trim() ? entry.note.trim() : undefined,
 		kind: entry.kind ?? (isReadingItem(item) ? "read" : "watch"),
+		editedAt: entry.editedAt,
+		changes: entry.changes?.length ? [...entry.changes] : undefined,
 	};
+}
+
+function parseActivityChanges(value: string | undefined): MediaActivityEntry["changes"] {
+	const allowedChanges: MediaActivityChange[] = ["date", "status", "rating", "progress", "note"];
+	const changes = value
+		?.split(",")
+		.map((change) => change.trim())
+		.filter((change): change is MediaActivityChange => allowedChanges.some((allowed) => allowed === change));
+	return changes?.length ? changes : undefined;
 }
 
 function sanitizeInlineValue(value: string): string {

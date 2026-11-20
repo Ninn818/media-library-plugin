@@ -27,6 +27,8 @@ export const SERIES_STATUSES: readonly MediaStatus[] = ["unwatched", "watching",
 
 export type MediaActivityKind = "read" | "watch";
 
+export type MediaActivityChange = "date" | "status" | "rating" | "progress" | "note";
+
 export interface MediaActivityEntry {
 	date: string;
 	status: string | null;
@@ -35,6 +37,8 @@ export interface MediaActivityEntry {
 	note?: string;
 	kind: MediaActivityKind;
 	recordedAt?: string;
+	editedAt?: string;
+	changes?: MediaActivityChange[];
 }
 
 /** Normalized media data shared by parsers, services, and views. */

@@ -18,10 +18,9 @@ import {
 } from "../settings";
 import * as ListService from "../services";
 import { ActivityLogService, addTagToMediaNote } from "../services";
-import { getCompletionLabel } from "../utils/ActivityLabels";
+import { buildActivityEvents, formatEventAge, latestEventTimestamp } from "../utils/ActivityEvents";
 import { MediaActivityModal } from "../ui/MediaActivityModal";
 import { Poster } from "../PluginControllers";
-import { timeAgoFromDate } from "../utils/TimeAgo";
 import { CardView, GalleryView, TableView, ViewSwitcher } from "./LibraryDisplayViews";
 import { renderMediaDashboard } from "./library/MediaInsightsDashboard";
 import { renderLibraryPageTabs, renderLibraryShell } from "./library/LibraryChrome";
@@ -992,52 +991,18 @@ export class LibraryView extends ItemView {
 		date: string;
 		icon: string | null;
 	}> {
-	return this.library.getAll().flatMap((item) => {
-		const events: Array<{ item: MediaItem; prefix: string; suffix: string; when: string; date: string; icon: string | null }> = [];
-		const entries = item.activityEntries ?? [];
-		const latestEntry = [...entries].sort((left, right) =>
-			(right.recordedAt ?? right.date).localeCompare(left.recordedAt ?? left.date),
-		)[0];
-		const latestStatus = (latestEntry?.status ?? "").toLowerCase().trim();
-		const isInProgress = latestStatus === "reading" || latestStatus === "watching";
-		for (const entry of entries) {
-			const status = (entry.status ?? "").toLowerCase().trim();
-			const action = status === "reading"
-				? "You're currently reading "
-				: status === "watching"
-					? "You're currently watching "
-					: `You ${getCompletionLabel(item, false)} `;
-			const activity: HomeActivityKind | null = status === "reading"
-				? "reading"
-				: status === "watching"
-					? "watching"
-					: null;
-			const date = entry.recordedAt ?? entry.date;
-			const suffix = [
-				entry.progress != null && activity ? ` (${entry.progress}%)` : "",
-				entry.note ? " (note added)" : "",
-			].join("");
-			events.push({
+		return this.library.getAll().flatMap((item) => {
+			const favoriteDate = this.settings.favoriteDates?.[item.path];
+			return buildActivityEvents(item, favoriteDate).map((event) => ({
 				item,
-				prefix: action,
-				suffix,
-				when: formatCompactRelative(date),
-				date,
-				icon: activity ? this.getHomeActivityIcon(activity, item) : null,
-			});
-			if (entry.rating != null && !isInProgress) {
-				events.push({ item, prefix: "You rated ", suffix: ` ${entry.rating}/10`, when: formatCompactRelative(date), date, icon: null });
-			}
-		}
-		const favoriteDate = this.settings.favoriteDates?.[item.path];
-		if (favoriteDate) {
-			events.push({ item, prefix: "You favorited ", suffix: "", when: formatCompactRelative(favoriteDate), date: favoriteDate, icon: null });
-		}
-		if (!events.length && item.addedDate) {
-			events.push({ item, prefix: "You added ", suffix: "", when: formatCompactRelative(item.addedDate), date: item.addedDate, icon: null });
-		}
-		return events;
-	})
+				prefix: event.prefix,
+				suffix: event.suffix,
+				when: formatEventAge(event.timestamp),
+				date: event.timestamp,
+				icon: event.activity ? this.getHomeActivityIcon(event.activity, item) : null,
+			}));
+		})
+		.filter((event) => Boolean(event.when))
 		.sort((left, right) => right.date.localeCompare(left.date))
 		.slice(0, limit);
 	}
@@ -1130,12 +1095,7 @@ export class LibraryView extends ItemView {
 
 	private getHomeActivityDate(item: MediaItem): string {
 		const favoriteDate = this.settings.favoriteDates?.[item.path] ?? "";
-		const latestEntry = [...(item.activityEntries ?? [])]
-			.sort((left, right) => (right.recordedAt ?? right.date).localeCompare(left.recordedAt ?? left.date))[0];
-		return [latestEntry?.recordedAt ?? latestEntry?.date ?? "", favoriteDate, item.addedDate]
-			.filter(Boolean)
-			.sort()
-			.pop() ?? "";
+		return latestEventTimestamp(buildActivityEvents(item, favoriteDate));
 	}
 
 	private getHomeActivityIcon(activity: HomeActivityKind, item: MediaItem): string | null {
@@ -1751,26 +1711,6 @@ function normalizeMediaCardSize(value: number): number {
 	}
 
 	return Math.min(320, Math.max(120, Math.round(value / 10) * 10));
-}
-
-function formatCompactRelative(dateValue: string): string {
-	const human = timeAgoFromDate(dateValue);
-	const dayMatch = human.match(/^(\d+) day/);
-	if (dayMatch) {
-		return `${dayMatch[1]}d`;
-	}
-
-	const hourMatch = human.match(/^(\d+) hr/);
-	if (hourMatch) {
-		return `${hourMatch[1]}h`;
-	}
-
-	const minuteMatch = human.match(/^(\d+) min/);
-	if (minuteMatch) {
-		return `${minuteMatch[1]}m`;
-	}
-
-	return human === "just now" ? "now" : human;
 }
 
 function getMonthAbbreviation(dateValue: string | undefined): string {
