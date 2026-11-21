@@ -31,6 +31,7 @@ export interface MediaDashboardGoals {
 export interface MediaLibrarySettings {
 	// General
 	defaultPageTab: LibraryPageTab;
+	defaultSocialTab: SocialHubTab;
 	defaultSortMode: LibrarySortMode;
 	tagStorageFormat: TagStorageFormat;
 	ratingDisplayScale: RatingDisplayScale;
@@ -42,6 +43,7 @@ export interface MediaLibrarySettings {
 	dashboardDefaultConsumptionFilter: DashboardConsumptionFilter;
 	dashboardShowSummary: boolean;
 	dashboardShowGoals: boolean;
+	dashboardGoalsByYear?: Record<string, MediaDashboardGoals>;
 	dashboardShowQuickPicks: boolean;
 	dashboardShowRatingsChart: boolean;
 	dashboardGoals: MediaDashboardGoals;
@@ -55,6 +57,7 @@ export interface MediaLibrarySettings {
 
 export const DEFAULT_SETTINGS: MediaLibrarySettings = {
 	defaultPageTab: 'home',
+	defaultSocialTab: 'media',
 	defaultSortMode: 'latest',
 	tagStorageFormat: 'hashtag',
 	ratingDisplayScale: 10,
@@ -65,6 +68,7 @@ export const DEFAULT_SETTINGS: MediaLibrarySettings = {
 	dashboardDefaultConsumptionFilter: 'consumed',
 	dashboardShowSummary: true,
 	dashboardShowGoals: true,
+	dashboardGoalsByYear: {},
 	dashboardShowQuickPicks: true,
 	dashboardShowRatingsChart: true,
 	dashboardGoals: {
@@ -79,6 +83,36 @@ export const DEFAULT_SETTINGS: MediaLibrarySettings = {
 	customLists: [],
 	favoriteDates: {},
 };
+
+const GOAL_TYPES: Array<keyof MediaDashboardGoals> = ['book', 'movie', 'series', 'essay'];
+
+/** Goals for one year. Falls back to the nearest earlier year, then a later one, then the old single goals. */
+export function getGoalsForYear(settings: MediaLibrarySettings, year: number): MediaDashboardGoals {
+	const byYear = settings.dashboardGoalsByYear ?? {};
+	const stored = Object.keys(byYear).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+
+	let source: Partial<MediaDashboardGoals> | undefined = byYear[String(year)];
+	if (!source) {
+		const earlier = [...stored].reverse().find((value) => value < year);
+		const later = stored.find((value) => value > year);
+		const pick = earlier ?? later;
+		source = pick !== undefined ? byYear[String(pick)] : settings.dashboardGoals;
+	}
+
+	const goals: MediaDashboardGoals = { book: 0, movie: 0, series: 0, essay: 0 };
+	for (const type of GOAL_TYPES) {
+		goals[type] = Math.max(0, Number(source?.[type] ?? 0) || 0);
+	}
+	return goals;
+}
+
+export function setGoalsForYear(settings: MediaLibrarySettings, year: number, goals: MediaDashboardGoals): void {
+	settings.dashboardGoalsByYear = { ...(settings.dashboardGoalsByYear ?? {}), [String(year)]: { ...goals } };
+	// Keep the single "current goals" setting in sync for the current year.
+	if (year === new Date().getFullYear()) {
+		settings.dashboardGoals = { ...goals };
+	}
+}
 
 /** Settings that are a plain on/off switch. */
 type ToggleKey =
@@ -99,6 +133,7 @@ type DropdownKey =
 
 export class MediaLibrarySettingTab extends PluginSettingTab {
 	plugin: MediaLibraryPlugin;
+	private goalYear = new Date().getFullYear();
 
 	constructor(app: App, plugin: MediaLibraryPlugin) {
 		super(app, plugin);
@@ -183,6 +218,31 @@ export class MediaLibrarySettingTab extends PluginSettingTab {
 
 		// Goals
 		new Setting(containerEl).setName('Yearly goals').setHeading();
+
+		const currentYear = new Date().getFullYear();
+		const yearSet = new Set<number>([this.goalYear, currentYear + 1]);
+		for (let year = currentYear; year >= currentYear - 5; year -= 1) yearSet.add(year);
+		for (const key of Object.keys(this.plugin.settings.dashboardGoalsByYear ?? {})) {
+			if (Number.isFinite(Number(key))) yearSet.add(Number(key));
+		}
+		const yearOptions: Record<string, string> = {};
+		[...yearSet].sort((a, b) => b - a).forEach((year) => {
+			yearOptions[String(year)] = String(year);
+		});
+
+		new Setting(containerEl)
+			.setName('Goal year')
+			.setDesc('Each year keeps its own goals. A year with no goals of its own starts from the nearest earlier year.')
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOptions(yearOptions)
+					.setValue(String(this.goalYear))
+					.onChange((value) => {
+						this.goalYear = Number(value);
+						this.display();
+					}),
+			);
+
 		this.addGoalSetting(containerEl, 'Books goal', 'book');
 		this.addGoalSetting(containerEl, 'Movies goal', 'movie');
 		this.addGoalSetting(containerEl, 'Series goal', 'series');
@@ -225,14 +285,16 @@ export class MediaLibrarySettingTab extends PluginSettingTab {
 	private addGoalSetting(containerEl: HTMLElement, label: string, key: keyof MediaDashboardGoals): void {
 		new Setting(containerEl)
 			.setName(label)
-			.setDesc('Used by the dashboard and Year in Media.')
+			.setDesc(`Goal for ${this.goalYear}. Used by the dashboard and Year in Media.`)
 			.addText((text) =>
 				text
 					.setPlaceholder('0')
-					.setValue(String(this.plugin.settings.dashboardGoals[key]))
+					.setValue(String(getGoalsForYear(this.plugin.settings, this.goalYear)[key]))
 					.onChange(async (value) => {
 						const next = Number.parseInt(value, 10);
-						this.plugin.settings.dashboardGoals[key] = Number.isFinite(next) && next >= 0 ? next : 0;
+						const goals = getGoalsForYear(this.plugin.settings, this.goalYear);
+						goals[key] = Number.isFinite(next) && next >= 0 ? next : 0;
+						setGoalsForYear(this.plugin.settings, this.goalYear, goals);
 						await this.plugin.saveSettings();
 					}),
 			);

@@ -7,6 +7,7 @@ import {
 	DashboardScopeMode,
 	MediaDashboardGoals,
 	MediaLibrarySettings,
+	getGoalsForYear,
 } from "../../settings";
 
 type DashboardDatum = [string, number, (() => void)?];
@@ -53,6 +54,7 @@ export interface MediaDashboardCallbacks {
 	onConsumptionChange(filter: DashboardConsumptionFilter): void;
 	onScopeChange(scope: DashboardScopeMode): void;
 	onFilterChange(filter: DashboardMediaFilter): void;
+	onReset(): void;
 }
 
 const MEDIA_ORDER: MediaType[] = ["book", "movie", "series", "essay"];
@@ -126,15 +128,50 @@ function renderHero(
  * Filters
  * ------------------------------------------------------------------------ */
 
+let filtersOpen = false;
+
 function renderFilterBar(
 	container: HTMLElement,
 	state: MediaDashboardState,
 	callbacks: MediaDashboardCallbacks
 ): void {
-	const bar = container.createDiv({ cls: "media-dashboard-filterbar" });
+	const { settings } = state;
+	const changed = [
+		state.consumption !== settings.dashboardDefaultConsumptionFilter,
+		state.scope !== settings.dashboardDefaultScope,
+		state.filter !== settings.dashboardDefaultFilter,
+	].filter(Boolean).length;
+
+	const wrap = container.createDiv({ cls: "media-dashboard-filters" });
+
+	/* Toolbar row with the dropdown toggle */
+	const toolbar = wrap.createDiv({ cls: "media-dashboard-filters-toolbar" });
+	const toggle = toolbar.createEl("button", { cls: "media-dashboard-filters-toggle" });
+	toggle.type = "button";
+	toggle.setAttr("aria-label", "Toggle filters");
+	toggle.setAttr("aria-expanded", String(filtersOpen));
+	toggle.toggleClass("is-open", filtersOpen);
+	createIcon(toggle, "sliders-horizontal", "media-dashboard-filters-toggle-icon");
+	toggle.createSpan({ text: "Filters" });
+	if (changed > 0) {
+		toggle.createSpan({ text: String(changed), cls: "media-dashboard-filters-badge" });
+	}
+
+	/* Collapsible panel */
+	const panel = wrap.createDiv({ cls: "media-dashboard-filters-panel" });
+	panel.toggleClass("is-open", filtersOpen);
+
+	toggle.addEventListener("click", () => {
+		filtersOpen = !filtersOpen;
+		panel.toggleClass("is-open", filtersOpen);
+		toggle.toggleClass("is-open", filtersOpen);
+		toggle.setAttr("aria-expanded", String(filtersOpen));
+	});
+
+	const fields = panel.createDiv({ cls: "media-dashboard-filterbar" });
 
 	renderSegmented(
-		bar,
+		fields,
 		"Show",
 		[
 			{ value: "consumed", label: "Finished" },
@@ -146,7 +183,7 @@ function renderFilterBar(
 	);
 
 	renderSegmented(
-		bar,
+		fields,
 		"Type",
 		[
 			{ value: "all", label: "All media" },
@@ -157,7 +194,7 @@ function renderFilterBar(
 		(value) => callbacks.onFilterChange(value as DashboardMediaFilter)
 	);
 
-	const period = bar.createDiv({ cls: "media-dashboard-filter-group media-dashboard-filter-period" });
+	const period = fields.createDiv({ cls: "media-dashboard-filter-group media-dashboard-filter-period" });
 	period.createSpan({ text: "Period", cls: "media-dashboard-filter-label" });
 	const select = period.createEl("select", { cls: "media-dashboard-filter-select" });
 	const options = [
@@ -176,6 +213,17 @@ function renderFilterBar(
 		select.disabled = true;
 		select.setAttr("title", "Period only applies to finished titles");
 	}
+
+	/* Footer with reset */
+	const footer = panel.createDiv({ cls: "media-dashboard-filters-footer" });
+	const reset = footer.createEl("button", { cls: "media-dashboard-filter-reset" });
+	reset.type = "button";
+	reset.setAttr("aria-label", "Reset filters");
+	reset.toggleClass("is-default", changed === 0);
+	reset.disabled = changed === 0;
+	createIcon(reset, "rotate-ccw", "media-dashboard-reset-icon");
+	reset.createSpan({ text: "Reset filters" });
+	reset.addEventListener("click", () => callbacks.onReset());
 }
 
 function renderSegmented(
@@ -258,7 +306,8 @@ function renderSidebar(
 	}
 
 	if (state.settings.dashboardShowGoals) {
-		renderGoalProgress(sidebar, activeItems, state.settings.dashboardGoals, state.consumption);
+		const goalYear = state.scope === "year" || state.scope === "all" ? new Date().getFullYear() : Number(state.scope);
+		renderGoalProgress(sidebar, activeItems, getGoalsForYear(state.settings, goalYear), state.consumption);
 	}
 }
 

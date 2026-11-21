@@ -15,6 +15,7 @@ import {
 	MediaLibrarySettings,
 	MediaLibraryCustomList,
 	SocialHubTab,
+	setGoalsForYear,
 } from "../settings";
 import * as ListService from "../services";
 import { ActivityLogService, addTagToMediaNote } from "../services";
@@ -567,6 +568,7 @@ export class LibraryView extends ItemView {
 
 
 	// Diary table page (Letterboxd-style)
+	// Diary table page (Letterboxd-style)
 	private renderDiaryTablePage(): void {
 		this.spotlightHost.empty();
 		this.spotlightHost.addClass("is-hidden");
@@ -576,173 +578,167 @@ export class LibraryView extends ItemView {
 
 		const wrap = this.contentHost.createDiv({ cls: "media-diary-page" });
 
-		// Header row
-		const header = wrap.createDiv({ cls: "media-diary-header" });
-
-		const leftHeader = header.createDiv({ cls: "media-diary-header-left" });
-		leftHeader.createDiv({ cls: "media-diary-title", text: "Diary" });
-
-		const cols = header.createDiv({ cls: "media-diary-header-cols" });
-		const releasedCol = cols.createDiv({ cls: "media-diary-col" });
-		releasedCol.createSpan({ text: "Released", cls: "media-diary-col-label" });
-		const releasedSort = releasedCol.createEl("button", { cls: "media-diary-col-sort", text: "↕" });
-		releasedSort.type = "button";
-		releasedSort.addEventListener("click", () => {
-			this.diarySortKey = "year";
-			this.diarySortDirection = this.diarySortDirection === "asc" ? "desc" : "asc";
-			this.renderDiaryTablePage();
-		});
-
-		const ratingCol = cols.createDiv({ cls: "media-diary-col" });
-		ratingCol.createSpan({ text: "Rating", cls: "media-diary-col-label" });
-		const ratingSort = ratingCol.createEl("button", { cls: "media-diary-col-sort", text: "↕" });
-		ratingSort.type = "button";
-		ratingSort.addEventListener("click", () => {
-			this.diarySortKey = "rating";
-			this.diarySortDirection = this.diarySortDirection === "asc" ? "desc" : "asc";
-			this.renderDiaryTablePage();
-		});
-
-		const reviewCol = cols.createDiv({ cls: "media-diary-col" });
-		reviewCol.createSpan({ text: "Watched / read", cls: "media-diary-col-label" });
-		const dateSort = reviewCol.createEl("button", { cls: "media-diary-col-sort", text: "↕" });
-		dateSort.type = "button";
-		dateSort.addEventListener("click", () => {
-			this.diarySortKey = "date";
-			this.diarySortDirection = this.diarySortDirection === "asc" ? "desc" : "asc";
-			this.renderDiaryTablePage();
-		});
-
-		// All items with a date, sorted using diary controls
-		let allItems = this.library
+		// All completed items with a date, sorted using the diary controls
+		const allItems = this.library
 			.getAll()
-			.filter((item) => Boolean(item.date) && this.isCompleted(item));
+			.filter((item) => Boolean(item.date) && this.isCompleted(item))
+			.sort((a, b) => {
+				const dir = this.diarySortDirection === "asc" ? 1 : -1;
+				if (this.diarySortKey === "rating") return ((a.rating ?? 0) - (b.rating ?? 0)) * dir;
+				if (this.diarySortKey === "year") return ((a.year ?? 0) - (b.year ?? 0)) * dir;
+				return (a.date ?? "").localeCompare(b.date ?? "") * dir;
+			});
 
-		allItems = allItems.sort((a, b) => {
-			const dir = this.diarySortDirection === "asc" ? 1 : -1;
-			if (this.diarySortKey === "rating") {
-				return ((a.rating ?? 0) - (b.rating ?? 0)) * dir;
-			}
-			if (this.diarySortKey === "year") {
-				return ((a.year ?? 0) - (b.year ?? 0)) * dir;
-			}
-			// default: date
-			return ((a.date ?? "").localeCompare(b.date ?? "")) * dir;
+		// Title row
+		const top = wrap.createDiv({ cls: "media-diary-top" });
+		top.createDiv({ cls: "media-diary-title", text: "Diary" });
+		top.createDiv({
+			cls: "media-diary-count",
+			text: `${allItems.length.toLocaleString()} ${allItems.length === 1 ? "entry" : "entries"}`,
 		});
+
+		// Column header row
+		const head = wrap.createDiv({ cls: "media-diary-head media-diary-grid" });
+		const addHeadCell = (label: string, cls: string, key?: "date" | "rating" | "year"): void => {
+			const cell = head.createDiv({ cls: `media-diary-head-cell ${cls}` });
+			if (!key) {
+				cell.setText(label);
+				return;
+			}
+			const button = cell.createEl("button", { cls: "media-diary-head-sort", text: label });
+			button.type = "button";
+			const active = this.diarySortKey === key;
+			button.toggleClass("is-active", active);
+			if (active) {
+				button.createSpan({
+					cls: "media-diary-sort-arrow",
+					text: this.diarySortDirection === "asc" ? "↑" : "↓",
+				});
+			}
+			button.addEventListener("click", () => {
+				if (this.diarySortKey === key) {
+					this.diarySortDirection = this.diarySortDirection === "asc" ? "desc" : "asc";
+				} else {
+					this.diarySortKey = key;
+					this.diarySortDirection = "desc";
+				}
+				this.diaryPage = 0;
+				this.renderDiaryTablePage();
+			});
+		};
+		addHeadCell("Month", "is-month", "date");
+		addHeadCell("Day", "is-day", "date");
+		addHeadCell("Film", "is-film");
+		addHeadCell("Released", "is-released", "year");
+		addHeadCell("Rating", "is-rating", "rating");
+		addHeadCell("Like", "is-like");
+		addHeadCell("Rewatch", "is-rewatch");
+		addHeadCell("Review", "is-review");
 
 		if (!allItems.length) {
-			wrap.createDiv({
-			cls: "media-home-empty",
-			text: "No diary entries yet.",
-			});
+			wrap.createDiv({ cls: "media-home-empty", text: "No diary entries yet." });
 			return;
 		}
 
 		const pageSize = LibraryView.DIARY_PAGE_SIZE;
 		const start = this.diaryPage * pageSize;
 		const items = allItems.slice(start, start + pageSize);
+		const groupByMonth = this.diarySortKey === "date";
 
 		const list = wrap.createDiv({ cls: "media-diary-list" });
+		let previousMonthKey = "";
 
 		for (const item of items) {
-			const row = list.createDiv({ cls: "media-diary-row" });
+			const row = list.createDiv({ cls: "media-diary-row media-diary-grid" });
+			const entries = item.activityEntries ?? [];
 
-			// Date block: Month/Year + Day
-			const dateCell = row.createDiv({ cls: "media-diary-date" });
-			const dateValue = item.date ? new Date(item.date) : null;
-			const month =
-			dateValue && !Number.isNaN(dateValue.getTime())
-				? dateValue.toLocaleString("en-US", { month: "short" }).toUpperCase()
-				: "---";
-			const year =
-			dateValue && !Number.isNaN(dateValue.getTime())
-				? String(dateValue.getFullYear())
-				: "----";
-			const day =
-			dateValue && !Number.isNaN(dateValue.getTime())
-				? String(dateValue.getDate()).padStart(2, "0")
-				: "--";
+			// Month badge (first entry of each month only)
+			const monthCell = row.createDiv({ cls: "media-diary-cell is-month" });
+			const month = getMonthAbbreviation(item.date);
+			const parsed = item.date ? new Date(item.date) : null;
+			const yearLabel = parsed && !Number.isNaN(parsed.getTime()) ? String(parsed.getFullYear()) : "";
+			const monthKey = `${yearLabel}-${month}`;
+			if (groupByMonth && monthKey !== previousMonthKey) {
+				const badge = monthCell.createDiv({ cls: "media-diary-month-badge" });
+				badge.createDiv({ cls: "media-diary-month-name", text: month });
+				badge.createDiv({ cls: "media-diary-month-year", text: yearLabel });
+			}
+			previousMonthKey = monthKey;
 
-			const monthYearWrap = dateCell.createDiv({ cls: "media-diary-date-month-year" });
-			monthYearWrap.createDiv({ cls: "media-diary-date-month", text: month });
-			monthYearWrap.createDiv({ cls: "media-diary-date-year", text: year });
-			dateCell.createDiv({ cls: "media-diary-date-day", text: day });
+			// Day
+			row.createDiv({ cls: "media-diary-cell is-day", text: getDayOfMonth(item.date) });
 
 			// Poster + title
-			const mainCell = row.createDiv({ cls: "media-diary-main" });
-
-			const posterHost = mainCell.createDiv({ cls: "media-diary-poster" });
+			const filmCell = row.createDiv({ cls: "media-diary-cell is-film" });
+			const posterHost = filmCell.createDiv({ cls: "media-diary-poster" });
 			new Poster(item, this.app).render(posterHost);
-
-			const text = mainCell.createDiv({ cls: "media-diary-text" });
-			const title = item.title ?? "";
-			const maxChars = 32;
-			const shortTitle =
-				title.length > maxChars
-					? `${title.slice(0, maxChars).trimEnd()}…`
-					: title;
-			const titleDiv = text.createDiv({ cls: "media-diary-film-title", text: shortTitle });
-			if (item.year) {
-			text.createDiv({
-				cls: "media-diary-film-meta",
-				text: String(item.year),
-			});
-			}
-
-			// Make title clickable to open file
-			titleDiv.addEventListener("click", (event) => {
+			const titleEl = filmCell.createDiv({ cls: "media-diary-film-title", text: item.title ?? "" });
+			titleEl.addEventListener("click", (event) => {
 				event.stopPropagation();
 				this.selectItem(item);
 				void this.app.workspace.openLinkText(item.path, "", false);
 			});
 
-			// Released year
-			const yearCell = row.createDiv({ cls: "media-diary-year" });
-			yearCell.createSpan({ text: item.year ? String(item.year) : "—" });
+			// Released
+			row.createDiv({
+				cls: "media-diary-cell is-released",
+				text: item.year ? String(item.year) : "",
+			});
 
-			// Rating stars use the configured display scale while ratings remain out of 10.
-			const ratingCell = row.createDiv({ cls: "media-diary-rating" });
-			if (item.rating != null) {
-				const stars = this.getRatingStars(item.rating);
-				ratingCell.createSpan({
-					cls: "media-diary-rating-stars",
-					text: stars,
-				});
-			} else {
-				ratingCell.createSpan({ text: "—" });
+			// Rating
+			const ratingCell = row.createDiv({ cls: "media-diary-cell is-rating" });
+			if (item.rating != null && item.rating > 0) {
+				ratingCell.createSpan({ cls: "media-diary-rating-stars", text: this.getDiaryStars(item.rating) });
 			}
 
-			// Review / actions
-			const reviewCell = row.createDiv({ cls: "media-diary-review" });
-			const openBtn = reviewCell.createEl("button", {
-			cls: "media-diary-review-button",
-			text: "Review",
-			});
-			openBtn.type = "button";
-			openBtn.addEventListener("click", () => {
-			this.selectItem(item);
-			this.openActivityModal(item);
-			});
+			// Like (favorite)
+			const likeCell = row.createDiv({ cls: "media-diary-cell is-like" });
+			if (ListService.isFavorite(this.settings, item.path)) {
+				const icon = likeCell.createSpan({ cls: "media-diary-icon is-like" });
+				setIcon(icon, "heart");
+				icon.setAttr("aria-label", "Favorite");
+			}
 
-			row.addEventListener("click", (event) => {
-			if (event.target === openBtn) return;
-			if (text.contains(event.target as Node)) return;
-			this.selectItem(item);
-			this.openActivityModal(item);
+			// Rewatch (more than one logged entry)
+			const rewatchCell = row.createDiv({ cls: "media-diary-cell is-rewatch" });
+			if (entries.length > 1) {
+				const icon = rewatchCell.createSpan({ cls: "media-diary-icon" });
+				setIcon(icon, "repeat");
+				icon.setAttr("aria-label", "Rewatched");
+			}
+
+			// Review (any entry with a note)
+			const reviewCell = row.createDiv({ cls: "media-diary-cell is-review" });
+			if (entries.some((entry) => Boolean(entry.note))) {
+				const icon = reviewCell.createSpan({ cls: "media-diary-icon" });
+				setIcon(icon, "align-left");
+				icon.setAttr("aria-label", "Has a review");
+			}
+
+			row.addEventListener("click", () => {
+				this.selectItem(item);
+				this.openActivityModal(item);
 			});
 		}
 
-		this.renderPaginationControls(
-			wrap,
-			this.diaryPage,
-			pageSize,
-			allItems.length,
-			(nextPage) => {
+		this.renderPaginationControls(wrap, this.diaryPage, pageSize, allItems.length, (nextPage) => {
 			this.diaryPage = nextPage;
 			this.renderDiaryTablePage();
-			},
-		);
+		});
 	}
+
+	// Stars with half-star support when the display scale is 5
+	private getDiaryStars(rating: number | null | undefined): string {
+		if (rating == null || !Number.isFinite(rating)) return "";
+		const scale = this.settings.ratingDisplayScale ?? 10;
+		if (scale === 5) {
+			const value = rating / 2;
+			const full = Math.floor(value);
+			return "★".repeat(Math.max(0, Math.min(5, full))) + (value - full >= 0.5 ? "½" : "");
+		}
+		return "★".repeat(Math.max(0, Math.min(scale, Math.round(rating))));
+	}
+
 	// Home page composition
 	private renderHomePage(): void {
 		this.contentHost.empty();
@@ -892,21 +888,31 @@ export class LibraryView extends ItemView {
 			diarySection.createDiv({ cls: "media-home-empty", text: "No diary entries yet." });
 		} else {
 			const diaryList = diarySection.createDiv({ cls: "media-home-diary-list" });
-			let previousMonth = "";
-			for (const [index, item] of diaryItems.entries()) {
-				void index;
+			let previousMonthKey = "";
+			for (const item of diaryItems) {
 				const row = diaryList.createDiv({ cls: "media-home-diary-item" });
-				const badge = row.createDiv({ cls: "media-home-diary-badge" });
+
+				// Calendar badge, first entry of each month only
+				const badgeCell = row.createDiv({ cls: "media-home-diary-badge" });
+				const parsed = item.date ? new Date(item.date) : null;
+				const valid = parsed !== null && !Number.isNaN(parsed.getTime());
 				const monthAbbrev = getMonthAbbreviation(item.date);
-				const showMonth = monthAbbrev !== previousMonth;
-				badge.createDiv({
-					cls: showMonth ? "media-home-diary-badge-month" : "media-home-diary-badge-month is-muted",
-					text: showMonth ? monthAbbrev : "",
-				});
-				previousMonth = monthAbbrev;
+				const yearLabel = valid && parsed ? String(parsed.getFullYear()) : "";
+				const monthKey = `${yearLabel}-${monthAbbrev}`;
+				if (monthKey !== previousMonthKey) {
+					const badge = badgeCell.createDiv({ cls: "media-home-diary-calendar" });
+					badge.createDiv({ cls: "media-home-diary-calendar-month", text: monthAbbrev });
+					if (yearLabel) {
+						badge.createDiv({ cls: "media-home-diary-calendar-year", text: yearLabel });
+					}
+				}
+				previousMonthKey = monthKey;
+
+				// Day + title
 				const label = row.createDiv({ cls: "media-home-diary-label" });
 				label.createSpan({ cls: "media-home-diary-index", text: getDayOfMonth(item.date) });
 				label.createSpan({ cls: "media-home-diary-title", text: item.title });
+
 				row.addEventListener("click", () => {
 					this.selectItem(item);
 					this.openActivityModal(item);
@@ -1320,6 +1326,12 @@ export class LibraryView extends ItemView {
 				this.dashboardFilter = filter;
 				this.renderActivePage();
 			},
+			onReset: () => {
+				this.dashboardConsumption = this.settings.dashboardDefaultConsumptionFilter;
+				this.dashboardScope = this.settings.dashboardDefaultScope;
+				this.dashboardFilter = this.settings.dashboardDefaultFilter;
+				this.renderActivePage();
+			},
 		});
 	}
 
@@ -1343,6 +1355,11 @@ export class LibraryView extends ItemView {
 				this.selectedItem = item;
 				this.featuredPath = item.path;
 				void this.app.workspace.openLinkText(item.path, "", false);
+			},
+			onGoalsChange: (year, goals) => {
+				setGoalsForYear(this.settings, year, goals);
+				void this.persistSettings();
+				this.renderYearInMediaPage();
 			},
 		});
 	}
@@ -1411,7 +1428,16 @@ export class LibraryView extends ItemView {
 		const before = this.settings.customLists.length;
 		ListService.ensureFavoritesList(this.settings);
 		ListService.ensureUpNextList(this.settings);
-		if (this.settings.customLists.length !== before) {
+
+		let changed = this.settings.customLists.length !== before;
+		if (!this.settings.dashboardGoalsByYear || !Object.keys(this.settings.dashboardGoalsByYear).length) {
+			this.settings.dashboardGoalsByYear = {
+				[String(new Date().getFullYear())]: { ...this.settings.dashboardGoals },
+			};
+			changed = true;
+		}
+
+		if (changed) {
 			void this.persistSettings();
 		}
 	}

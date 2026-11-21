@@ -5,12 +5,11 @@
 //
 // Availability rule: the wrap for year N unlocks on December 10 of year N.
 // Before that date you see year N-1 (see getUnlockedWrappedYear).
-
-import { App, Menu, Notice, TFile, normalizePath, setIcon } from "obsidian";
+import { App, Menu, Modal, Notice, TFile, normalizePath, setIcon } from "obsidian";
 
 import { Poster } from "../../PluginControllers";
 import { MediaItem, MediaType } from "../../models";
-import { MediaLibrarySettings } from "../../settings";
+import { MediaLibrarySettings, getGoalsForYear } from "../../settings";
 
 /* ---------------------------------------------------------------------------
  * Config
@@ -71,6 +70,7 @@ export interface YearInMediaState {
 export interface YearInMediaCallbacks {
 	onYearChange(year: number): void;
 	onOpenItem(item: MediaItem): void;
+	onGoalsChange(year: number, goals: Record<MediaType, number>): void;
 }
 
 /**
@@ -80,6 +80,59 @@ export interface YearInMediaCallbacks {
 export function getUnlockedWrappedYear(now: Date = new Date()): number {
 	const year = now.getFullYear();
 	return now.getTime() >= unlockDateFor(year).getTime() ? year : year - 1;
+}
+
+/* ---------------------------------------------------------------------------
+ * Yearly goals
+ * ------------------------------------------------------------------------ */
+
+class GoalsModal extends Modal {
+	constructor(
+		app: App,
+		private readonly year: number,
+		private readonly initial: Record<MediaType, number>,
+		private readonly onSave: (goals: Record<MediaType, number>) => void,
+	) {
+		super(app);
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass("ml-goals-modal");
+		contentEl.createEl("h3", { text: `${this.year} goals` });
+		contentEl.createEl("p", {
+			text: "Saved for this year only. Other years keep their own goals.",
+			cls: "ml-goals-hint",
+		});
+
+		const inputs = new Map<MediaType, HTMLInputElement>();
+		for (const type of TYPES) {
+			const row = contentEl.createDiv({ cls: "ml-goals-row" });
+			row.createEl("label", { text: TYPE_META[type].label });
+			const input = row.createEl("input", { type: "number" });
+			input.min = "0";
+			input.value = String(this.initial[type]);
+			inputs.set(type, input);
+		}
+
+		const actions = contentEl.createDiv({ cls: "ml-goals-actions" });
+		const cancel = actions.createEl("button", { text: "Cancel" });
+		cancel.addEventListener("click", () => this.close());
+		const save = actions.createEl("button", { text: "Save", cls: "mod-cta" });
+		save.addEventListener("click", () => {
+			const goals = emptyCounts();
+			for (const type of TYPES) {
+				goals[type] = Math.max(0, Math.round(Number(inputs.get(type)?.value ?? 0)) || 0);
+			}
+			this.onSave(goals);
+			this.close();
+		});
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
+	}
 }
 
 export function renderYearInMedia(
@@ -108,6 +161,7 @@ export function renderYearInMedia(
 		years,
 		unlockedYear,
 		now,
+		settings: state.settings,
 		callbacks,
 	};
 
@@ -127,7 +181,7 @@ export function renderYearInMedia(
 	renderRatings(trio, wrapped);
 	renderNames(trio, wrapped);
 
-	renderByType(root, wrapped);
+	renderByType(root, wrapped, ctx);
 	renderTopRated(root, wrapped, ctx);
 	renderReviews(root, wrapped, ctx);
 	renderHabits(root, wrapped, ctx);
@@ -147,6 +201,7 @@ export function renderYearInMedia(
 
 interface WrappedContext {
 	app: App;
+	settings: MediaLibrarySettings;
 	years: number[];
 	unlockedYear: number;
 	now: Date;
@@ -632,10 +687,7 @@ function buildWrapped(all: Completion[], year: number, settings: MediaLibrarySet
 		(value) => typeof value === "string" && value.startsWith(String(year)),
 	).length;
 
-	const goals = emptyCounts();
-	for (const type of TYPES) {
-		goals[type] = settings.dashboardGoals?.[type] ?? 0;
-	}
+	const goals = getGoalsForYear(settings, year);
 
 	// Ratings --------------------------------------------------------------
 	const rated = completions.filter((entry) => entry.rating !== null);
@@ -1153,13 +1205,20 @@ function renderNumbers(parent: HTMLElement, w: Wrapped): void {
 	renderMedals(body, tiles);
 }
 
-function renderByType(root: HTMLElement, w: Wrapped): void {
+function renderByType(root: HTMLElement, w: Wrapped, ctx: WrappedContext): void {
 	let top: MediaType = "book";
 	for (const type of TYPES) {
 		if (w.byType[type] > w.byType[top]) top = type;
 	}
 
 	const body = panel(root, "plum", "What filled your year");
+
+	const edit = body.createEl("button", { cls: "ml-wrap-goals-edit", text: `Edit ${w.year} goals` });
+	edit.type = "button";
+	edit.addEventListener("click", () => {
+		new GoalsModal(ctx.app, w.year, w.goals, (goals) => ctx.callbacks.onGoalsChange(w.year, goals)).open();
+	});
+
 	const grid = body.createDiv({ cls: "ml-wrap-type-grid" });
 
 	const lead = grid.createDiv({ cls: "ml-wrap-type-lead" });
