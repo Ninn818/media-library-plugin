@@ -50,30 +50,31 @@ The plugin’s UI is organized into several main pages (tabs). You can open it f
 
 | Tab          | Main purpose                                              | Common actions / functions                                                                 |
 | ------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| **Home**     | Snapshot of what you're doing now and what's next        | See current reads/watches, see up-next items, jump into a media item or another tab       |
-| **Dashboard**| High-level stats, goals, and summaries                    | View yearly/all-time stats, track goals, inspect rating charts, see completed/backlog     |
+| **Home**     | Outline of what you're doing now and what's next        | See recent activity, see up-next items, jump into a media item or another tab       |
+| **Dashboard**| High-level stats, goals, and summaries                    | View yearly/all-time stats, track goals, inspect rating charts, see completed vs uncompleted     |
 | **Media**    | Core catalog of all media notes                           | Browse all items, search, filter, sort, switch view (cards/gallery/table), open item page |
-| **Diary**    | Journal-style list by completion date                     | See items finished per day/month, scroll timeline, open item/activity from a date         |
-| **Activity** | Detailed timeline of activity entries                     | View starts/finishes/status changes, edit entries, create/edit linked review notes        |
+| **Diary**    | Journal-style list by completion date                     | See items finished per day/month, scroll timeline, see rewatched/reread titles, open item/activity from a date         |
+| **Activity** | Detailed timeline of activity entries                     | View starts/finishes/status changes, edit entries, create/edit review notes        |
 | **Lists**    | Custom collections and projects                           | Create lists, add/remove items, manage themed collections and watch/read plans            |
-| **Tags**     | Tag-centric exploration and organization                  | Browse tags, see items per tag, clean up or adjust tagging                                |
+| **Tags**     | Tag media titles to give them tailored-to-you categories           | Browse tags, see items per tag, clean up or adjust tagging                                |
 | **Year in Media** | Yearly recap of everything for a chosen year        | Choose a year, review recap, export Markdown recap, export/share image, or both           |
 
 ### Home
 
 - Shows what you are currently reading or watching.
-- Shows what’s up next (e.g., backlog, queued items).
+- Shows what’s up next (default is a random selection of media but can be edited in the lists tab (there by default))
+- Shows favorites (default is top-rated selection of media but can be edited in the lists tab (there by default))
 - Quick entry point into the rest of your library.
 
 ### Dashboard
 
-- Overview of your reading and watching over time.
+- Overview of your media over time.
 - Configurable for:
   - Yearly or all-time view.
   - Per-media-type goals (books, movies, series, essays).
 - Typical sections:
-  - Goals vs. progress.
-  - Completed items and backlog.
+  - Goals progress.
+  - Completed items and uncompleted items
   - Rating distribution and charts.
   - Quick picks and summary metrics.
 
@@ -83,7 +84,7 @@ The plugin’s UI is organized into several main pages (tabs). You can open it f
 - Browse **all** media notes that the plugin recognizes.
 - Switch between cards / gallery / table layouts.
 - Search, filter, and sort your entire collection.
-- Drill into an item to see details, activity, and related notes.
+- Open activity modal to see details, activity, and related notes.
 
 ### Diary
 
@@ -96,21 +97,18 @@ The plugin’s UI is organized into several main pages (tabs). You can open it f
 - Combined timeline of:
   - Library events (items added, status changes, etc.).
   - Activity entries (starts, stops, finishes, rating changes, notes).
-- From here you can:
-  - Edit activity entries.
-  - Create linked review notes from an activity or its edit form.
+
 
 ### Lists
 
 - Custom collections of media notes.
 - Examples:
-  - "2026 TBR", "Cozy mysteries", "Horror October", "Re-watch list".
+  - "2026 TBR", "Cozy", "Comfort shows", "Re-watch list".
 - Manage which items are in which lists.
 - Good for planning, themed collections, and projects.
 
 ### Tags
 
-- Tag-centric view of your library.
 - See which tags are most used and which notes use them.
 - Manage tags directly from the plugin’s UI to organize your vault.
 
@@ -124,7 +122,7 @@ The plugin’s UI is organized into several main pages (tabs). You can open it f
 - Export options:
   - Save the recap as a Markdown note.
   - Export a shareable image.
-  - Or both at once.
+  - Or both.
 
 ---
 
@@ -176,36 +174,10 @@ The plugin’s UI is organized into several main pages (tabs). You can open it f
    ---
    ```
 
-2. Add as many notes as you want for books, movies, series, and essays.
-3. Open the library from:
+2. Open the library from:
    - The **Media library** ribbon icon, or
    - The **Open media library** command.
-4. If you change metadata or add new notes, run **Refresh media library** to rescan.
-
----
-
-## Settings
-
-Open **Settings → Media Library Plugin** to configure:
-
-- **General**
-  - Where the library opens (pane / window).
-  - Which page opens first (Home, Media, etc.).
-- **Display**
-  - Default sorting and view mode.
-  - Tag display format.
-  - Default card counts and layout behavior.
-  - Enable / disable UI animations.
-  - Rating display scale (5 or 10 stars).
-- **Dashboard & goals**
-  - Dashboard default time period.
-  - Visible dashboard sections.
-  - Yearly goals per media type (books, movies, series, essays).
-- **Spotlight & reviews**
-  - Whether the spotlight includes a review editor.
-  - Review behavior and linking.
-
-(Options may evolve; see the in-app settings for the latest list.)
+3. If you change metadata or add new notes, run **Refresh media library** to rescan.
 
 ---
 
@@ -216,10 +188,6 @@ Open **Settings → Media Library Plugin** to configure:
   - Ensure `type`, `mediaType`, or `media` has a supported value
     (`book`, `movie`/`film`, `series`/`tv`, `essay`).
   - Then run **Refresh media library**.
-
-- **The plugin does not appear**
-  - Confirm the plugin is enabled in Obsidian.
-  - Check that the plugin folder contains `manifest.json`, `main.js`, and `styles.css`.
 
 - **A recap is missing a completion or review**
   - Add a completion date or explicit activity entry to the media note.
