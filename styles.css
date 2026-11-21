@@ -404,16 +404,16 @@
 }
 
 .media-library-page-tab {
-	padding: 0 0 5px;
+	padding: 4px 0 8px;
 	border: none;
 	border-radius: 0;
 	background: transparent;
 	box-shadow: none;
 	color: var(--text-muted);
-	font-weight: 600;
+	font-weight: 500;
 	text-transform: uppercase;
-	letter-spacing: 0.12em;
-	font-size: 0.67em;
+	letter-spacing: 0.1em;
+	font-size: 0.95em;
 	border-bottom: 2px solid transparent;
 	opacity: 0.7;
 	transition: opacity 140ms ease, color 140ms ease, border-color 140ms ease;
@@ -4105,8 +4105,8 @@ button.media-diary-head-sort.is-active {
 	display: grid;
 	justify-items: center;
 	gap: 1px;
-	width: 84px;
-	padding: 14px 6px 8px;
+	width: 80px;
+	padding: 14px 6px 6px;
 	border: 1px solid var(--background-modifier-border-hover);
 	border-radius: 6px;
 	background: var(--background-secondary);
@@ -4145,7 +4145,7 @@ button.media-diary-head-sort.is-active {
 /* Day */
 
 .media-diary-cell.is-day {
-	font-size: 2.3em;
+	font-size: 1.5em;
 	font-weight: 200;
 	line-height: 1;
 	font-variant-numeric: tabular-nums;
@@ -4197,10 +4197,9 @@ button.media-diary-head-sort.is-active {
 	overflow: hidden;
 	-webkit-box-orient: vertical;
 	-webkit-line-clamp: 2;
-	font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-	font-size: 1.35em;
-	font-weight: 700;
-	line-height: 1.2;
+	font-size: 1.15em;
+	font-weight: 500;
+	line-height: 1.5;
 	color: var(--text-normal);
 	overflow-wrap: anywhere;
 }
@@ -4241,6 +4240,18 @@ button.media-diary-head-sort.is-active {
 .media-diary-icon svg {
 	width: 18px;
 	height: 18px;
+}
+
+.media-diary-rewatch-indicator {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--text-muted);
+}
+
+.media-diary-rewatch-count {
+	font-size: 0.8em;
+	font-variant-numeric: tabular-nums;
 }
 
 .media-diary-icon.is-like {

@@ -652,13 +652,13 @@ export class LibraryView extends ItemView {
 			const row = list.createDiv({ cls: "media-diary-row media-diary-grid" });
 			const entries = item.activityEntries ?? [];
 
-			// Month badge (first entry of each month only)
+			// Keep the month visible when sorting by other columns; group it when sorted by date.
 			const monthCell = row.createDiv({ cls: "media-diary-cell is-month" });
 			const month = getMonthAbbreviation(item.date);
 			const parsed = item.date ? new Date(item.date) : null;
 			const yearLabel = parsed && !Number.isNaN(parsed.getTime()) ? String(parsed.getFullYear()) : "";
 			const monthKey = `${yearLabel}-${month}`;
-			if (groupByMonth && monthKey !== previousMonthKey) {
+			if (!groupByMonth || monthKey !== previousMonthKey) {
 				const badge = monthCell.createDiv({ cls: "media-diary-month-badge" });
 				badge.createDiv({ cls: "media-diary-month-name", text: month });
 				badge.createDiv({ cls: "media-diary-month-year", text: yearLabel });
@@ -699,12 +699,22 @@ export class LibraryView extends ItemView {
 				icon.setAttr("aria-label", "Favorite");
 			}
 
-			// Rewatch (more than one logged entry)
+			// Count completed reads or watches only; in-progress entries do not trigger the badge.
 			const rewatchCell = row.createDiv({ cls: "media-diary-cell is-rewatch" });
-			if (entries.length > 1) {
-				const icon = rewatchCell.createSpan({ cls: "media-diary-icon" });
+			const completionStatus = item.mediaType === "book" || item.mediaType === "essay" ? "read" : "watched";
+			const completionCount = entries.filter(
+				(entry) => entry.status?.trim().toLowerCase() === completionStatus,
+			).length;
+			if (completionCount > 1) {
+				const indicator = rewatchCell.createSpan({ cls: "media-diary-rewatch-indicator" });
+				indicator.setAttr("role", "img");
+				const completionLabel = completionStatus === "read" ? "Read" : "Watched";
+				indicator.setAttr("aria-label", `${completionLabel} ${completionCount} times`);
+				indicator.setAttr("title", `${completionLabel} ${completionCount} times`);
+				const icon = indicator.createSpan({ cls: "media-diary-icon" });
 				setIcon(icon, "repeat");
-				icon.setAttr("aria-label", "Rewatched");
+				icon.setAttr("aria-hidden", "true");
+				indicator.createSpan({ cls: "media-diary-rewatch-count", text: String(completionCount) });
 			}
 
 			// Review (any entry with a note)

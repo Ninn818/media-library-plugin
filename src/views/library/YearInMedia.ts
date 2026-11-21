@@ -959,22 +959,22 @@ function buildPersona(args: {
 	}
 
 	let title = "The omnivore";
-	let blurb = "A bit of everything. No single medium owns you.";
+	let blurb = "A bit of everything. You enjoy stories in all forms.";
 
 	if (share(byType[top]) >= 0.45) {
 		const byTop: Record<MediaType, [string, string]> = {
-			book: ["The bookworm", "Pages were your natural habitat this year."],
-			movie: ["The cinephile", "The lights went down a lot. Films carried your year."],
-			series: ["The serial devotee", "You commit to a world for the long haul."],
-			essay: ["The essayist", "You went looking for arguments and found plenty."],
+			book: ["The bookworm", "Pages were your home this year."],
+			movie: ["The cinephile", "Films carried your year."],
+			series: ["The binge-watcher", "You commit to a world for the long haul."],
+			essay: ["The Thinker", "You went in search of ideas and perspectives."],
 		};
 		[title, blurb] = byTop[top];
 	} else if (share(byType.book) + share(byType.essay) >= 0.6) {
 		title = "The reader";
 		blurb = "Most of your year happened on the page.";
 	} else if (share(byType.movie) + share(byType.series) >= 0.8) {
-		title = "The screen devotee";
-		blurb = "Your year was lit by a screen.";
+		title = "The screen lover";
+		blurb = "You spent the year enjoying stories on screen.";
 	}
 
 	const traits: string[] = [];
